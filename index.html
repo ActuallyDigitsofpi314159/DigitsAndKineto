@@ -1,0 +1,1697 @@
+<!DOCTYPE html><!---
+Hello!
+This is the source code for D.K. Converter.
+
+Credit to GitHub Copilot for helping me write this code!
+
+It took around 4 months to get this code to where it is now, and I hope you enjoy using it as much as I enjoyed making it!
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>D.K. Converter</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.js"></script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5106059135854508"
+     crossorigin="anonymous"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+    /* === D.K. CONVERTER VARIABLES === */
+    :root {
+        /* Color Palette */
+        --color-bg-primary: #020207; 
+        --color-bg-secondary: rgba(15, 15, 25, 0.85); 
+        --color-text-primary: #f0f8ff; 
+        --color-text-secondary: #9aa7b5; 
+
+        /* Core Accent Colors */
+        --color-neon-green: #3fff7d; 
+        --color-neon-blue: #55b6ff; 
+        --color-accent-dark: #1f5f37;
+        
+        /* Glass/Border */
+        --color-border-green: rgba(63, 255, 125, 0.4); 
+        --color-border-blue: rgba(85, 182, 255, 0.4); 
+
+        /* Glow Effects */
+        --shadow-glow-green: 0 0 10px var(--color-neon-green), 0 0 35px rgba(63, 255, 125, 0.5); 
+        --shadow-glow-blue: 0 0 10px var(--color-neon-blue), 0 0 35px rgba(85, 182, 255, 0.5); 
+        
+        --font-stack: 'Poppins', sans-serif; 
+        --font-header: 'Roboto Mono', monospace; /* Header Font */
+
+        --border-radius-lg: 18px; 
+        --border-radius-sm: 8px;
+    }
+
+    /* === SCROLLBAR STYLING === */
+    ::-webkit-scrollbar {
+        width: 10px;
+    }
+    ::-webkit-scrollbar-track {
+        background: var(--color-bg-primary);
+    }
+    ::-webkit-scrollbar-thumb {
+        background: var(--color-accent-dark);
+        border-radius: 5px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--color-neon-green);
+    }
+    
+    body {
+        font-family: var(--font-stack);
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        background-color: var(--color-bg-primary);
+        color: var(--color-text-primary);
+        line-height: 1.6;
+        /* subtle, focused background gradients */
+        background-image: radial-gradient(circle at 10% 20%, rgba(63, 255, 125, 0.1) 0%, transparent 40%),
+                          radial-gradient(circle at 90% 80%, rgba(85, 182, 255, 0.1) 0%, transparent 40%);
+        min-height: 100vh;
+    }
+
+    /* === TYPOGRAPHY & HEADERS === */
+    h1 {
+        font-family: var(--font-header); 
+        color: var(--color-neon-blue); 
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 15px;
+        border-bottom: 3px solid;
+        
+        /* animated */
+        border-image: linear-gradient(to right, transparent 5%, var(--color-neon-green) 40%, var(--color-neon-blue) 60%, transparent 95%) 1;
+        
+        font-size: 2.8em;
+        letter-spacing: 5px; 
+        text-shadow: var(--shadow-glow-blue); /* Blue glow */
+        font-weight: 700;
+        
+        /* Neon Flicker Animation */
+        animation: neon-flicker-blue 4s infinite alternate ease-in-out;
+    }
+
+    h2 {
+        color: var(--color-text-primary);
+        font-size: 1.8em;
+        margin-top: 40px;
+        border-bottom: none;
+        padding-bottom: 5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+    }
+
+    h3 {
+        color: var(--color-neon-green);
+        font-size: 1.2em;
+        margin-top: 5px;
+        font-weight: 600;
+    }
+    
+    h5 {
+        color: var(--color-text-secondary);
+        font-weight: 400;
+        font-size: 0.9em;
+    }
+
+    /* === CONTAINER & HOLOGRAPHIC EFFECT === */
+    .container {
+        background-color: var(--color-bg-secondary);
+        border: 2px solid var(--color-border-green);
+        padding: 40px;
+        border-radius: var(--border-radius-lg);
+        
+        /* Glassmorphism Blur */
+        backdrop-filter: blur(15px) saturate(250%);
+        -webkit-backdrop-filter: blur(15px) saturate(250%);
+        
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8), var(--shadow-glow-green);
+        transition: transform 0.6s ease-out, box-shadow 0.6s ease-out;
+        transform-style: preserve-3d;
+        will-change: transform; 
+        
+        /* Grid Background */
+        background-image: linear-gradient(0deg, transparent 50%, rgba(63, 255, 125, 0.05) 50%),
+                          linear-gradient(90deg, transparent 50%, rgba(85, 182, 255, 0.05) 50%);
+        background-size: 4px 4px;
+        animation: holographic-shift 6s linear infinite;
+    }
+
+    .container:hover {
+        transform: perspective(1000px) rotateX(1deg) rotateY(1deg) translateZ(5px);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), var(--shadow-glow-green);
+    }
+    
+    .container form {
+        display: flex;
+        flex-direction: column;
+        gap: 25px; 
+        transform: translateZ(0); 
+    }
+
+    /* Input Grouping Fieldset */
+    .input-group {
+        border: 1px solid var(--color-border-blue);
+        border-radius: var(--border-radius-sm);
+        padding: 20px;
+        margin-top: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+        box-shadow: inset 0 0 10px rgba(85, 182, 255, 0.1);
+    }
+    .input-group legend {
+        color: var(--color-neon-blue);
+        font-weight: 700;
+        padding: 0 10px;
+        margin-left: -10px;
+    }
+
+    /* === INPUTS & FORMS === */
+    label {
+        color: var(--color-text-primary);
+        font-weight: 600;
+        font-size: 1.1em;
+        display: flex;
+        align-items: center;
+        text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        margin-bottom: -15px; 
+    }
+
+    input[type="number"], input[type="file"] {
+        background-color: #0d0d15;
+        color: var(--color-text-primary);
+        border: 1px solid #333;
+        padding: 18px 16px; 
+        border-radius: var(--border-radius-sm);
+        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.8);
+        transition: border-color 0.3s, box-shadow 0.3s;
+        font-family: var(--font-header);
+    }
+
+    input[type="file"] {
+        border: 2px dashed var(--color-border-green);
+        background-color: #080810;
+    }
+
+    input[type="number"]:focus, input[type="file"]:focus {
+        border-color: var(--color-neon-green);
+        box-shadow: 0 0 0 3px rgba(63, 255, 125, 0.3), 
+                    inset 0 0 10px rgba(63, 255, 125, 0.6),
+                    0 0 15px var(--color-neon-green); 
+    }
+
+    /* === BUTTON STYLING === */
+    button {
+        padding: 16px; 
+        width: 100%; 
+        box-sizing: border-box; 
+        border: none; 
+        cursor: pointer;
+        border-radius: var(--border-radius-sm);
+        font-weight: 700;
+        letter-spacing: 2px; 
+        transition: all 0.2s ease;
+    }
+    
+    #generate-button {
+        background: linear-gradient(90deg, var(--color-neon-green), var(--color-neon-blue));
+        background-size: 200% 100%;
+        background-position: 0% 0%;
+        transition: background-position 0.6s ease, 
+                    transform 0.2s ease, 
+                    box-shadow 0.2s ease;
+
+        color: var(--color-bg-primary);
+        margin-top: 40px;
+        box-shadow: 0 8px 30px rgba(63, 255, 125, 0.6);
+        font-size: 1.4em;
+        text-transform: uppercase;
+        font-family: var(--font-header);
+    }
+
+    #generate-button:hover {
+        background-position: 100% 0%;
+        transform: translateY(-2px) scale(1.01);
+        box-shadow: 0 12px 35px rgba(85, 182, 255, 0.7);
+    }
+
+    #generate-button:active {
+        transform: translateY(2px) scale(0.99);
+        box-shadow: 0 2px 10px rgba(74, 222, 128, 0.7);
+    }
+
+
+    .copy-button {
+        background: radial-gradient(circle at center, var(--color-neon-blue), #2563eb);
+        color: var(--color-text-primary);
+        padding: 12px 25px;
+        font-weight: 600;
+        flex-shrink: 0;
+        width: auto; 
+        border-radius: var(--border-radius-sm);
+        box-shadow: 0 3px 15px rgba(59, 130, 246, 0.5);
+        font-family: var(--font-header);
+    }
+    .copy-button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 8px 25px rgba(59, 130, 246, 0.8);
+    }
+    .copy-button:active {
+        transform: translateY(1px) scale(0.99);
+        box-shadow: 0 1px 5px rgba(59, 130, 246, 0.7);
+    }
+
+    /* Separator with Animated Border */
+    .form-separator {
+        height: 1px;
+        margin: 20px 0;
+        background: linear-gradient(90deg, transparent 0%, var(--color-border-green) 50%, transparent 100%);
+        border: none;
+        animation: border-pulse 4s infinite ease-in-out;
+    }
+
+    /* === CODE BLOCKS & RESULTS === */
+    pre {
+        background-color: #080810;
+        color: var(--color-neon-green);
+        padding: 30px; 
+        overflow-x: auto; 
+        white-space: pre; 
+        word-wrap: normal;
+        
+        border: 2px solid var(--color-neon-green);
+        background-image: linear-gradient(rgba(63, 255, 125, 0.05) 1px, transparent 1px), 
+                          linear-gradient(90deg, rgba(63, 255, 125, 0.05) 1px, transparent 1px);
+        background-size: 20px 20px;
+        box-shadow: var(--shadow-glow-green);
+        border-radius: var(--border-radius-lg); 
+        font-family: var(--font-header); /* monospace for code */
+        font-size: 0.95em;
+    }
+
+    #utilityOutput {
+        border-color: var(--color-neon-blue);
+        box-shadow: var(--shadow-glow-blue);
+        background-image: linear-gradient(rgba(85, 182, 255, 0.05) 1px, transparent 1px),
+                          linear-gradient(90deg, rgba(85, 182, 255, 0.05) 1px, transparent 1px);
+        background-size: 20px 20px;
+    }
+
+    /* Override highlight.js background to keep custom styling */
+    pre.hljs {
+        background-color: #080810 !important;
+        background-image: linear-gradient(rgba(63, 255, 125, 0.05) 1px, transparent 1px), 
+                          linear-gradient(90deg, rgba(63, 255, 125, 0.05) 1px, transparent 1px) !important;
+    }
+
+    #utilityOutput.hljs {
+        background-color: #080810 !important;
+        background-image: linear-gradient(rgba(85, 182, 255, 0.05) 1px, transparent 1px),
+                          linear-gradient(90deg, rgba(85, 182, 255, 0.05) 1px, transparent 1px) !important;
+    }
+
+    /* === KEYFRAME ANIMATIONS === */
+    @keyframes neon-flicker-blue {
+        0% { 
+            text-shadow: var(--shadow-glow-blue); 
+            opacity: 1; 
+            border-color: var(--color-neon-blue); 
+        }
+        1% { 
+            text-shadow: 0 0 5px var(--color-neon-green); 
+            opacity: 0.9; 
+            border-color: var(--color-neon-green); 
+        }
+        2% { 
+            text-shadow: var(--shadow-glow-blue); 
+            opacity: 1; 
+            border-color: var(--color-neon-blue); 
+        }
+        3% { 
+            text-shadow: none; 
+            opacity: 0.8; 
+        }
+        4% { 
+            text-shadow: var(--shadow-glow-blue); 
+            opacity: 1; 
+            border-color: var(--color-neon-blue); 
+        }
+        50% { 
+            text-shadow: var(--shadow-glow-blue); 
+            opacity: 1; 
+        }
+        100% { 
+            text-shadow: var(--shadow-glow-blue); 
+            opacity: 1; 
+        }
+    }
+    
+    @keyframes holographic-shift {
+        from { background-position: 0 0; }
+        to { background-position: 40px 40px; }
+    }
+    
+    @keyframes border-pulse {
+        0% { opacity: 0.5; }
+        50% { opacity: 1; }
+        100% { opacity: 0.5; }
+    }
+    
+    .result-header {
+        margin-top: 50px;
+        margin-bottom: 20px;
+        padding-top: 20px;
+        border-top: 1px solid var(--color-border-green);
+        display: flex; 
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+    }
+    .result-info-box {
+        flex-grow: 1; 
+    }
+    .error {
+        color: var(--color-error);
+        font-weight: 600; 
+        padding: 10px; 
+        border: 1px solid 
+        var(--color-error); border-radius: 
+        var(--border-radius-sm); 
+        background-color: rgba(255, 82, 82, 0.1); 
+    }
+    .success { color: var(--color-success); font-weight: 600; padding: 10px; border: 1px solid var(--color-success); border-radius: var(--border-radius-sm); background-color: rgba(63, 255, 125, 0.1); }
+
+    input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { 
+        -webkit-appearance: none;
+        margin: 0; 
+    }
+    input[type=number] { 
+        appearance: textfield;
+        -moz-appearance: textfield; 
+    } 
+    
+    #loading-screen {
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 100%; 
+        display: none; 
+        flex-direction: column; 
+        justify-content: center; 
+        align-items: center; 
+        background: rgba(2, 2, 7, 0.98); 
+        backdrop-filter: blur(15px); 
+        z-index: 1000; 
+        color: var(--color-text-primary); 
+        font-family: var(--font-stack); 
+        gap: 20px;
+    }
+    #loading-screen p { 
+        color: var(--color-text-secondary); 
+    }
+    #loading-screen h2 { 
+        font-size: 2.5em; 
+        color: var(--color-neon-green); 
+        animation: pulse 1.5s infinite alternate; 
+        margin: 0; 
+    }
+    #progress-container {
+        width: 100%;
+        max-width: 400px;
+        margin: 20px auto;
+        background-color: rgba(15, 15, 25, 0.5);
+        border: 1px solid var(--color-border-green);
+        border-radius: 10px;
+        padding: 5px;
+        position: relative;
+    }
+    #progress-bar {
+        height: 20px;
+        background: linear-gradient(90deg, var(--color-neon-green), var(--color-neon-blue));
+        border-radius: 8px;
+        width: 0%;
+        transition: width 0.3s ease;
+    }
+    #progress-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: var(--color-text-primary);
+        font-weight: bold;
+    }
+    @keyframes pulse { from { 
+        opacity: 0.8; 
+        text-shadow: 0 0 5px rgba(63, 255, 125, 0.3); 
+    } to {
+        opacity: 1; 
+        text-shadow: 0 0 20px rgba(63, 255, 125, 0.8); 
+    } }
+
+    /* Spinner for long-running conversions */
+    #spinner {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        border: 5px solid rgba(63,255,125,0.12);
+        border-top-color: var(--color-neon-green);
+        box-shadow: 0 0 18px rgba(63,255,125,0.35);
+        animation: spin 0.95s linear infinite;
+    }
+    @keyframes spin { to { 
+        transform: rotate(360deg); 
+    } }
+
+    /* Keep a simple fallback container style so the spinner sits nicely */
+    .loading-spinner-wrap { 
+        width: 90px; 
+        height: 90px; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+    }
+
+    /* === AD STYLES === */
+    .ad-banner, .loading-ad {
+        background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+        border: 1px solid rgba(255,255,255,0.04);
+        border-radius: 10px;
+        color: var(--color-text-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 8px 12px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    }
+    .ad-banner img, .loading-ad img { 
+        max-height: 
+        48px; max-width: 100%; 
+        border-radius: 6px; 
+    }
+    .ad-banner {
+        width: 100%; 
+        margin: 12px 0; 
+    }
+
+    /* === MOBILE RESPONSIVENESS === */
+    @media (max-width: 768px) {
+        body {
+            font-size: 14px;
+        }
+        h1 {
+            font-size: 2em;
+        }
+        .container {
+            padding: 20px;
+            max-width: 100%;
+        }
+        .form-section {
+            flex-direction: column;
+        }
+        .form-section > div {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        input[type="number"], input[type="file"] {
+            font-size: 16px; /* Prevents zoom on iOS */
+        }
+        #generate-button {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+        }
+        .result-header {
+            flex-direction: column;
+            text-align: center;
+        }
+        .copy-button {
+            width: 100%;
+            margin-top: 10px;
+        }
+        pre {
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        #loading-screen h2 {
+            font-size: 1.5em;
+        }
+        .loading-ad {
+            margin: 10px 0;
+        }
+    }
+    .loading-ad { 
+        width: 320px; 
+        max-width: 85vw; 
+        text-align: center; 
+        margin-top: 12px; 
+        flex-direction: column; 
+    }
+    .ad-text { 
+        font-size: 0.9em; 
+        color: var(--color-text-secondary); 
+    }
+
+</style>
+</head>
+<body>
+    
+    <div id="loading-screen" role="status" aria-live="polite">
+        <h2>PROCESSING IMAGE...</h2>
+        <p id="loading-status">this may take a while, please be patient</p>
+        <div class="loading-spinner-wrap">
+            <div id="spinner" aria-hidden="true"></div>
+        </div>
+        <div class="loading-ad" id="loading-ad" aria-hidden="true">
+            <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5106059135854508"
+     crossorigin="anonymous"></script>
+<!-- Unit 2 -->
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-5106059135854508"
+     data-ad-slot="5816744868"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+        </div>
+        <div class="loading-ad" id="loading-ad2" aria-hidden="true">
+            <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5106059135854508"
+     crossorigin="anonymous"></script>
+<!-- Unit 3 -->
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-5106059135854508"
+     data-ad-slot="3378477306"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+        </div>
+    </div>
+
+    <h1>D.K. CONVERTER</h1>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5106059135854508"
+     crossorigin="anonymous"></script>
+<!-- Unit 1 -->
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-5106059135854508"
+     data-ad-slot="9943885659"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+    <div class="container">
+        
+        <p class="error" id="error" style="display: none;"></p>
+        
+        <p class="success" id="success" style="display: none;"></p>
+        
+        <form id="uploadForm" onsubmit="return showLoading()">
+            <label for="image_file">Image Source 📁</label>
+            <input type="file" name="image_file" id="image_file" accept="image/*" required>
+            
+            <hr class="form-separator">
+
+            <fieldset class="input-group">
+                <legend>Conversion Parameters</legend>
+                
+                <label for="color_count">Individual Colors <span style="color: var(--color-accent-dark); font-weight: 400;"> (Max: <span id="maxColors">1000</span>)</span></label>
+                <input type="number" name="color_count" id="color_count" value="100" min="1" max="1000" required>
+                
+                <label for="max_resolution">Max Output Dimentions <span style="color: var(--color-accent-dark); font-weight: 400;"> (Longest side in pixels)</span></label>
+                <input type="number" name="max_resolution" id="max_resolution" value="400" min="1" required> 
+            </fieldset>
+
+            <button type="submit" id="generate-button">Convert Image/GIF</button>
+        </form>
+        <div id="converted-counter" style="margin-top: 14px; color: var(--color-text-secondary); font-weight:600;">
+            Converted images: <span id="converted-count">0</span>
+        </div>
+    </div>
+
+    <div id="utility-section">
+        <div class="result-header">
+            <div class="result-info-box">
+                <h2>Utility Function Code</h2>
+                <h5>This function is essential for drawing the image.<br>Paste it <strong>before</strong> the generated image code.</h5>
+            </div>
+            <button class="copy-button" onclick="copyUtility(this)">📋 COPY UTILITY</button>
+            
+
+        </div>
+        <pre id="utilityOutput" class="language-javascript">
+// Utility code for DK converter. It can also draw normal pixel arts, at an optimized speed. [
+
+// stores cached pixel art graphics buffers
+var _pixelArtCache = {};
+
+// is it an array?
+function isArray(a) {
+    return Array.isArray(a);
+}
+
+// is it a PImage or similar object?
+function isPImage(obj) {
+    if (!obj) { return false; }
+    try {
+        return (typeof obj.width === "number") || (typeof obj.get === "function");
+    } catch (e) {
+        return false;
+    }
+}
+
+// is it an RLE frame (array of strings)?
+function isRLEFrame(frame) {
+    return isArray(frame) && frame.length > 0 && typeof frame[0] === "string";
+}
+
+// build a cache key for pixel art rendering
+function buildCacheKey(data, frameIndex, pixelSize, colorMap) {
+    var prefix = "";
+    try {
+        prefix = JSON.stringify(data);
+    } catch (e) {
+        prefix = String(data);
+    }
+
+    var cmap = "";
+    try {
+        cmap = JSON.stringify(colorMap);
+    } catch (e2) {
+        cmap = String(colorMap);
+    }
+
+    return prefix + "|" + String(frameIndex) + "|" + String(pixelSize) + "|" + cmap;
+}
+
+// Clear the entire pixel art cache
+function clearPixelArtCache() {
+    _pixelArtCache = {};
+}
+
+// Invalidate a specific pixel art cache entry
+function invalidatePixelArtCacheFor(data, frameIndex, pixelSize, colorMap) {
+    var key = buildCacheKey(data, frameIndex, pixelSize, colorMap);
+    if (_pixelArtCache[key]) {
+        delete _pixelArtCache[key];
+    }
+}
+
+// Decode a single RLE row string into an array of characters
+function decodeRLERow(row) {
+    var out = [];
+    if (!row) { return out; }
+    var i = 0;
+    var n = row.length;
+
+    while (i < n) {
+        var ch = row.charAt(i);
+
+        // skip digits (should not happen at this point)
+        if (ch >= '0' && ch <= '9') {
+            i++;
+            continue;
+        }
+
+        // advance past the char
+        i++;
+        // collect digits (if any) to form the count
+        var numStr = "";
+        while (i < n) {
+            var d = row.charAt(i);
+            if (d < '0' || d > '9') { break; }
+            numStr += d;
+            i++;
+        }
+
+        var count = numStr.length ? parseInt(numStr, 10) : 1;
+
+        for (var k = 0; k < count; k++) {
+            out.push(ch);
+        }
+    }
+
+    return out;
+}
+
+// Decode an RLE image (array of RLE row strings) into a 2D array of characters
+function decodeRLEImage(lines) {
+    var pixels = [];
+    for (var y = 0; y < lines.length; y++) {
+        pixels[y] = decodeRLERow(lines[y] || "");
+    }
+    return pixels;
+}
+
+// Check if a frame has any visible color based on the color map
+function frameHasVisibleColor(frameData, colorMap) {
+    if (!frameData) { return false; }
+    for (var i = 0; i < frameData.length; i++) {
+        var row = frameData[i];
+        if (!row) { continue; }
+        // check each character in the row
+        for (var k = 0; k < row.length; k++) {
+            var ch = row[k];
+            if (ch !== "-" && colorMap && colorMap[ch] !== undefined) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// Draw decoded pixel data to a graphics buffer
+function drawDecodedToGraphics(g, px, pixelSize, palette) {
+    // Attempt to disable smoothing to keep crisp edges
+    try {
+        // idk if this actually works in KA
+        if (typeof g.noSmooth === "function") { g.noSmooth(); }
+    } catch (e) { }
+
+    // ensure corner alignment
+    try {
+        if (typeof g.rectMode === "function") { g.rectMode(CORNER); }
+    } catch (e2) { }
+
+    g.noStroke();
+
+    for (var y = 0; y < px.length; y++) {
+        var row = px[y] || [];
+        var x = 0;
+        while (x < row.length) {
+            var ch = row[x];
+            var start = x;
+            x++;
+            while (x < row.length && row[x] === ch) { x++; }
+            var run = x - start;
+
+            if (ch === "-" || ch === null || ch === undefined) {
+                // transparent pixel, skip
+                continue;
+            }
+
+            var col = palette && palette[ch];
+            if (!col) {
+                // unmapped symbol, skip
+                continue;
+            }
+
+            // compute rectangle coordinates
+            var x1 = round(start * pixelSize);
+            var x2 = round((start + run) * pixelSize);
+            var y1 = round(y * pixelSize);
+            var y2 = round((y + 1) * pixelSize);
+
+            var gw = x2 - x1;
+            var gh = y2 - y1;
+
+            if (gw <= 0 || gh <= 0) { continue; }
+
+            if (isArray(col)) {
+                if (col.length === 4) {
+                    g.fill(col[0], col[1], col[2], col[3]);
+                } else {
+                    g.fill(col[0], col[1], col[2]);
+                }
+            } else {
+                g.fill(col);
+            }
+
+            g.rect(x1, y1, gw, gh);
+        }
+    }
+}
+
+// Main renderer
+function drawHugePixelArt(startX, startY, pixelSize, canvasData, colorMap, frame) {
+    // tiny safety margin for buffer sizing, but not used for drawing
+    var sizeMargin = 1; 
+    noStroke();
+
+    // IMAGE PATHS first
+    if (isArray(canvasData) && canvasData.length > 0 && isPImage(canvasData[0])) {
+        if (frame === undefined) { frame = 1; }
+        frame = Math.floor(frame);
+        var idx = ((frame - 1) % canvasData.length + canvasData.length) % canvasData.length;
+        var img = canvasData[idx];
+        if (!img) { return; }
+
+        var w = (typeof img.width === "number") ? img.width : (img.getWidth ? img.getWidth() : 0);
+        var h = (typeof img.height === "number") ? img.height : (img.getHeight ? img.getHeight() : 0);
+
+        image(img, startX, startY, round(w * pixelSize), round(h * pixelSize));
+        return;
+    }
+
+    if (isPImage(canvasData)) {
+        var w2 = (typeof canvasData.width === "number") ? canvasData.width : (canvasData.getWidth ? canvasData.getWidth() : 0);
+        var h2 = (typeof canvasData.height === "number") ? canvasData.height : (canvasData.getHeight ? canvasData.getHeight() : 0);
+
+        image(canvasData, startX, startY, round(w2 * pixelSize), round(h2 * pixelSize));
+        return;
+    }
+
+    // RLE PATH
+    var isFrames = isArray(canvasData) && canvasData.length > 0 && isRLEFrame(canvasData[0]);
+
+    var data;
+    var frameIndex = 0;
+
+    if (isFrames) {
+        if (frame === undefined) { frame = 1; }
+        frame = Math.floor(frame);
+
+        var idx2 = ((frame - 1) % canvasData.length + canvasData.length) % canvasData.length;
+
+        var attempts = 0;
+        var chosenIndex = idx2;
+        while (attempts < canvasData.length) {
+            var candidate = canvasData[chosenIndex];
+            if (frameHasVisibleColor(candidate, colorMap)) {
+                break;
+            }
+            chosenIndex = (chosenIndex - 1 + canvasData.length) % canvasData.length;
+            attempts++;
+        }
+
+        data = canvasData[chosenIndex];
+        frameIndex = chosenIndex;
+    } else {
+        if (!isArray(canvasData) || !isRLEFrame(canvasData)) {
+            return;
+        }
+        data = canvasData;
+        frameIndex = 0;
+    }
+
+    if (!data || data.length === 0) { return; }
+
+    var cacheKey = buildCacheKey(data, frameIndex, pixelSize, colorMap);
+
+    if (!_pixelArtCache[cacheKey]) {
+        // decode fully (2D char array)
+        var decoded = decodeRLEImage(data);
+
+        // compute max cols and rows
+        var maxCols = 0;
+        for (var r = 0; r < decoded.length; r++) {
+            var ln = decoded[r] ? decoded[r].length : 0;
+            if (ln > maxCols) { maxCols = ln; }
+        }
+        var rows = decoded.length;
+
+        var gw = max(1, round(maxCols * pixelSize) + sizeMargin);
+        var gh = max(1, round(rows * pixelSize) + sizeMargin);
+
+        var g = createGraphics(gw, gh, P2D);
+        g.background(0, 0, 0, 0);
+
+        // ensure corner alignment and crisp edges
+        try {
+            if (typeof g.rectMode === "function") { g.rectMode(CORNER); }
+            if (typeof g.noSmooth === "function") { g.noSmooth(); }
+        } catch (e3) { }
+        
+        g.noStroke();
+        
+        // draw to graphics buffer
+        drawDecodedToGraphics(g, decoded, pixelSize, colorMap);
+
+        _pixelArtCache[cacheKey] = g;
+    }
+    // let's light this candle
+    image(_pixelArtCache[cacheKey], startX, startY);
+}
+
+// ]</pre>
+    </div>
+
+    <div id="result-section" style="display: none;">
+        <div class="result-header">
+            <div class="result-info-box">
+                <h2>Generated Image Code</h2>
+                <h3><span id="rectCount">0</span> Rectangles (Pixels) Drawn</h3>
+                <h5>Copy and paste the code below into Khan Academy.</h5>
+            </div>
+            <button class="copy-button" onclick="copyResult(this)">📋 COPY IMAGE CODE</button>
+
+        </div>
+
+        <p style="color: var(--color-text-secondary);">Image data output (wrapped in a function for use with the utility code):</p>
+        <pre id="jsOutput"></pre>
+    </div>
+
+    <script>
+        // A little more than a thousand 
+        const LETTERS = "!#$%&'()*+,./:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~¡¢£¤¥§ª«¬±µ¶º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþĀĂĄĆĊČĎĐĒĖĘĚĞĠĦĨĪĮİĶĻĽŁŃŅŇŌŒœŘŚŞŠŤŨŪŮŰŴŶŸŹŻŽžƆƒƕƙƧƨǍǏǑǓǝǫȘȚɐɞɢɪɴʀʏʙʜʟʬʭΓΔΘΛΞΠΣΦΨΩαβγδεζηθικλμνξπρστυφχψωϠϡϬЁБДЖЙЪЫЭЮЯджйъыэюяёғ৳ะ฿๐๑๒๓๕៛ᴀᴄᴅᴇᴊᴋᴍᴏᴘᴛᴜᴠᴡᴢẞẼ–†‡•…‼⁑₠₡₢₣₤₥₦₧₨₩₪₫€₭₮₯₰₱₳₴℀℁ℂ℃℅℆℉ℍℕℙℚ℠℡™ℤ⅁⅄←↑→↓↔↕↨∀∁∂∃∄∅∇∈∉∊∋∌∍∐∓√∛∜∝∞∟∧∨∩∪∫∬∭∮∴∵∷≂≃≄≅≆≇≈≠≤≥≦≧≨≩≮≯⊂⊃⊄⊅⊆⊇⊊⊋⊌⊍⊎⊕⊖⊗⊘⊙⊚⊛⊜⊠⊡⊰⊱⋇⋐⋑⋒⋓⋖⋗⋚⋛⋜⋝⋞⋟⋠⋡⋢⋣⋤⋥⋦⋧⋨⋩⋯▖▗▘▙▚▛▜▝▞▟■□▣▤▥▦▧▨▩▪▫▬▭▮▯▰▱▲▴▵►▼◀◁◄◆◇◈○◌◍◎◐◑◒◓◔◕◘◙◚◛◜◝◞◟◠◡◢◣◤◥◧◨◩◪◫◬◭◮◰◱◲◳◴◵◶◷◸◹◺◿☼♀♂♠♣♥♦♪♫⩒⫐⫑⫒ぁあぃいぅうぇえぉおかァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネハバパヒビピフブプヘベペホボポマミムメモャヤュ伊儿吉娜开欧艾西诶贼车轩铃龙龟ぢづでどにぬねのはひふへほまみむめもやゆよらりるれろわゐゑをんゔゕゖゝゞヰヱヲヴヵヶヽヾ一二三四五六七八九十百千万上下左右中大小日月火水木金土本人力学生先語時名国年見行来気電車校海空山川花音体心手足口目耳가각간갇갈감갑값갓강개객갠갤거걱건걸검겁것겉게겨격견결겸경계고곡곤곧골곰곱곳공과곽관광괜괴교구국군굴굽궁권귀규균그극근글금급긍기긴길김깊까깍깎깡깨꺼껀껄껌껍껏께껴꼬꼭꼰꼴꼼꼽꽂꽃꽤꾀꾸꾼꿀꿇꿈你我他她它們们好嗎是有無天地風雨龍馬鳥魚草森林愛新長高黒白青赤黄緑अआइईउऊऋएऐओऔंःकखगघङचछजझञटठडढणतथदधनपफबभमयरलवशषसहகஙசஞடணதநபமயரலவழளறனԱԲԳԴԵԶԷԸԹԺԻԼԽԾԿՀՁՂՃՄՅՆՇՈՉՊՋՌՍՎՏՐՑՒՓՔՕՖאבגדהוזחטיךכלםמןנסעףפץצקרשתАВГЕЗИКЛМНОПРСТУФХЦЧШЩЬабвгезиклмнопрстуфхцчшщьāăąćĈĉċčďđēĔĕėęěĜĝğġĢģĤĥħĩīĬĭįıĴĵķĹĺļľłńņňōŎŏŐőŔŕŖŗřśŜŝşšŢţťŦŧũūŬŭůűŲųŵŷźżʁʂʃʄʅʆʇʈʉʊʋʌʍʎʐʑʒʓʔʕʖʗʘʚʛʝʞʠʡʢʣʤʥʦʧʨʩʪʫ∎∏∔∗∘∙∠∡∢∣∤∥∦⊀⊁⊈⊉⊏⊐⊑⊒⊓⊔⊝⊞⊟⊢⊣⊤⊥⊦⊧⊨⊩⊪⊫⊬⊭⊮⊯⊲⊳⊴⊵⊶⊷⊸⊹⊺⊻⊼⊽⊾⊿●◖◗◘▙▚▛▜▝▞▟■□▣▤▥▦▧▨▩▪▫▬▭▮▯▰▱▲▴▵►▼◀◁◄◆◇◈○◌◍◎◐◑◒◓◔◕◘◙◚◛◜◝◞◟◠◡◢◣◤◥◧◨◩◪◫◬◭◮◰◱◲◳◴◵◶◷◸◹◺◿☼♀♂♠♣♥♦♪♫⩒⫐⫑⫒ぁあぃいぅうぇえぉおかァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネハバパヒビピフブプヘベペホボポマミムメモャヤュ伊儿吉娜开欧艾西诶贼车轩铃龙龟ぢづでどにぬねのはひふへほまみむめもやゆよらりるれろわゐゑをんゔゕゖゝゞヰヱヲヴヵヶヽヾ一二三四五六七八九十百千万上下左右中大小日月火水木金土本人力学生先語時名国年見行来気電車校海空山川花音体心手足口目耳가각간갇갈감갑값갓강개객갠갤거걱건걸검겁것겉게겨격견결겸경계고곡곤곧골곰곱곳공과곽관광괜괴교구국군굴굽궁권귀규균그극근글금급긍기긴길김깊까깍깎깡깨꺼껀껄껌껍껏께껴꼬꼭꼰꼴꼼꼽꽂꽃꽤꾀꾸꾼꿀꿇꿈你我他她它們们好嗎是有無天地風雨龍馬鳥魚草森林愛新長高黒白青赤黄緑अआइईउऊऋएऐओऔंःकखगघङचछजझञटठडढणतथदधनपफबभमयरलवशषसहகஙசஞடணதநபமயரலவழளறனԱԲԳԴԵԶԷԸԹԺԻԼԽԾԿՀՁՂՃՄՅՆՇՈՉՊՋՌՍՎՏՐՑՒՓՔՕՖאבגדהוזחטיךכלםמןנסעףפץצקרשתАВГЕЗИКЛМНОПРСТУФХЦЧШЩЬабвгезиклмнопрстуфхцчшщь".slice(0, 1000);
+        
+        // Cap it at a thousand
+        const MAX_ALLOWED_COLORS = 1000;
+        const DEFAULT_MAX_DIMENSION = 400;
+
+        let generatedFuncName = null;
+
+        function rgbToHsv(r, g, b) {
+            r /= 255; g /= 255; b /= 255;
+            const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+            const diff = mx - mn;
+            let h = 0;
+            if (diff !== 0) {
+                if (mx === r) h = (60 * ((g - b) / diff) + 360) % 360;
+                else if (mx === g) h = (60 * ((b - r) / diff) + 120) % 360;
+                else h = (60 * ((r - g) / diff) + 240) % 360;
+            }
+            const s = mx === 0 ? 0 : diff / mx;
+            const v = mx;
+            return [h, s, v];
+        }
+
+        function pixelateImage(img, maxDimension) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const width = img.width, height = img.height;
+            if (Math.max(width, height) > maxDimension) {
+                const scale = maxDimension / Math.max(width, height);
+                canvas.width = Math.max(1, Math.round(width * scale));
+                canvas.height = Math.max(1, Math.round(height * scale));
+            } else {
+                canvas.width = width;
+                canvas.height = height;
+            }
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            return canvas;
+        }
+
+        function pickVariedColors(canvas, maxColors) {
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            let pixels = [];
+            for (let i = 0; i < data.length; i += 4) {
+                if (data[i + 3] > 127) { // Only include opaque pixels
+                    pixels.push([data[i], data[i + 1], data[i + 2]]);
+                }
+            }
+            const nPixels = pixels.length;
+            if (nPixels <= maxColors) {
+                const unique = [...new Set(pixels.map(p => p.join(',')))].map(s => s.split(',').map(Number));
+                let cols = unique.slice(0, maxColors);
+                while (cols.length < maxColors) cols.push([127, 127, 127]);
+                return cols;
+            }
+            // Subsample for performance
+            const sampleSize = Math.min(10000, nPixels);
+            if (nPixels > sampleSize) {
+                const sampled = [];
+                for (let i = 0; i < sampleSize; i++) {
+                    sampled.push(pixels[Math.floor(Math.random() * nPixels)]);
+                }
+                pixels = sampled;
+            }
+            // k-means++
+            let centers = [pixels[Math.floor(Math.random() * pixels.length)]];
+            const distances = new Array(pixels.length).fill(Infinity);
+            for (let i = 1; i < maxColors; i++) {
+                for (let j = 0; j < pixels.length; j++) {
+                    const dist = (pixels[j][0] - centers[centers.length-1][0])**2 + (pixels[j][1] - centers[centers.length-1][1])**2 + (pixels[j][2] - centers[centers.length-1][2])**2;
+                    distances[j] = Math.min(distances[j], dist);
+                }
+                let total = distances.reduce((a, b) => a + b, 0);
+                let rand = Math.random() * total;
+                for (let j = 0; j < pixels.length; j++) {
+                    rand -= distances[j];
+                    if (rand <= 0) {
+                        centers.push(pixels[j]);
+                        break;
+                    }
+                }
+            }
+            // Lloyd iterations
+            let iter = 0;
+            const maxIter = 10;
+            while (iter < maxIter) {
+                const clusters = Array.from({length: maxColors}, () => []);
+                for (const pixel of pixels) {
+                    let minDist = Infinity, idx = 0;
+                    for (let j = 0; j < maxColors; j++) {
+                        const dist = (pixel[0] - centers[j][0])**2 + (pixel[1] - centers[j][1])**2 + (pixel[2] - centers[j][2])**2;
+                        if (dist < minDist) { minDist = dist; idx = j; }
+                    }
+                    clusters[idx].push(pixel);
+                }
+                let changed = false;
+                for (let j = 0; j < maxColors; j++) {
+                    if (clusters[j].length > 0) {
+                        const sum = clusters[j].reduce((a, b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]], [0,0,0]);
+                        const newCenter = sum.map(s => Math.round(s / clusters[j].length));
+                        if (newCenter[0] !== centers[j][0] || newCenter[1] !== centers[j][1] || newCenter[2] !== centers[j][2]) {
+                            centers[j] = newCenter;
+                            changed = true;
+                        }
+                    }
+                }
+                iter++;
+                if (!changed) break;
+            }
+            return centers;
+        }
+
+        function pickVariedColorsFromPixels(pixels, maxColors) {
+            const nPixels = pixels.length;
+            if (nPixels <= maxColors) {
+                const unique = [...new Set(pixels.map(p => p.join(',')))].map(s => s.split(',').map(Number));
+                let cols = unique.slice(0, maxColors);
+                while (cols.length < maxColors) cols.push([127, 127, 127]);
+                return cols;
+            }
+            // Subsample for performance
+            const sampleSize = Math.min(10000, nPixels);
+            if (nPixels > sampleSize) {
+                const sampled = [];
+                for (let i = 0; i < sampleSize; i++) {
+                    sampled.push(pixels[Math.floor(Math.random() * nPixels)]);
+                }
+                pixels = sampled;
+            }
+            // k-means++
+            let centers = [pixels[Math.floor(Math.random() * pixels.length)]];
+            const distances = new Array(pixels.length).fill(Infinity);
+            for (let i = 1; i < maxColors; i++) {
+                for (let j = 0; j < pixels.length; j++) {
+                    const dist = (pixels[j][0] - centers[centers.length-1][0])**2 + (pixels[j][1] - centers[centers.length-1][1])**2 + (pixels[j][2] - centers[centers.length-1][2])**2;
+                    distances[j] = Math.min(distances[j], dist);
+                }
+                let total = distances.reduce((a, b) => a + b, 0);
+                let rand = Math.random() * total;
+                for (let j = 0; j < pixels.length; j++) {
+                    rand -= distances[j];
+                    if (rand <= 0) {
+                        centers.push(pixels[j]);
+                        break;
+                    }
+                }
+            }
+            // Lloyd iterations
+            let iter = 0;
+            const maxIter = 10;
+            while (iter < maxIter) {
+                const clusters = Array.from({length: maxColors}, () => []);
+                for (const pixel of pixels) {
+                    let minDist = Infinity, idx = 0;
+                    for (let j = 0; j < maxColors; j++) {
+                        const dist = (pixel[0] - centers[j][0])**2 + (pixel[1] - centers[j][1])**2 + (pixel[2] - centers[j][2])**2;
+                        if (dist < minDist) { minDist = dist; idx = j; }
+                    }
+                    clusters[idx].push(pixel);
+                }
+                let changed = false;
+                for (let j = 0; j < maxColors; j++) {
+                    if (clusters[j].length > 0) {
+                        const sum = clusters[j].reduce((a, b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]], [0,0,0]);
+                        const newCenter = sum.map(s => Math.round(s / clusters[j].length));
+                        if (newCenter[0] !== centers[j][0] || newCenter[1] !== centers[j][1] || newCenter[2] !== centers[j][2]) {
+                            centers[j] = newCenter;
+                            changed = true;
+                        }
+                    }
+                }
+                iter++;
+                if (!changed) break;
+            }
+            return centers;
+        }
+
+        function assignLettersToColors(canvas, letters, colors) {
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            const rows = canvas.height, cols = canvas.width;
+            const colorsSorted = colors.sort((a, b) => rgbToHsv(...b)[2] - rgbToHsv(...a)[2]);
+            const numColors = Math.min(colorsSorted.length, letters.length);
+            colorsSorted.splice(numColors); // limit to numColors
+            const clusterToLetter = {};
+            for (let i = 0; i < numColors; i++) {
+                clusterToLetter[i] = letters[i];
+            }
+            const letterColors = {};
+            for (let i = 0; i < numColors; i++) {
+                letterColors[letters[i]] = colorsSorted[i];
+            }
+            const asciiLines = [];
+            for (let y = 0; y < rows; y++) {
+                let line = '';
+                for (let x = 0; x < cols; x++) {
+                    const idx = (y * cols + x) * 4;
+                    if (data[idx + 3] > 127) {
+                        // Opaque pixel, assign closest color letter
+                        const pixel = [data[idx], data[idx + 1], data[idx + 2]];
+                        let minDist = Infinity, colorIdx = 0;
+                        for (let j = 0; j < colorsSorted.length; j++) {
+                            const dist = (pixel[0] - colorsSorted[j][0])**2 + (pixel[1] - colorsSorted[j][1])**2 + (pixel[2] - colorsSorted[j][2])**2;
+                            if (dist < minDist) { minDist = dist; colorIdx = j; }
+                        }
+                        line += clusterToLetter[colorIdx];
+                    } else {
+                        // Transparent pixel, assign '-'
+                        line += '-';
+                    }
+                }
+                asciiLines.push(line);
+            }
+            return [asciiLines, letterColors];
+        }
+
+        function compressLine(line) {
+            if (!line) return '';
+            let out = '';
+            let prev = line[0], count = 1;
+            for (let i = 1; i < line.length; i++) {
+                if (line[i] === prev) count++;
+                else {
+                    out += count === 1 ? prev : prev + count;
+                    prev = line[i]; count = 1;
+                }
+            }
+            out += count === 1 ? prev : prev + count;
+            return out;
+        }
+
+        function saveJsInMemory(asciiLines, letterColors, width, height) {
+            let js = `/*\n--- Image Data Generated By D.K. Converter ---\n${width}x${height}, ${width * height} total pixels\nwith ${Object.keys(letterColors).length} different colors used\n*/\nvar createData = [\n`;
+            for (let i = 0; i < asciiLines.length; i++) {
+                js += `    "${compressLine(asciiLines[i])}",\n`;
+            }
+            js += '];\n\nvar colors = {\n';
+            for (const [letter, [r, g, b]] of Object.entries(letterColors)) {
+                js += `    "${letter}": color(${r}, ${g}, ${b}),\n`;
+            }
+            js += '};\n';
+            return js;
+        }
+
+        async function processGIF(file, maxRes, colorCount) {
+            const arrayBuffer = await file.arrayBuffer();
+            const gif = new GifReader(new Uint8Array(arrayBuffer));
+            const numFrames = gif.numFrames();
+            const allPixels = [];
+            const frameCanvases = [];
+
+            for (let i = 0; i < numFrames; i++) {
+                const frameInfo = gif.frameInfo(i);
+                const canvas = document.createElement('canvas');
+                canvas.width = frameInfo.width;
+                canvas.height = frameInfo.height;
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                const imageData = ctx.createImageData(frameInfo.width, frameInfo.height);
+                gif.decodeAndBlitFrameRGBA(i, imageData.data);
+                ctx.putImageData(imageData, 0, 0);
+
+                // Pixelate
+                const pixelatedCanvas = pixelateImageFromCanvas(canvas, maxRes);
+                frameCanvases.push(pixelatedCanvas);
+
+                // Collect pixels from this frame
+                const pCtx = pixelatedCanvas.getContext('2d');
+                const pImageData = pCtx.getImageData(0, 0, pixelatedCanvas.width, pixelatedCanvas.height);
+                const data = pImageData.data;
+                for (let j = 0; j < data.length; j += 4) {
+                    if (data[j + 3] > 127) {
+                        allPixels.push([data[j], data[j + 1], data[j + 2]]);
+                    }
+                }
+            }
+
+            // Run k-means on all pixels from all frames
+            const combinedColors = pickVariedColorsFromPixels(allPixels, colorCount);
+
+            // Assign letters for each frame
+            const framesData = [];
+            for (const canvas of frameCanvases) {
+                const [asciiLines, letterColors] = assignLettersToColors(canvas, LETTERS, combinedColors);
+                framesData.push({ asciiLines, letterColors });
+            }
+
+            // Generate JS
+            const jsContent = saveJsInMemoryForGIF(framesData, combinedColors, frameCanvases[0].width, frameCanvases[0].height);
+            const wrappedCode = getWrappedResultCodeForGIF(jsContent);
+            document.getElementById('jsOutput').textContent = wrappedCode;
+
+            // Update UI
+            document.getElementById('rectCount').textContent = `${frameCanvases[0].width * frameCanvases[0].height * numFrames}`;
+            document.getElementById('result-section').style.display = 'block';
+            document.getElementById('success').textContent = `GIF processed successfully! (${numFrames} frames)`;
+            document.getElementById('success').style.display = 'block';
+            document.getElementById('loading-screen').style.display = 'none';
+            document.getElementById('generate-button').disabled = false;
+            document.getElementById('result-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            // Increment counter
+            let convertedCount = parseInt(localStorage.getItem('dk_converted_count') || '0', 10);
+            convertedCount += 1;
+            localStorage.setItem('dk_converted_count', String(convertedCount));
+            document.getElementById('converted-count').textContent = String(convertedCount);
+        }
+
+        function pixelateImageFromCanvas(canvas, maxDimension) {
+            const width = canvas.width, height = canvas.height;
+            if (Math.max(width, height) > maxDimension) {
+                const scale = maxDimension / Math.max(width, height);
+                const newCanvas = document.createElement('canvas');
+                newCanvas.width = Math.max(1, Math.round(width * scale));
+                newCanvas.height = Math.max(1, Math.round(height * scale));
+                const ctx = newCanvas.getContext('2d');
+                ctx.drawImage(canvas, 0, 0, newCanvas.width, newCanvas.height);
+                return newCanvas;
+            }
+            return canvas;
+        }
+
+        function saveJsInMemoryForGIF(framesData, combinedColors, width, height) {
+            let js = `/*\n--- GIF Data Generated By D.K. Converter ---\n${width}x${height}, ${framesData.length} frames, ${width * height * framesData.length} total pixels\nwith ${combinedColors.length} different colors used\n*/\nvar createData = [\n`;
+            for (let f = 0; f < framesData.length; f++) {
+                js += `    [\n`;
+                for (let i = 0; i < framesData[f].asciiLines.length; i++) {
+                    js += `        "${compressLine(framesData[f].asciiLines[i])}",\n`;
+                }
+                js += `    ],\n`;
+            }
+            js += '];\n\nvar colors = {\n';
+            // Collect used letters
+            const usedLetters = new Set();
+            for (let f = 0; f < framesData.length; f++) {
+                for (let i = 0; i < framesData[f].asciiLines.length; i++) {
+                    const line = framesData[f].asciiLines[i];
+                    for (let j = 0; j < line.length; j++) {
+                        if (line[j] !== '-') {
+                            usedLetters.add(line[j]);
+                        }
+                    }
+                }
+            }
+            // Add colors for used letters
+            for (const letter of usedLetters) {
+                const idx = LETTERS.indexOf(letter);
+                if (idx >= 0 && idx < combinedColors.length) {
+                    const [r, g, b] = combinedColors[idx];
+                    js += `    "${letter}": color(${r}, ${g}, ${b}),\n`;
+                }
+            }
+            js += '};\n';
+            return js;
+        }
+
+        // Show the spinner/loading screen and disable the button
+        function showLoading() {
+            const fileInput = document.getElementById('image_file');
+            if (!fileInput.files.length) {
+                return true; 
+            }
+
+            // Persist current values immediately so they survive navigation/reloads
+            const colorInput = document.getElementById('color_count');
+            const resInput = document.getElementById('max_resolution');
+            try {
+                if (colorInput && colorInput.value) localStorage.setItem('dk_last_color_count', String(Math.round(Number(colorInput.value) || 0)));
+                if (resInput && resInput.value) localStorage.setItem('dk_last_max_resolution', String(Math.round(Number(resInput.value) || 0)));
+            } catch (e) {
+                console.warn('Unable to save last inputs to localStorage', e);
+            }
+            
+            const loadingScreen = document.getElementById('loading-screen');
+            const btn = document.getElementById('generate-button');
+            if (loadingScreen) loadingScreen.style.display = 'flex';
+            if (btn) btn.disabled = true;
+
+            return true;
+        }
+
+        // avoid double counting the same result on reload
+        function simpleHash(str) {
+            let h = 2166136261 >>> 0;
+            for (let i = 0; i < str.length; i++) {
+                h = Math.imul(h ^ str.charCodeAt(i), 16777619) >>> 0;
+            }
+            return String(h);
+        }
+        
+        // ad initialization and rotation
+        function initAds() {
+            const ads = [
+                {img: '', href: '#', text: 'Sponsored — Example Ad 1'},
+                {img: '', href: '#', text: 'Sponsored — Example Ad 2'},
+                {img: '', href: '#', text: 'Sponsored — Example Ad 3'},
+                {img: '', href: '#', text: 'Sponsored — Example Ad 4'}
+            ];
+
+            const loadingAdImg = document.getElementById('loading-ad-img');
+            const loadingAdLink = document.getElementById('loading-ad-link');
+            const loadingAdText = document.getElementById('loading-ad-text');
+            const loadingAdImg2 = document.getElementById('loading-ad-img2');
+            const loadingAdLink2 = document.getElementById('loading-ad-link2');
+            const loadingAdText2 = document.getElementById('loading-ad-text2');
+            const pageAdImg = document.getElementById('page-ad-img');
+            const pageAdLink = document.getElementById('page-ad-link');
+            const pageAdText = document.getElementById('page-ad-text');
+
+            if (!ads || !ads.length) return;
+            let idx = 0;
+            function showAd(i) {
+                const a = ads[i] || ads[0];
+                const a2 = ads[(i + 1) % ads.length] || ads[0];
+                try {
+                    if (loadingAdImg) loadingAdImg.src = a.img || '';
+                    if (loadingAdLink) loadingAdLink.href = a.href || '#';
+                    if (loadingAdText) loadingAdText.textContent = a.text || '';
+                    if (loadingAdImg2) loadingAdImg2.src = a2.img || '';
+                    if (loadingAdLink2) loadingAdLink2.href = a2.href || '#';
+                    if (loadingAdText2) loadingAdText2.textContent = a2.text || '';
+                    if (pageAdImg) pageAdImg.src = a.img || '';
+                    if (pageAdLink) pageAdLink.href = a.href || '#';
+                    if (pageAdText) pageAdText.textContent = a.text || '';
+                } catch (e) { console.warn('showAd error', e); }
+            }
+
+            showAd(idx);
+            try { setInterval(() => { idx = (idx + 1) % ads.length; showAd(idx); }, 6000); } catch(e) { console.warn('Ad rotator failed', e); }
+        }
+
+        // Restore saved inputs from localStorage (called on DOMContentLoaded and pageshow)
+        function restoreSavedInputs() {
+            const colorInput = document.getElementById('color_count');
+            const resInput = document.getElementById('max_resolution');
+
+            if (colorInput) {
+                const lastColor = localStorage.getItem('dk_last_color_count');
+                if (lastColor !== null) {
+                    const min = parseInt(colorInput.min || '1', 10);
+                    const max = parseInt(colorInput.max || '99999', 10);
+                    let val = Math.round(Number(lastColor) || 0);
+                    val = Math.min(max, Math.max(min, val));
+                    colorInput.value = val;
+                }
+            }
+            if (resInput) {
+                const lastRes = localStorage.getItem('dk_last_max_resolution');
+                if (lastRes !== null) {
+                    const min = parseInt(resInput.min || '1', 10);
+                    let val = Math.round(Number(lastRes) || 0);
+                    if (val >= min) resInput.value = val;
+                }
+            }
+        }
+
+        // Also restore inputs when a page is shown (handles bfcache/back button cases)
+        window.addEventListener('pageshow', () => {
+            try { restoreSavedInputs(); } catch(e) { console.warn('pageshow restore failed', e); }
+        });
+
+        // This is responsible for displaying the final wrapped code and restoring UX state
+        function getWrappedResultCode(rawCode) {
+            // Generate unique function name only once per page load with results
+            if (!generatedFuncName) {
+                 const funcNum = Math.floor(Math.random() * 1000) + 100; // start at 100
+                 generatedFuncName = 'drawImage' + funcNum;
+            }
+            const funcName = generatedFuncName;
+
+            // If the generated JS starts with a metadata comment block, pull it out and place it ABOVE the function definition (so users see it at the top when printing).
+            let body = rawCode.trim();
+            let header = "";
+            if (body.startsWith('/*')) {
+                const endIdx = body.indexOf('*/');
+                if (endIdx !== -1) {
+                    header = body.slice(0, endIdx + 2) + "\n\n";
+                    body = body.slice(endIdx + 2).trim();
+                }
+            }
+
+            const wrapperStart = header + `function ${funcName}(x, y, size, frame) {\n\n`;
+            const wrapperMiddle = `\n` + body;
+
+            const wrapperEnd = `\n` +
+                               `\n` +
+                               `     // Call the utility function 'drawHugePixelArt' (requires the utility code to be pasted above this)\n` +
+                               `     drawHugePixelArt(x, y, size, createData, colors, frame);\n` +
+                               `}\n` +
+                               `\n` +
+                               `/*` + 
+                               `\n// Example usage: (Adjust x, y, and size as needed to fit your canvas (size = 1 is original size))\n` +
+                               `${funcName}(0, 0, 1, 0);\n` +
+                               `*/`;
+
+            return wrapperStart + wrapperMiddle + wrapperEnd;
+        }
+
+        function getWrappedResultCodeForGIF(rawCode) {
+            // Generate unique function name only once per page load with results
+            if (!generatedFuncName) {
+                 const funcNum = Math.floor(Math.random() * 1000) + 100; // start at 100
+                 generatedFuncName = 'drawGIF' + funcNum;
+            }
+            const funcName = generatedFuncName;
+
+            // If the generated JS starts with a metadata comment block, pull it out and place it ABOVE the function definition (so users see it at the top when printing).
+            let body = rawCode.trim();
+            let header = "";
+            if (body.startsWith('/*')) {
+                const endIdx = body.indexOf('*/');
+                if (endIdx !== -1) {
+                    header = body.slice(0, endIdx + 2) + "\n\n";
+                    body = body.slice(endIdx + 2).trim();
+                }
+            }
+
+            const wrapperStart = header + `function ${funcName}(x, y, size, frame) {\n\n`;
+            const wrapperMiddle = `\n` + body;
+
+            const wrapperEnd = `\n` +
+                               `\n` +
+                               `     // Call the utility function 'drawHugePixelArt' (requires the utility code to be pasted above this)\n` +
+                               `     // For GIFs, createData is an array of frames, frame wraps around\n` +
+                               `     drawHugePixelArt(x, y, size, createData, colors, frame);\n` +
+                               `}\n` +
+                               `\n` +
+                               `/*` + 
+                               `\n// Example usage: (Adjust x, y, and size as needed to fit your canvas (size = 1 is original size))\n` +
+                               `// For static frame: ${funcName}(0, 0, 1, 0);\n` +
+                               `// For animation in p5.js draw(): ${funcName}(0, 0, 1, frameCount);\n` +
+                               `*/`;
+
+            return wrapperStart + wrapperMiddle + wrapperEnd;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Restore last-used inputs if present in localStorage
+            const colorInput = document.getElementById('color_count');
+            const resInput = document.getElementById('max_resolution');
+            const btn = document.getElementById('generate-button');
+
+            if (colorInput) {
+                colorInput.max = 1000;
+                document.getElementById('maxColors').textContent = 1000;
+                const lastColor = localStorage.getItem('dk_last_color_count');
+                if (lastColor) {
+                    const min = parseInt(colorInput.min || '1', 10);
+                    const max = parseInt(colorInput.max, 10);
+                    let val = Math.round(Number(lastColor) || 0);
+                    val = Math.min(max, Math.max(min, val));
+                    colorInput.value = val;
+                }
+            }
+            if (resInput) {
+                const lastRes = localStorage.getItem('dk_last_max_resolution');
+                if (lastRes) {
+                    const min = parseInt(resInput.min || '1', 10);
+                    let val = Math.round(Number(lastRes) || 0);
+                    if (val >= min) resInput.value = val;
+                }
+            }
+
+            // Initialize converted images counter display
+            const convertedCountEl = document.getElementById('converted-count');
+            let convertedCount = parseInt(localStorage.getItem('dk_converted_count') || '0', 10);
+            if (isNaN(convertedCount)) convertedCount = 0;
+            if (convertedCountEl) convertedCountEl.textContent = String(convertedCount);
+
+            const errorElement = document.querySelector('.error');
+            const successElement = document.querySelector('.success');
+            const resultElement = document.getElementById('jsOutput');
+            const loadingScreen = document.getElementById('loading-screen');
+            const resultSection = document.getElementById('result-section');
+
+            // Prevent copy-button width changes from causing layout shifts by locking their min-width
+            const copyButtons = Array.from(document.querySelectorAll('.copy-button'));
+            copyButtons.forEach(btnEl => {
+                const w = btnEl.offsetWidth;
+                if (w && !btnEl.style.minWidth) {
+                    btnEl.style.minWidth = w + 'px';
+                }
+            });
+
+            if (errorElement || resultElement) {
+                // Hide loading screen and re-enable the button upon results being displayed
+                if (loadingScreen) loadingScreen.style.display = 'none';
+                if (btn) btn.disabled = false;
+
+                // Wrap the code for display
+                if (resultElement) {
+                    const rawCode = resultElement.textContent;
+                    const wrappedCode = getWrappedResultCode(rawCode);
+                    resultElement.textContent = wrappedCode;
+                }
+
+                // SMOOTH SCROLL TO RESULTS (after page load with results)
+                if (resultSection) {
+                    resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+
+                // Persist last used parameters for next visit
+                if (colorInput) localStorage.setItem('dk_last_color_count', String(colorInput.value));
+                if (resInput) localStorage.setItem('dk_last_max_resolution', String(resInput.value));
+            }
+            // Initialize ad rotation (non-blocking)
+            try { initAds(); } catch (e) { console.warn('initAds error', e); }
+            // Ensure highlight.js highlights the utility code
+            try { hljs.highlightElement(document.getElementById('utilityOutput')); } catch (e) { console.warn('highlight error', e); }
+        });
+
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('image_file');
+            const colorCount = parseInt(document.getElementById('color_count').value);
+            const maxRes = parseInt(document.getElementById('max_resolution').value);
+            if (!fileInput.files[0]) {
+                document.getElementById('error').textContent = 'Please select an image file.';
+                document.getElementById('error').style.display = 'block';
+                return;
+            }
+            // Save inputs
+            localStorage.setItem('dk_last_color_count', colorCount);
+            localStorage.setItem('dk_last_max_resolution', maxRes);
+            // Hide previous results
+            document.getElementById('result-section').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
+            showLoading();
+            try {
+                const file = fileInput.files[0];
+                if (file.type === 'image/gif') {
+                    processGIF(file, maxRes, colorCount);
+                } else {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = pixelateImage(img, maxRes);
+                        const colors = pickVariedColors(canvas, colorCount);
+                        const [asciiLines, letterColors] = assignLettersToColors(canvas, LETTERS, colors);
+                        const jsContent = saveJsInMemory(asciiLines, letterColors, canvas.width, canvas.height);
+                        const wrappedCode = getWrappedResultCode(jsContent);
+                        document.getElementById('jsOutput').textContent = wrappedCode;
+                        // Update counter
+                        document.getElementById('rectCount').textContent = `${canvas.width * canvas.height}`;
+                        document.getElementById('result-section').style.display = 'block';
+                        document.getElementById('success').textContent = 'Image processed successfully!';
+                        document.getElementById('success').style.display = 'block';
+                        // Hide loading screen and re-enable button
+                        document.getElementById('loading-screen').style.display = 'none';
+                        document.getElementById('generate-button').disabled = false;
+                        // Scroll to results
+                        document.getElementById('result-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        // Increment counter
+                        let convertedCount = parseInt(localStorage.getItem('dk_converted_count') || '0', 10);
+                        convertedCount += 1;
+                        localStorage.setItem('dk_converted_count', String(convertedCount));
+                        document.getElementById('converted-count').textContent = String(convertedCount);
+                    };
+                    img.onerror = function() {
+                        document.getElementById('error').textContent = 'Failed to load image.';
+                        document.getElementById('error').style.display = 'block';
+                        document.getElementById('loading-screen').style.display = 'none';
+                        document.getElementById('generate-button').disabled = false;
+                    };
+                    img.src = URL.createObjectURL(file);
+                }
+            } catch (err) {
+                document.getElementById('error').textContent = 'An error occurred: ' + err.message;
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('loading-screen').style.display = 'none';
+                document.getElementById('generate-button').disabled = false;
+            }
+        });
+
+        function copyResult(btn) {
+            copyText(document.getElementById("jsOutput").textContent, btn);
+        }
+
+        function copyUtility(btn) {
+            copyText(document.getElementById("utilityOutput").textContent, btn);
+        }
+
+        function copyText(textToCopy, buttonEl) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(textToCopy)
+                    .then(() => {
+                        showCopiedState(buttonEl);
+                    })
+                    .catch(err => {
+                        console.error('Could not copy text: ', err);
+                        fallbackCopyText(textToCopy, buttonEl);
+                    });
+            } else {
+                fallbackCopyText(textToCopy, buttonEl);
+            }
+        }
+
+        function fallbackCopyText(textToCopy, buttonEl) {
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = textToCopy;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+
+            try {
+                document.execCommand('copy');
+                showCopiedState(buttonEl);
+            } catch (err) {
+                alert('Unable to copy code. Please copy manually.');
+            }
+
+            document.body.removeChild(tempTextArea);
+        }
+
+        function showCopiedState(buttonEl) {
+            if (!buttonEl) return;
+
+            // Ensure we preserve the button's locking min-width (in case it wasn't set earlier)
+            if (!buttonEl.style.minWidth) {
+                const w = buttonEl.offsetWidth;
+                if (w) buttonEl.style.minWidth = w + 'px';
+            }
+
+            const originalText = buttonEl.innerHTML;
+            buttonEl.innerHTML = "✔ COPIED";
+            buttonEl.classList.add("copied");
+            buttonEl.disabled = true;
+
+            setTimeout(() => {
+                buttonEl.innerHTML = originalText;
+                buttonEl.classList.remove("copied");
+                buttonEl.disabled = false;
+            }, 1500);
+        }
+    </script>
+    <script>hljs.highlightAll();</script>
+</body>
+</html>
