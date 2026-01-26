@@ -9,7 +9,8 @@ It took around 4 months to get this code to where it is now, and I hope you enjo
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>D.K. Converter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DK Converter</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.js"></script>
@@ -560,6 +561,126 @@ It took around 4 months to get this code to where it is now, and I hope you enjo
         color: var(--color-text-secondary); 
     }
 
+/* === MOBILE RESPONSIVE DESIGN === */
+@media (max-width: 768px) {
+    body {
+        padding: 20px 10px;
+        max-width: 100%;
+    }
+
+    h1 {
+        font-size: 2.2em;
+        letter-spacing: 3px;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+    }
+
+    h2 {
+        font-size: 1.5em;
+        margin-top: 30px;
+    }
+
+    h3 {
+        font-size: 1.1em;
+    }
+
+    .container {
+        padding: 20px;
+        margin: 0;
+    }
+
+    .container form {
+        gap: 15px;
+    }
+
+    .input-group {
+        padding: 15px;
+        gap: 15px;
+    }
+
+    label {
+        font-size: 1em;
+        margin-bottom: -10px;
+    }
+
+    input[type="number"], input[type="file"] {
+        padding: 14px 12px;
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+
+    button {
+        padding: 14px;
+        font-size: 1.1em;
+    }
+
+    #generate-button {
+        margin-top: 30px;
+        font-size: 1.2em;
+    }
+
+    pre {
+        padding: 20px;
+        font-size: 0.9em;
+    }
+
+    .result-header {
+        flex-direction: column;
+        gap: 15px;
+        margin-top: 30px;
+        margin-bottom: 15px;
+        padding-top: 15px;
+    }
+
+    .copy-button {
+        width: 100%;
+        padding: 14px;
+    }
+
+    #loading-screen h2 {
+        font-size: 2em;
+    }
+
+    #progress-container {
+        max-width: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        padding: 15px 5px;
+    }
+
+    h1 {
+        font-size: 1.8em;
+        letter-spacing: 2px;
+    }
+
+    .container {
+        padding: 15px;
+    }
+
+    .input-group {
+        padding: 10px;
+    }
+
+    input[type="number"], input[type="file"] {
+        padding: 12px 10px;
+    }
+
+    button {
+        padding: 12px;
+    }
+
+    #generate-button {
+        font-size: 1.1em;
+    }
+
+    pre {
+        padding: 15px;
+        font-size: 0.85em;
+    }
+}
+
 </style>
 </head>
 <body>
@@ -571,11 +692,11 @@ It took around 4 months to get this code to where it is now, and I hope you enjo
             <div id="spinner" aria-hidden="true"></div>
         </div>
         <div class="loading-ad" id="loading-ad" aria-hidden="true">
-            
+
         </div>
     </div>
 
-    <h1>D.K. CONVERTER</h1>
+    <h1>DK CONVERTER</h1>
 
 
     <div class="container">
@@ -603,15 +724,16 @@ It took around 4 months to get this code to where it is now, and I hope you enjo
             <button type="submit" id="generate-button">Convert Image/GIF</button>
         </form>
         <div id="converted-counter" style="margin-top: 14px; color: var(--color-text-secondary); font-weight:600;">
-            Converted images: <span id="converted-count">0</span>
+            You have Converted <span id="converted-count">0</span> images!
+            <br>Thank you for using DK Converter!
         </div>
     </div>
 
     <div id="utility-section">
         <div class="result-header">
             <div class="result-info-box">
-                <h2>Utility Function Code</h2>
-                <h5>This function is essential for drawing the image.<br>Paste it <strong>before</strong> the generated image code.</h5>
+                <h2>Utility Code</h2>
+                <h5>This code is essential for drawing the image.<br>Paste it <strong>before</strong> the generated image code.<br>You only need to paste this once per program.</b></h5>
             </div>
             <button class="copy-button" onclick="copyUtility(this)">📋 COPY UTILITY</button>
             
@@ -918,6 +1040,7 @@ function drawHugePixelArt(startX, startY, pixelSize, canvasData, colorMap, frame
         <p style="color: var(--color-text-secondary);">Image data output (wrapped in a function for use with the utility code):</p>
         <pre id="jsOutput"></pre>
     </div>
+    <p>Contact us at realdigitsofpi@gmail.com</p>
 
     <script>
         // A little more than a thousand 
@@ -966,7 +1089,7 @@ function drawHugePixelArt(startX, startY, pixelSize, canvasData, colorMap, frame
             const data = imageData.data;
             let pixels = [];
             for (let i = 0; i < data.length; i += 4) {
-                if (data[i + 3] > 127) { // Only include opaque pixels
+                if (data[i + 3] > 10) { // Include semi-transparent pixels
                     pixels.push([data[i], data[i + 1], data[i + 2]]);
                 }
             }
@@ -1120,8 +1243,8 @@ function drawHugePixelArt(startX, startY, pixelSize, canvasData, colorMap, frame
                 let line = '';
                 for (let x = 0; x < cols; x++) {
                     const idx = (y * cols + x) * 4;
-                    if (data[idx + 3] > 127) {
-                        // Opaque pixel, assign closest color letter
+                    if (data[idx + 3] > 10) {
+                        // Semi-opaque pixel, assign closest color letter
                         const pixel = [data[idx], data[idx + 1], data[idx + 2]];
                         let minDist = Infinity, colorIdx = 0;
                         for (let j = 0; j < colorsSorted.length; j++) {
@@ -1130,7 +1253,7 @@ function drawHugePixelArt(startX, startY, pixelSize, canvasData, colorMap, frame
                         }
                         line += clusterToLetter[colorIdx];
                     } else {
-                        // Transparent pixel, assign '-'
+                        // Very transparent pixel, assign '-'
                         line += '-';
                     }
                 }
@@ -1155,7 +1278,7 @@ function drawHugePixelArt(startX, startY, pixelSize, canvasData, colorMap, frame
         }
 
         function saveJsInMemory(asciiLines, letterColors, width, height) {
-            let js = `/*\n--- Image Data Generated By D.K. Converter ---\n${width}x${height}, ${width * height} total pixels\nwith ${Object.keys(letterColors).length} different colors used\n*/\nvar createData = [\n`;
+            let js = `/*\n--- Image Data Generated By DK Converter ---\n${width}x${height}, ${width * height} total pixels\nwith ${Object.keys(letterColors).length} different colors used\n*/\nvar createData = [\n`;
             for (let i = 0; i < asciiLines.length; i++) {
                 js += `    "${compressLine(asciiLines[i])}",\n`;
             }
@@ -1174,26 +1297,43 @@ function drawHugePixelArt(startX, startY, pixelSize, canvasData, colorMap, frame
             const allPixels = [];
             const frameCanvases = [];
 
-            for (let i = 0; i < numFrames; i++) {
-                const frameInfo = gif.frameInfo(i);
-                const canvas = document.createElement('canvas');
-                canvas.width = frameInfo.width;
-                canvas.height = frameInfo.height;
-                const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                const imageData = ctx.createImageData(frameInfo.width, frameInfo.height);
-                gif.decodeAndBlitFrameRGBA(i, imageData.data);
-                ctx.putImageData(imageData, 0, 0);
+            // Get GIF dimensions
+            const gifWidth = gif.width;
+            const gifHeight = gif.height;
 
-                // Pixelate
-                const pixelatedCanvas = pixelateImageFromCanvas(canvas, maxRes);
+            // Create a persistent canvas for frame accumulation
+            const persistentCanvas = document.createElement('canvas');
+            persistentCanvas.width = gifWidth;
+            persistentCanvas.height = gifHeight;
+            const persistentCtx = persistentCanvas.getContext('2d', { willReadFrequently: true });
+
+            for (let i = 0; i < numFrames; i++) {
+                // Get current canvas state
+                const currentImageData = persistentCtx.getImageData(0, 0, gifWidth, gifHeight);
+                
+                // Decode frame onto the current state (handles disposal automatically)
+                gif.decodeAndBlitFrameRGBA(i, currentImageData.data);
+                
+                // Put the updated frame back to canvas
+                persistentCtx.putImageData(currentImageData, 0, 0);
+                
+                // Create a copy of the current frame state
+                const frameCanvas = document.createElement('canvas');
+                frameCanvas.width = gifWidth;
+                frameCanvas.height = gifHeight;
+                const frameCtx = frameCanvas.getContext('2d');
+                frameCtx.drawImage(persistentCanvas, 0, 0);
+
+                // Pixelate the frame
+                const pixelatedCanvas = pixelateImageFromCanvas(frameCanvas, maxRes);
                 frameCanvases.push(pixelatedCanvas);
 
-                // Collect pixels from this frame
+                // Collect pixels from this frame (include semi-transparent pixels for color extraction)
                 const pCtx = pixelatedCanvas.getContext('2d');
                 const pImageData = pCtx.getImageData(0, 0, pixelatedCanvas.width, pixelatedCanvas.height);
                 const data = pImageData.data;
                 for (let j = 0; j < data.length; j += 4) {
-                    if (data[j + 3] > 127) {
+                    if (data[j + 3] > 10) { // Lower threshold to include more pixels
                         allPixels.push([data[j], data[j + 1], data[j + 2]]);
                     }
                 }
@@ -1451,8 +1591,11 @@ function drawHugePixelArt(startX, startY, pixelSize, canvasData, colorMap, frame
                                `\n` +
                                `/*` + 
                                `\n// Example usage: (Adjust x, y, and size as needed to fit your canvas (size = 1 is original size))\n` +
-                               `// For static frame: ${funcName}(0, 0, 1, 0);\n` +
-                               `// For animation in p5.js draw(): ${funcName}(0, 0, 1, frameCount);\n` +
+                               `// For drawing a frame: ${funcName}(0, 0, 1, 0);\n` +
+                               `// For animation:\n` +
+                               `draw = function() {` +
+                               `\n    ${funcName}(0, 0, 1, frameCount);\n` +
+                               `};\n` +
                                `*/`;
 
             return wrapperStart + wrapperMiddle + wrapperEnd;
