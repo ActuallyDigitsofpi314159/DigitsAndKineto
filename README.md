@@ -1,3 +1,1 @@
-DK Converter
-pretty awesome
-ads support me
+nothing notable to say
