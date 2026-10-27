@@ -1,386 +1,122 @@
-<!DOCTYPE html><!---
-Hello!
-This is the source code for D.K. Converter.
-
-Thanks to Github Copilot for helping me write this code!
-
-The entire project took around 4 months to complete, and I am very proud of it. I hope you enjoy using it!
--->
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DK Converter</title>
-    <link rel="icon" type="image/x-icon" href="logo.svg">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
-
-<link rel="stylesheet" href="styles.css">
-
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Digits and Kineto projects, tools, and games.">
+    <title>Digits and Kineto</title>
+    <link rel="icon" type="image/svg+xml" href="logo.svg">
+    <style>
+        :root {
+            color-scheme: dark;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: #080b12;
+            color: #eef3fb;
+        }
+        * { box-sizing: border-box; }
+        @view-transition {
+            navigation: auto;
+        }
+        ::view-transition-old(root) {
+            animation: 220ms ease-in both page-transition-out;
+        }
+        ::view-transition-new(root) {
+            animation: 280ms ease-out both page-transition-in;
+        }
+        @keyframes page-transition-out {
+            to { opacity: 0; transform: translateY(-8px); }
+        }
+        @keyframes page-transition-in {
+            from { opacity: 0; transform: translateY(8px); }
+        }
+        body {
+            min-height: 100vh;
+            margin: 0;
+            display: grid;
+            place-items: center;
+            padding: 2rem;
+            background:
+                radial-gradient(ellipse at 15% 20%, rgba(63, 255, 125, .12), transparent 36rem),
+                radial-gradient(ellipse at 85% 80%, rgba(85, 182, 255, .13), transparent 40rem),
+                #080b12;
+        }
+        main {
+            width: min(100%, 760px);
+            padding: clamp(2rem, 7vw, 4.5rem);
+            border: 1px solid rgba(125, 160, 190, .24);
+            border-radius: 24px;
+            background: rgba(15, 20, 30, .88);
+            box-shadow: 0 24px 90px rgba(0, 0, 0, .42);
+        }
+        .eyebrow {
+            margin: 0 0 1rem;
+            color: #75e8a0;
+            font-size: .8rem;
+            font-weight: 700;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+        }
+        h1 {
+            margin: 0;
+            font-size: clamp(2.5rem, 8vw, 4.8rem);
+            line-height: 1.05;
+            letter-spacing: -.06em;
+        }
+        .intro {
+            max-width: 38rem;
+            margin: 1.5rem 0 2.25rem;
+            color: #aeb9c8;
+            font-size: 1.1rem;
+            line-height: 1.7;
+        }
+        .project {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            padding: 1.4rem;
+            border: 1px solid rgba(85, 182, 255, .28);
+            border-radius: 16px;
+            background: rgba(85, 182, 255, .06);
+        }
+        .project h2 { margin: 0 0 .35rem; font-size: 1.2rem; }
+        .project p { margin: 0; color: #aeb9c8; line-height: 1.5; }
+        a {
+            flex: 0 0 auto;
+            padding: .8rem 1.1rem;
+            border-radius: 10px;
+            background: linear-gradient(100deg, #3fff7d, #55b6ff);
+            color: #07111a;
+            font-weight: 700;
+            text-decoration: none;
+        }
+        a:hover { filter: brightness(1.08); }
+        footer { margin-top: 2.5rem; color: #788596; font-size: .9rem; }
+        @media (prefers-reduced-motion: reduce) {
+            ::view-transition-old(root),
+            ::view-transition-new(root) {
+                animation: none;
+            }
+        }
+        @media (max-width: 560px) {
+            .project { align-items: flex-start; flex-direction: column; }
+            a { width: 100%; text-align: center; }
+        }
+    </style>
 </head>
 <body>
-    
-    <div id="loading-screen" role="status" aria-live="polite">
-        <h2>PROCESSING IMAGE...</h2>
-        <p id="loading-status">this may take a while, please be patient</p>
-        <div class="loading-spinner-wrap">
-            <div id="spinner" aria-hidden="true"></div>
-        </div>
-        <div class="loading-ad" id="loading-ad" aria-hidden="true">
-
-        </div>
-    </div>
-
-    <h1>DK CONVERTER</h1>
-
-
-    <div class="container">
-        
-        <p class="error" id="error" style="display: none;"></p>
-        
-        <p class="success" id="success" style="display: none;"></p>
-        
-        <form id="uploadForm" onsubmit="return showLoading()">
-            <label for="image_file">Image Source 📁</label>
-            <input type="file" name="image_file" id="image_file" accept="image/*" required>
-            
-            <hr class="form-separator">
-
-            <fieldset class="input-group">
-                <legend>Conversion Parameters</legend>
-                
-                <label for="color_count">Individual Colors <span style="color: var(--color-accent-dark); font-weight: 400;"> (Max: <span id="maxColors">1000</span>)</span></label>
-                <input type="number" name="color_count" id="color_count" value="100" min="1" max="1000" required>
-                
-                <label for="max_resolution">Max Output Dimentions <span style="color: var(--color-accent-dark); font-weight: 400;"> (Longest side in pixels)</span></label>
-                <input type="number" name="max_resolution" id="max_resolution" value="400" min="1" required> 
-            </fieldset>
-
-            <button type="submit" id="generate-button">Convert Image/GIF</button>
-        </form>
-        <div id="converted-counter" style="margin-top: 14px; color: var(--color-text-secondary); font-weight:600;">
-            You have Converted <span id="converted-count">0</span> images!
-            <br>Thank you for using DK Converter!
-        </div>
-    </div>
-    
-    <div id="utility-section">
-        <div class="result-header">
-            <div class="result-info-box">
-                <h2>Utility Code</h2>
-                <h5>This code is essential for drawing the image.<br>Paste it <strong>before</strong> the generated image code.<br>You only need to paste this once per program.</b></h5>
+    <main>
+        <p class="eyebrow">A small project studio</p>
+        <h1>Digits<br>&amp; Kineto</h1>
+        <p class="intro">A home for the tools, experiments, and games we make. More projects will be added here over time.</p>
+        <section class="project" aria-labelledby="converter-title">
+            <div>
+                <h2 id="converter-title">DK Converter</h2>
+                <p>Convert images, GIFs, videos, and audio into Khan Academy code.</p>
             </div>
-            <button class="copy-button" onclick="copyUtility(this)">📋 COPY UTILITY</button>
-            
-
-        </div>
-        <pre id="utilityOutput" class="language-javascript">
-// Utility code for DK converter. It can also draw normal pixel arts, at an optimized speed. [
-
-// stores cached pixel art graphics buffers
-var _pixelArtCache = {};
-
-// is it an array?
-function isArray(a) {
-    return Array.isArray(a);
-}
-
-// is it a PImage or similar object?
-function isPImage(obj) {
-    if (!obj) { return false; }
-    try {
-        return (typeof obj.width === "number") || (typeof obj.get === "function");
-    } catch (e) {
-        return false;
-    }
-}
-
-// is it an RLE frame (array of strings)?
-function isRLEFrame(frame) {
-    return isArray(frame) && frame.length > 0 && typeof frame[0] === "string";
-}
-
-// build a cache key for pixel art rendering
-function buildCacheKey(data, frameIndex, pixelSize, colorMap) {
-    var prefix = "";
-    try {
-        prefix = JSON.stringify(data);
-    } catch (e) {
-        prefix = String(data);
-    }
-
-    var cmap = "";
-    try {
-        cmap = JSON.stringify(colorMap);
-    } catch (e2) {
-        cmap = String(colorMap);
-    }
-
-    return prefix + "|" + String(frameIndex) + "|" + String(pixelSize) + "|" + cmap;
-}
-
-// Clear the entire pixel art cache
-function clearPixelArtCache() {
-    _pixelArtCache = {};
-}
-
-// Invalidate a specific pixel art cache entry
-function invalidatePixelArtCacheFor(data, frameIndex, pixelSize, colorMap) {
-    var key = buildCacheKey(data, frameIndex, pixelSize, colorMap);
-    if (_pixelArtCache[key]) {
-        delete _pixelArtCache[key];
-    }
-}
-
-// Decode a single RLE row string into an array of characters
-function decodeRLERow(row) {
-    var out = [];
-    if (!row) { return out; }
-    var i = 0;
-    var n = row.length;
-
-    while (i < n) {
-        var ch = row.charAt(i);
-
-        // skip digits (should not happen at this point)
-        if (ch >= '0' && ch <= '9') {
-            i++;
-            continue;
-        }
-        
-        // advance past the char
-        i++;
-        // collect digits (if any) to form the count
-        var numStr = "";
-        while (i < n) {
-            var d = row.charAt(i);
-            if (d < '0' || d > '9') { break; }
-            numStr += d;
-            i++;
-        }
-
-        var count = numStr.length ? parseInt(numStr, 10) : 1;
-
-        for (var k = 0; k < count; k++) {
-            out.push(ch);
-        }
-    }
-
-    return out;
-}
-
-// Decode an RLE image (array of RLE row strings) into a 2D array of characters
-function decodeRLEImage(lines) {
-    var pixels = [];
-    for (var y = 0; y < lines.length; y++) {
-        pixels[y] = decodeRLERow(lines[y] || "");
-    }
-    return pixels;
-}
-
-// Check if a frame has any visible color based on the color map
-function frameHasVisibleColor(frameData, colorMap) {
-    if (!frameData) { return false; }
-    for (var i = 0; i < frameData.length; i++) {
-        var row = frameData[i];
-        if (!row) { continue; }
-        // check each character in the row
-        for (var k = 0; k < row.length; k++) {
-            var ch = row[k];
-            if (ch !== "-" && colorMap && colorMap[ch] !== undefined) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-// Draw decoded pixel data to a graphics buffer
-function drawDecodedToGraphics(g, px, pixelSize, palette) {
-    // Attempt to disable smoothing to keep crisp edges
-    try {
-        // idk if this actually works in KA
-        if (typeof g.noSmooth === "function") { g.noSmooth(); }
-    } catch (e) { }
-
-    // ensure corner alignment
-    try {
-        if (typeof g.rectMode === "function") { g.rectMode(CORNER); }
-    } catch (e2) { }
-
-    g.noStroke();
-
-    for (var y = 0; y < px.length; y++) {
-        var row = px[y] || [];
-        var x = 0;
-        while (x < row.length) {
-            var ch = row[x];
-            var start = x;
-            x++;
-            while (x < row.length && row[x] === ch) { x++; }
-            var run = x - start;
-
-            if (ch === "-" || ch === null || ch === undefined) {
-                // transparent pixel, skip
-                continue;
-            }
-
-            var col = palette && palette[ch];
-            if (!col) {
-                // unmapped symbol, skip
-                continue;
-            }
-
-            // compute rectangle coordinates
-            var x1 = round(start * pixelSize);
-            var x2 = round((start + run) * pixelSize);
-            var y1 = round(y * pixelSize);
-            var y2 = round((y + 1) * pixelSize);
-
-            var gw = x2 - x1;
-            var gh = y2 - y1;
-
-            if (gw <= 0 || gh <= 0) { continue; }
-
-            if (isArray(col)) {
-                if (col.length === 4) {
-                    g.fill(col[0], col[1], col[2], col[3]);
-                } else {
-                    g.fill(col[0], col[1], col[2]);
-                }
-            } else {
-                g.fill(col);
-            }
-
-            g.rect(x1, y1, gw, gh);
-        }
-    }
-}
-
-// Main renderer
-function drawHugePixelArt(startX, startY, pixelSize, canvasData, colorMap, frame) {
-    // tiny safety margin for buffer sizing, but not used for drawing
-    var sizeMargin = 1; 
-    noStroke();
-
-    // IMAGE PATHS first
-    if (isArray(canvasData) && canvasData.length > 0 && isPImage(canvasData[0])) {
-        if (frame === undefined) { frame = 1; }
-        frame = Math.floor(frame);
-        var idx = ((frame - 1) % canvasData.length + canvasData.length) % canvasData.length;
-        var img = canvasData[idx];
-        if (!img) { return; }
-
-        var w = (typeof img.width === "number") ? img.width : (img.getWidth ? img.getWidth() : 0);
-        var h = (typeof img.height === "number") ? img.height : (img.getHeight ? img.getHeight() : 0);
-
-        image(img, startX, startY, round(w * pixelSize), round(h * pixelSize));
-        return;
-    }
-
-    if (isPImage(canvasData)) {
-        var w2 = (typeof canvasData.width === "number") ? canvasData.width : (canvasData.getWidth ? canvasData.getWidth() : 0);
-        var h2 = (typeof canvasData.height === "number") ? canvasData.height : (canvasData.getHeight ? canvasData.getHeight() : 0);
-
-        image(canvasData, startX, startY, round(w2 * pixelSize), round(h2 * pixelSize));
-        return;
-    }
-
-    // RLE PATH
-    var isFrames = isArray(canvasData) && canvasData.length > 0 && isRLEFrame(canvasData[0]);
-
-    var data;
-    var frameIndex = 0;
-
-    if (isFrames) {
-        if (frame === undefined) { frame = 1; }
-        frame = Math.floor(frame);
-
-        var idx2 = ((frame - 1) % canvasData.length + canvasData.length) % canvasData.length;
-
-        var attempts = 0;
-        var chosenIndex = idx2;
-        while (attempts < canvasData.length) {
-            var candidate = canvasData[chosenIndex];
-            if (frameHasVisibleColor(candidate, colorMap)) {
-                break;
-            }
-            chosenIndex = (chosenIndex - 1 + canvasData.length) % canvasData.length;
-            attempts++;
-        }
-
-        data = canvasData[chosenIndex];
-        frameIndex = chosenIndex;
-    } else {
-        if (!isArray(canvasData) || !isRLEFrame(canvasData)) {
-            return;
-        }
-        data = canvasData;
-        frameIndex = 0;
-    }
-
-    if (!data || data.length === 0) { return; }
-
-    var cacheKey = buildCacheKey(data, frameIndex, pixelSize, colorMap);
-
-    if (!_pixelArtCache[cacheKey]) {
-        // decode fully (2D char array)
-        var decoded = decodeRLEImage(data);
-
-        // compute max cols and rows
-        var maxCols = 0;
-        for (var r = 0; r < decoded.length; r++) {
-            var ln = decoded[r] ? decoded[r].length : 0;
-            if (ln > maxCols) { maxCols = ln; }
-        }
-        var rows = decoded.length;
-
-        var gw = max(1, round(maxCols * pixelSize) + sizeMargin);
-        var gh = max(1, round(rows * pixelSize) + sizeMargin);
-
-        var g = createGraphics(gw, gh, P2D);
-        g.background(0, 0, 0, 0);
-
-        // ensure corner alignment and crisp edges
-        try {
-            if (typeof g.rectMode === "function") { g.rectMode(CORNER); }
-            if (typeof g.noSmooth === "function") { g.noSmooth(); }
-        } catch (e3) { }
-        
-        g.noStroke();
-        
-        // draw to graphics buffer
-        drawDecodedToGraphics(g, decoded, pixelSize, colorMap);
-
-        _pixelArtCache[cacheKey] = g;
-    }
-    // let's light this candle
-    image(_pixelArtCache[cacheKey], startX, startY);
-}
-
-// ]</pre>
-    </div>
-
-    <div id="result-section" style="display: none;">
-        <div class="result-header">
-            <div class="result-info-box">
-                <h2>Generated Image Code</h2>
-                <h3><span id="rectCount">0</span> Rectangles (Pixels) Drawn</h3>
-                <h5>Copy and paste the code below into Khan Academy.</h5>
-            </div>
-            <button class="copy-button" onclick="copyResult(this)">📋 COPY IMAGE CODE</button>
-
-        </div>
-
-        <p style="color: var(--color-text-secondary);">Image data output (wrapped in a function for use with the utility code):</p>
-        <pre id="jsOutput"></pre>
-    </div>
-    <p>Contact us at actuallydigitsofpi314159@gmail.com</p>
-    
-    <script src="script.js" defer></script>
-    <script>hljs.highlightAll();</script>
+            <a href="/dkconverter/">Open converter</a>
+        </section>
+        <footer>More projects coming soon.</footer>
+    </main>
 </body>
 </html>
-

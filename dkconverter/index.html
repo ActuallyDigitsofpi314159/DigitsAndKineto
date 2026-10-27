@@ -1,0 +1,978 @@
+<!DOCTYPE html><!---
+Hello!
+This is the source code for D.K. Converter.
+
+Thanks to Github Copilot for helping me write this code!
+
+The entire project took around 4 months to complete, and I am very proud of it. I hope you enjoy using it!
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DK Converter</title>
+    <link rel="icon" type="image/x-icon" href="../logo.svg">
+    <script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="../styles.css">
+
+</head>
+<body>
+    <nav class="converter-nav" aria-label="Main navigation">
+        <a class="home-menu" href="../index.html" aria-label="Back to main page" title="Back to main page">
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+        </a>
+    </nav>
+
+    <div id="loading-screen" role="status" aria-live="polite">
+        <h2>PROCESSING MEDIA...</h2>
+        <p id="loading-status">this may take a while, please be patient</p>
+        <div id="conversion-progress" role="progressbar" aria-label="Conversion progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="conversion-progress-bar"></div>
+        </div>
+        <p id="conversion-progress-text">0%</p>
+        <div class="loading-spinner-wrap">
+            <div id="spinner" aria-hidden="true"></div>
+        </div>
+    </div>
+
+    <h1>DK CONVERTER</h1>
+
+
+    <div class="container">
+        
+        <p class="error" id="error" style="display: none;"></p>
+        
+        <p class="success" id="success" style="display: none;"></p>
+        
+        <form id="uploadForm" onsubmit="return showLoading()">
+            <label for="image_file">Image or Video Source 📁</label>
+            <input type="file" name="image_file" id="image_file" accept="image/*,video/*,audio/*" required>
+            
+            <hr class="form-separator">
+
+            <div id="image-video-options">
+                <label for="max_resolution">Max output resolution <span style="color: var(--color-accent-dark); font-weight: 400;">(Longest side in pixels)</span></label>
+                <input type="number" name="max_resolution" id="max_resolution" value="400" min="1">
+                <p>Leave blank for uncapped resolution.</p>
+                <div id="gif-frame-options" hidden>
+                    <label for="max_frames" id="max-frames-label">Maximum frames</label>
+                    <input type="number" name="max_frames" id="max_frames" value="30" min="1" step="1">
+                    <p id="max-frames-help">Leave blank for all frames. Long animations are sampled at a whole-frame interval.</p>
+                </div>
+                <p>Without a color cap, still images are encoded losslessly at the selected output dimensions, including transparency. GIF sampling combines skipped-frame delays. Video always uses a color cap, samples frames at whole-frame intervals, and can embed compressed audio.</p>
+
+                <div id="pixel-art-options">
+                    <label class="option-row" for="pixel_art_mode">
+                        <input type="checkbox" id="pixel_art_mode" name="pixel_art_mode">
+                        Pixel art mode (editable color runs)
+                    </label>
+                    <p>Pixel art mode uses palette colors and rectangle drawing instead of the lossless image renderer.</p>
+                </div>
+
+                <label class="option-row" for="cap_colors">
+                    <input type="checkbox" id="cap_colors" name="cap_colors">
+                    Cap colors
+                </label>
+                <div id="max-colors-options" hidden>
+                    <label for="max_colors">Maximum colors <span style="color: var(--color-accent-dark); font-weight: 400;">(blank = automatic, pixels ÷ 500)</span></label>
+                    <input type="number" name="max_colors" id="max_colors" min="1" max="1048576" step="1" placeholder="Automatic">
+                    <p id="max-colors-help"></p>
+                </div>
+            </div>
+            <div id="media-audio-options" hidden>
+                <label for="audio_quality">Audio compression level (1–100)</label>
+                <input type="number" name="audio_quality" id="audio_quality" value="20" min="1" max="100" step="1">
+                <p>Higher values preserve more audio quality. At 1, audio is mono 8 kbps at 8 kHz with a strong low-pass filter for extremely lo-fi sound. MP3 cannot go below 8 kbps; video and audio conversion download the local FFmpeg engine (about 32 MB) on first use.</p>
+            </div>
+
+            <button type="submit" id="generate-button">Convert Media</button>
+        </form>
+        <div id="converted-counter" style="margin-top: 14px; color: var(--color-text-secondary); font-weight:600;">
+            You have Converted <span id="converted-count">0</span> media files!
+            <br>Thank you for using DK Converter!
+        </div>
+    </div>
+    
+    <div id="utility-section">
+        <div class="result-header">
+            <div class="result-info-box">
+                <h2>Utility Code</h2>
+                <h5>This code is essential for drawing the media.<br>Paste it <strong>before</strong> the generated media code and press ctrl/cmd + alt + 0.<br>You only need to paste this once per program.</b></h5>
+            </div>
+            <div class="copy-actions">
+                <button class="copy-button" onclick="copyUtility(this)">📋 COPY UTILITY</button>
+                <button class="copy-button" id="copy-all-button" onclick="copyAll(this)" disabled>📋 COPY ALL</button>
+            </div>
+
+        </div>
+        <pre id="utilityOutput" class="language-javascript">
+    
+// DK CONVERTER UTILITY [
+
+function dkIsFiniteNumber(value) {
+    return typeof value === "number" &&
+        value === value &&
+        value < (1 / 0) &&
+        value > (-1 / 0);
+}
+
+function dkIsInteger(value) {
+    return dkIsFiniteNumber(value) &&
+        Math.floor(value) === value;
+}
+
+function dkIsArray(value) {
+    return Object.prototype.toString.call(value) === "[object Array]";
+}
+
+function dkRequireInteger(value, minimum, message) {
+    if (!dkIsInteger(value) || value < minimum) {
+        throw new Error(message);
+    }
+}
+
+// DK JSON PARSER SUPPORT START
+function dkParseJSON(text) {
+    var position = 0;
+
+    function skipWhitespace() {
+        while (position < text.length &&
+            (text.charAt(position) === " " ||
+                text.charAt(position) === "\n" ||
+                text.charAt(position) === "\r" ||
+                text.charAt(position) === "\t")) {
+            position++;
+        }
+    }
+
+    function parseString() {
+        var result = "";
+        position++;
+        while (position < text.length) {
+            var character = text.charAt(position++);
+            if (character === '"') {
+                return result;
+            }
+            if (character !== "\\") {
+                result += character;
+                continue;
+            }
+            if (position >= text.length) {
+                throw new Error("DK: incomplete string escape.");
+            }
+            var escaped = text.charAt(position++);
+            if (escaped === '"' || escaped === "\\" || escaped === "/") {
+                result += escaped;
+            } else if (escaped === "b") {
+                result += "\b";
+            } else if (escaped === "f") {
+                result += "\f";
+            } else if (escaped === "n") {
+                result += "\n";
+            } else if (escaped === "r") {
+                result += "\r";
+            } else if (escaped === "t") {
+                result += "\t";
+            } else if (escaped === "u") {
+                var code = parseInt(text.substr(position, 4), 16);
+                if (isNaN(code)) {
+                    throw new Error("DK: invalid Unicode escape.");
+                }
+                result += String.fromCharCode(code);
+                position += 4;
+            } else {
+                throw new Error("DK: invalid string escape.");
+            }
+        }
+        throw new Error("DK: unterminated string.");
+    }
+
+    function parseValue() {
+        skipWhitespace();
+        var character = text.charAt(position);
+        if (character === '"') {
+            return parseString();
+        }
+        if (character === "[") {
+            position++;
+            var array = [];
+            skipWhitespace();
+            if (text.charAt(position) === "]") {
+                position++;
+                return array;
+            }
+            while (position < text.length) {
+                array.push(parseValue());
+                skipWhitespace();
+                character = text.charAt(position++);
+                if (character === "]") {
+                    return array;
+                }
+                if (character !== ",") {
+                    throw new Error("DK: invalid array separator.");
+                }
+            }
+            throw new Error("DK: unterminated array.");
+        }
+        if (character === "{") {
+            position++;
+            var object = {};
+            skipWhitespace();
+            if (text.charAt(position) === "}") {
+                position++;
+                return object;
+            }
+            while (position < text.length) {
+                skipWhitespace();
+                if (text.charAt(position) !== '"') {
+                    throw new Error("DK: object key must be a string.");
+                }
+                var key = parseString();
+                skipWhitespace();
+                if (text.charAt(position++) !== ":") {
+                    throw new Error("DK: invalid object separator.");
+                }
+                object[key] = parseValue();
+                skipWhitespace();
+                character = text.charAt(position++);
+                if (character === "}") {
+                    return object;
+                }
+                if (character !== ",") {
+                    throw new Error("DK: invalid object separator.");
+                }
+            }
+            throw new Error("DK: unterminated object.");
+        }
+        if (text.substr(position, 4) === "true") {
+            position += 4;
+            return true;
+        }
+        if (text.substr(position, 5) === "false") {
+            position += 5;
+            return false;
+        }
+        if (text.substr(position, 4) === "null") {
+            position += 4;
+            return null;
+        }
+        var numberMatch = text.slice(position).match(
+            /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/
+        );
+        if (numberMatch) {
+            position += numberMatch[0].length;
+            return Number(numberMatch[0]);
+        }
+        throw new Error("DK: invalid JSON value.");
+    }
+
+    var value = parseValue();
+    skipWhitespace();
+    if (position !== text.length) {
+        throw new Error("DK: unexpected data after JSON value.");
+    }
+    return value;
+}
+// DK JSON PARSER SUPPORT END
+
+// DK AUDIO SUPPORT START
+// Credit to SwankyMan for audio player technology!
+/* jshint ignore: start */
+PJSCodeInjector.applyInstance = function(o) {
+    return function() {
+        return Reflect.construct(o, arguments);
+    };
+};
+
+var dkAudioContext = new AudioContext();
+/* jshint ignore: end */
+
+var dkAudioBuffers = {};
+var dkAudioSources = {};
+
+function dkLoadAudio(name, base64String, afterLoad) {
+    if (dkAudioBuffers[name]) {
+        if (afterLoad) {
+            afterLoad();
+        }
+        return;
+    }
+    /* jshint ignore: start */
+    var binary = window.atob(base64String);
+    var audioBuffer = new ArrayBuffer(binary.length);
+    var audioBytes = new Uint8Array(audioBuffer);
+    var i;
+    for (i = 0; i < binary.length; i++) {
+        audioBytes[i] = binary.charCodeAt(i) & 255;
+    }
+    dkAudioContext.decodeAudioData(
+        audioBuffer,
+        function(decoded) {
+            dkAudioBuffers[name] = decoded;
+            if (afterLoad) {
+                afterLoad();
+            }
+        },
+        function() {
+            println("DK audio: could not decode embedded audio.");
+        }
+    );
+    /* jshint ignore: end */
+}
+
+function dkPlayAudio(name, base64String, volume, afterStart) {
+    /* jshint ignore: start */
+    if (dkAudioContext.resume) {
+        dkAudioContext.resume();
+    }
+    dkLoadAudio(name, base64String, function() {
+        if (dkAudioSources[name]) {
+            dkAudioSources[name].stop(0);
+        }
+        var source = dkAudioContext.createBufferSource();
+        var gain = dkAudioContext.createGain();
+        source.buffer = dkAudioBuffers[name];
+        source.loop = false;
+        gain.gain.value = volume === undefined ? 1 : volume;
+        source.connect(gain);
+        gain.connect(dkAudioContext.destination);
+        dkAudioSources[name] = source;
+        source.start(0);
+        if (afterStart) {
+            afterStart();
+        }
+    });
+    /* jshint ignore: end */
+}
+// DK AUDIO SUPPORT END
+
+
+// WARNING: LEAVE CLOSED [
+var DK_ALPHABET = __DK_ALPHABET__;
+var DK_ALPHABET_INDEX = {};
+var dkAlphabetPosition;
+for (dkAlphabetPosition = 0;
+    dkAlphabetPosition < DK_ALPHABET.length;
+    dkAlphabetPosition++) {
+    DK_ALPHABET_INDEX[DK_ALPHABET.charAt(dkAlphabetPosition)] = dkAlphabetPosition;
+}
+// ]
+var DK_BASE_K_BLOCK_SIZE = 32;
+
+function dkBaseDigitCount(byteCount) {
+    if (byteCount === 0) {
+        return 0;
+    }
+    var work = new Array(byteCount);
+    var i;
+    for (i = 0; i < byteCount; i++) {
+        work[i] = 255;
+    }
+    var digitCount = 0;
+    while (true) {
+        var remainder = 0;
+        var hasValue = false;
+        for (i = 0; i < work.length; i++) {
+            var value = remainder * 256 + work[i];
+            work[i] = Math.floor(value / DK_ALPHABET.length);
+            remainder = value % DK_ALPHABET.length;
+            if (work[i] !== 0) {
+                hasValue = true;
+            }
+        }
+        digitCount++;
+        if (!hasValue) {
+            return digitCount;
+        }
+    }
+}
+
+function dkDecodeBaseK(encoded, byteLength) {
+    var output = new Array(byteLength);
+    var outputOffset = 0;
+    var inputOffset = 0;
+    while (outputOffset < byteLength) {
+        var blockLength = Math.min(
+            DK_BASE_K_BLOCK_SIZE,
+            byteLength - outputOffset
+        );
+        var digitCount = dkBaseDigitCount(blockLength);
+        var block = new Array(blockLength);
+        var i;
+        for (i = 0; i < blockLength; i++) {
+            block[i] = 0;
+        }
+        for (i = 0; i < digitCount; i++) {
+            if (inputOffset >= encoded.length) {
+                throw new Error("DKL4: truncated base-k data.");
+            }
+            var digit = DK_ALPHABET_INDEX[
+                encoded.charAt(inputOffset++)
+            ];
+            if (typeof digit !== "number") {
+                throw new Error("DKL4: invalid base-k character.");
+            }
+            var carry = digit;
+            for (var byteIndex = blockLength - 1; byteIndex >= 0; byteIndex--) {
+                var value = block[byteIndex] * DK_ALPHABET.length + carry;
+                block[byteIndex] = value % 256;
+                carry = Math.floor(value / 256);
+            }
+            if (carry !== 0) {
+                throw new Error(
+                    "DKL4: base-k block exceeds its byte length."
+                );
+            }
+        }
+        for (i = 0; i < blockLength; i++) {
+            output[outputOffset++] = block[i];
+        }
+    }
+    if (inputOffset !== encoded.length) {
+        throw new Error("DKL4: base-k data has trailing characters.");
+    }
+    return output;
+}
+
+function decodeDKChunk(frameData) {
+    if (!frameData || typeof frameData.data !== "string") {
+        throw new Error("DKL4: invalid chunk data.");
+    }
+    dkRequireInteger(
+        frameData.length,
+        0,
+        "DKL4: invalid chunk length."
+    );
+    var encoded = frameData.data;
+    var bytes;
+    var i;
+    var value;
+    if (frameData.baseK === true) {
+        dkRequireInteger(
+            frameData.encodedLength,
+            0,
+            "DKL4: invalid encoded byte length."
+        );
+        bytes = dkDecodeBaseK(encoded, frameData.encodedLength);
+    } else {
+        bytes = new Array(encoded.length);
+        for (i = 0; i < encoded.length; i++) {
+            value = encoded.charCodeAt(i) - 0x4E00;
+            if (value < 0 || value > 255) {
+                throw new Error(
+                    "DKL4: invalid encoded character at " + i
+                );
+            }
+            bytes[i] = value;
+        }
+    }
+    if (frameData.compressed !== true) {
+        if (bytes.length !== frameData.length) {
+            throw new Error("DKL4: raw byte length mismatch.");
+        }
+        if (frameData.delta === true) {
+            for (i = 4; i < bytes.length; i++) {
+                bytes[i] = (bytes[i] + bytes[i - 4]) & 255;
+            }
+        }
+        return bytes;
+    }
+    var output = new Array(frameData.length);
+    var inputIndex = 0;
+    var outputIndex = 0;
+    var flags;
+    var token;
+    var offset;
+    var count;
+    var bit;
+    var copy;
+    while (inputIndex < bytes.length &&
+        outputIndex < output.length) {
+        flags = bytes[inputIndex++];
+        for (bit = 0; bit < 8 &&
+            outputIndex < output.length; bit++) {
+            if (flags & (1 << bit)) {
+                if (inputIndex >= bytes.length) {
+                    throw new Error("DKL4: truncated literal.");
+                }
+
+                output[outputIndex] = bytes[inputIndex++];
+                outputIndex++;
+            } else {
+                if (inputIndex + 1 >= bytes.length) {
+                    throw new Error(
+                        "DKL4: truncated compression token."
+                    );
+                }
+
+                token = (bytes[inputIndex++] << 8) |
+                    bytes[inputIndex++];
+
+                offset = token >> 4;
+                count = (token & 15) + 3;
+
+                if (offset < 1 ||
+                    offset > outputIndex ||
+                    outputIndex + count > output.length) {
+                    throw new Error(
+                        "DKL4: invalid compression token."
+                    );
+                }
+
+                for (copy = 0; copy < count; copy++) {
+                    output[outputIndex] = output[outputIndex - offset];
+
+                    outputIndex++;
+                }
+            }
+        }
+    }
+    if (outputIndex !== output.length ||
+        inputIndex !== bytes.length) {
+        throw new Error(
+            "DKL4: decoded length mismatch. Expected " +
+            output.length + " bytes, decoded " + outputIndex +
+            ", consumed " + inputIndex + "/" + bytes.length + "."
+        );
+    }
+    /* Restore delta-encoded RGBA channels if enabled. */
+    if (frameData.delta === true) {
+        for (i = 4; i < output.length; i++) {
+            output[i] = (output[i] + output[i - 4]) & 255;
+        }
+    }
+
+    return output;
+}
+
+/* Decode all chunks belonging to a frame. */
+function decodeDKFrame(frameData) {
+    if (!frameData || typeof frameData !== "object") {
+        throw new Error("DKL4: frame is missing.");
+    }
+    if (frameData.chunks === undefined ||
+        frameData.chunks === null) {
+        return decodeDKChunk(frameData);
+    }
+    if (!dkIsArray(frameData.chunks)) {
+        throw new Error("DKL4: invalid chunks array.");
+    }
+    dkRequireInteger(
+        frameData.length,
+        0,
+        "DKL4: invalid frame length."
+    );
+    var output = new Array(frameData.length);
+    var outputOffset = 0;
+    var i;
+    var j;
+    var chunk;
+    for (i = 0; i < frameData.chunks.length; i++) {
+        chunk = decodeDKChunk(frameData.chunks[i]);
+        if (outputOffset + chunk.length > output.length) {
+            throw new Error(
+                "DKL4: chunk " + i + " exceeds frame length."
+            );
+        }
+        for (j = 0; j < chunk.length; j++) {
+            output[outputOffset] = chunk[j];
+            outputOffset++;
+        }
+    }
+    if (outputOffset !== output.length) {
+        throw new Error(
+            "DKL4: frame length mismatch. Expected " +
+            output.length + " bytes, got " + outputOffset + "."
+        );
+    }
+    return output;
+}
+
+/* Calculate animation frame duration without modern array methods. */
+function dkFrameDuration(frame) {
+    var delay = frame && frame.delay;
+    if (!dkIsFiniteNumber(delay) || delay <= 0) {
+        delay = 10;
+    }
+    return Math.max(1, Math.round(delay * 0.6));
+}
+
+function decodeDKPaletteFrame(packedBytes, frameData, pixelCount, format) {
+    var paletteLength;
+    var palette;
+    var paletteOffset = 0;
+    if (format === "DKC5") {
+        paletteLength = frameData.paletteLength;
+        if (!dkIsInteger(paletteLength) ||
+            paletteLength < 0 ||
+            paletteLength > 1048576) {
+            throw new Error("DKC5: invalid palette length.");
+        }
+        palette = new Array(paletteLength);
+        for (var paletteIndex = 0; paletteIndex < paletteLength; paletteIndex++) {
+            palette[paletteIndex] = [
+                packedBytes[paletteOffset],
+                packedBytes[paletteOffset + 1],
+                packedBytes[paletteOffset + 2],
+                packedBytes[paletteOffset + 3]
+            ];
+            paletteOffset += 4;
+        }
+    } else {
+        throw new Error("DKC: unsupported color-palette format.");
+    }
+    if (!dkIsInteger(frameData.bitDepth) ||
+        frameData.bitDepth < 1 ||
+        frameData.bitDepth > 21 ||
+        paletteLength > 1048576 ||
+        !dkIsInteger(frameData.transparentIndex) ||
+        frameData.transparentIndex < -1 ||
+        frameData.transparentIndex !== -1 &&
+            frameData.transparentIndex !== paletteLength ||
+        Math.pow(2, frameData.bitDepth) <
+            paletteLength +
+                (frameData.transparentIndex === paletteLength ? 1 : 0)) {
+        throw new Error(format + ": invalid palette metadata.");
+    }
+    var packedLength = Math.ceil(pixelCount * frameData.bitDepth / 8);
+    if (packedBytes.length !== paletteOffset + packedLength) {
+        throw new Error(format + ": palette/index data length mismatch.");
+    }
+    var rgba = new Array(pixelCount * 4);
+    var bitBuffer = 0;
+    var bufferedBits = 0;
+    var inputIndex = paletteOffset;
+    var pixel;
+    var paletteIndex;
+    var color;
+    var channel;
+    var divisor;
+    for (pixel = 0; pixel < pixelCount; pixel++) {
+        while (bufferedBits < frameData.bitDepth) {
+            if (inputIndex >= packedBytes.length) {
+                throw new Error(format + ": truncated palette-index data.");
+            }
+            bitBuffer = (bitBuffer << 8) | packedBytes[inputIndex];
+            inputIndex++;
+            bufferedBits += 8;
+        }
+        bufferedBits -= frameData.bitDepth;
+        divisor = Math.pow(2, bufferedBits);
+        paletteIndex = Math.floor(bitBuffer / divisor);
+        bitBuffer %= divisor;
+        if (paletteIndex === frameData.transparentIndex) {
+            rgba[pixel * 4] = 0;
+            rgba[pixel * 4 + 1] = 0;
+            rgba[pixel * 4 + 2] = 0;
+            rgba[pixel * 4 + 3] = 0;
+        } else {
+            if (paletteIndex < 0 ||
+                paletteIndex >= paletteLength) {
+                throw new Error(format + ": palette index is out of range.");
+            }
+            color = palette[paletteIndex];
+            if (!dkIsArray(color) || color.length !== 4) {
+                throw new Error(format + ": invalid palette color.");
+            }
+            for (channel = 0; channel < 4; channel++) {
+                if (!dkIsInteger(color[channel]) ||
+                    color[channel] < 0 || color[channel] > 255) {
+                    throw new Error(format + ": palette channel is out of range.");
+                }
+                rgba[pixel * 4 + channel] = color[channel];
+            }
+        }
+    }
+    return rgba;
+}
+
+/* Decode and render the selected image frame. */
+function drawLosslessImage(startX, startY, pixelSize, data, frame) {
+    if (!data || !dkIsArray(data.frames) ||
+        data.frames.length === 0) {
+        throw new Error("DKL4: no image frames found.");
+    }
+    if (typeof createGraphics !== "function" ||
+        typeof image !== "function") {
+        throw new Error("DKL4: rendering functions unavailable.");
+    }
+    if (!dkIsFiniteNumber(pixelSize) || pixelSize <= 0) {
+        throw new Error("DKL4: invalid pixel size.");
+    }
+    if (data.format !== "DKL4" &&
+        data.format !== "DKC5") {
+        throw new Error("DKL4: unsupported image format.");
+    }
+    dkRequireInteger(data.width, 1, "DKL4: invalid image width.");
+    dkRequireInteger(data.height, 1, "DKL4: invalid image height.");
+    var expected = data.width * data.height * 4;
+    if (!dkIsInteger(expected) || expected > 100000000) {
+        throw new Error("DKL4: image dimensions are too large.");
+    }
+    var frameNumber = frame === undefined ? 0 : Math.floor(frame);
+    if (!dkIsFiniteNumber(frameNumber) || frameNumber < 0) {
+        frameNumber = 0;
+    }
+    var frameIndex = frameNumber % data.frames.length;
+    var hasDelays = false;
+    var totalTicks = 0;
+    var i;
+    var duration;
+    for (i = 0; i < data.frames.length; i++) {
+        if (data.frames[i] &&
+            dkIsFiniteNumber(data.frames[i].delay) &&
+            data.frames[i].delay > 0) {
+            hasDelays = true;
+            break;
+        }
+    }
+    if (hasDelays) {
+        for (i = 0; i < data.frames.length; i++) {
+            totalTicks += dkFrameDuration(data.frames[i]);
+        }
+        var elapsed = frameNumber % totalTicks;
+        for (i = 0; i < data.frames.length; i++) {
+            duration = dkFrameDuration(data.frames[i]);
+            if (elapsed < duration) {
+                frameIndex = i;
+                break;
+            }
+            elapsed -= duration;
+        }
+    }
+    var img = null;
+    if (data._imageCache &&
+        data._imageCache.index === frameIndex) {
+        img = data._imageCache.image;
+    }
+    if (!img) {
+        var frameData = data.frames[frameIndex];
+        var decoded = decodeDKFrame(frameData);
+        var rgba;
+        if (data.format === "DKC5") {
+            rgba = decodeDKPaletteFrame(
+                decoded,
+                frameData,
+                data.width * data.height,
+                data.format
+            );
+        } else {
+            rgba = decoded;
+        }
+        if (rgba.length !== expected) {
+            throw new Error(
+                "DKL4: RGBA length mismatch. Expected " +
+                expected + ", got " + rgba.length + "."
+            );
+        }
+        img = createGraphics(data.width, data.height, JAVA2D);
+        if (!img) {
+            throw new Error("DKL4: createGraphics failed.");
+        }
+        var snapshot = img.get();
+        if (!snapshot || !snapshot.sourceImg ||
+            typeof snapshot.sourceImg.getContext !== "function") {
+            throw new Error(
+                "DKL4: canvas snapshot unavailable."
+            );
+        }
+        var context = snapshot.sourceImg.getContext("2d");
+        if (!context) {
+            throw new Error("DKL4: canvas context unavailable.");
+        }
+        var imageData = context.createImageData(
+            data.width,
+            data.height
+        );
+        if (!imageData || !imageData.data ||
+            imageData.data.length !== expected) {
+            throw new Error("DKL4: unexpected ImageData size.");
+        }
+        for (i = 0; i < expected; i++) {
+            imageData.data[i] = rgba[i];
+        }
+        context.putImageData(imageData, 0, 0);
+        img.image(snapshot, 0, 0);
+        data._imageCache = {
+            index: frameIndex,
+            image: img
+        };
+    }
+    image(
+        img,
+        startX,
+        startY,
+        Math.round(data.width * pixelSize),
+        Math.round(data.height * pixelSize)
+    );
+}
+
+function drawReadablePixelArt(startX, startY, pixelSize, data, frame) {
+    if (!data || !dkIsArray(data.frames) ||
+        data.frames.length === 0) {
+        throw new Error("DKP2: no pixel-art frames found.");
+    }
+    if (!dkIsFiniteNumber(pixelSize) || pixelSize <= 0) {
+        throw new Error("DKP2: invalid pixel size.");
+    }
+    if (typeof fill !== "function" ||
+        typeof noStroke !== "function" ||
+        typeof rect !== "function") {
+        throw new Error("DKP2: rectangle drawing functions unavailable.");
+    }
+    var frameNumber = frame === undefined ? 0 : Math.floor(frame);
+    if (!dkIsFiniteNumber(frameNumber) || frameNumber < 0) {
+        frameNumber = 0;
+    }
+    var frameIndex = frameNumber % data.frames.length;
+    var hasDelays = false;
+    var totalTicks = 0;
+    var i;
+    var duration;
+    for (i = 0; i < data.frames.length; i++) {
+        if (data.frames[i] && dkIsFiniteNumber(data.frames[i].delay) &&
+            data.frames[i].delay > 0) {
+            hasDelays = true;
+            break;
+        }
+    }
+    if (hasDelays) {
+        for (i = 0; i < data.frames.length; i++) {
+            totalTicks += dkFrameDuration(data.frames[i]);
+        }
+        var elapsed = frameNumber % totalTicks;
+        for (i = 0; i < data.frames.length; i++) {
+            duration = dkFrameDuration(data.frames[i]);
+            if (elapsed < duration) {
+                frameIndex = i;
+                break;
+            }
+            elapsed -= duration;
+        }
+    }
+    var pixelFrame = data.frames[frameIndex];
+    if (!pixelFrame || !dkIsArray(pixelFrame.canvasData) ||
+        pixelFrame.canvasData.length !== data.height ||
+        !pixelFrame.colorMap ||
+        typeof pixelFrame.colorMap !== "object") {
+        throw new Error("DKP2: invalid frame data.");
+    }
+    var preserveStyle = typeof pushStyle === "function" &&
+        typeof popStyle === "function";
+    if (preserveStyle) {
+        pushStyle();
+    }
+    try {
+        noStroke();
+        if (typeof rectMode === "function" &&
+            typeof CORNER !== "undefined") {
+            rectMode(CORNER);
+        }
+        var y;
+        var row;
+        var x;
+        var symbol;
+        var runEnd;
+        var mappedColor;
+        var left;
+        var top;
+        var right;
+        var bottom;
+        for (y = 0; y < data.height; y++) {
+            row = pixelFrame.canvasData[y];
+            if (typeof row !== "string" || row.length !== data.width) {
+                throw new Error("DKP2: row " + y + " has an invalid width.");
+            }
+            x = 0;
+            while (x < data.width) {
+                symbol = row.charAt(x);
+                runEnd = x + 1;
+                while (runEnd < data.width &&
+                    row.charAt(runEnd) === symbol) {
+                    runEnd++;
+                }
+                if (symbol !== "-") {
+                    mappedColor = pixelFrame.colorMap[symbol];
+                    if (mappedColor === undefined ||
+                        mappedColor === null) {
+                        throw new Error("DKP2: unmapped pixel symbol.");
+                    }
+                    fill(mappedColor);
+                    left = Math.round(startX + x * pixelSize);
+                    top = Math.round(startY + y * pixelSize);
+                    right = Math.round(startX + runEnd * pixelSize);
+                    bottom = Math.round(startY + (y + 1) * pixelSize);
+                    rect(left, top, right - left, bottom - top);
+                }
+                x = runEnd;
+            }
+        }
+    } finally {
+        if (preserveStyle) {
+            popStyle();
+        }
+    }
+}
+
+function drawHugePixelArt(
+    startX,
+    startY,
+    pixelSize,
+    canvasData,
+    unusedColorMap,
+    frame
+) {
+    if (canvasData && canvasData.format === "DKP2") {
+        drawReadablePixelArt(
+            startX,
+            startY,
+            pixelSize,
+            canvasData,
+            frame
+        );
+        return;
+    }
+    if (!canvasData ||
+        (canvasData.format !== "DKL4" &&
+            canvasData.format !== "DKC5")) {
+        throw new Error(
+            "DKL4 renderer received unsupported data."
+        );
+    }
+    drawLosslessImage(
+        startX,
+        startY,
+        pixelSize,
+        canvasData,
+        frame
+    );
+}
+// ]
+
+
+</pre>
+    </div>
+
+    <div id="result-section" style="display: none;">
+        <div class="result-header">
+            <div class="result-info-box">
+                <h2>Generated Media Code</h2>
+                <h3><span id="rectCount">0</span></h3>
+                <h5>Copy and paste the code below into Khan Academy.</h5>
+            </div>
+            <button class="copy-button" onclick="copyResult(this)">📋 COPY MEDIA CODE</button>
+
+        </div>
+
+        <p style="color: var(--color-text-secondary);">Media data output (wrapped in a function for use with the utility code):</p>
+        <pre id="jsOutput"></pre>
+    </div>
+    <p>Contact us at actuallydigitsofpi314159@gmail.com</p>
+    
+    <script src="../script.js" defer></script>
+</body>
+</html>
