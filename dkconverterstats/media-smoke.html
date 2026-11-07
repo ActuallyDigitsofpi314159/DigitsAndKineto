@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DK Converter Local Media Smoke Checks</title>
+    <style>
+        body { margin: 2rem auto; padding: 0 1rem; max-width: 1000px; font: 16px/1.5 system-ui, sans-serif; color: #e9eef9; background: #101522; }
+        h1 { font-size: 1.7rem; }
+        button { padding: .65rem 1rem; color: white; background: #2457be; border: 0; border-radius: .5rem; font: inherit; cursor: pointer; }
+        button:disabled { opacity: .6; cursor: wait; }
+        pre { min-height: 8rem; padding: 1rem; white-space: pre-wrap; overflow-wrap: anywhere; background: #171f30; border-radius: .5rem; }
+        iframe { width: 100%; height: 680px; margin-top: 1.5rem; border: 1px solid #39465e; border-radius: .6rem; background: #080d17; }
+    </style>
+</head>
+<body>
+    <h1>DK Converter local media smoke checks</h1>
+    <p>Uses small synthetic files served by this local server. It exercises both still-image models, animated GIF, video with audio, and audio-only conversion. Add <code>?large=1</code> and place <code>kitty.avif</code> in this folder to include the attached 4K image.</p>
+    <button id="run-smoke" type="button">Run smoke checks</button>
+    <pre id="smoke-results" aria-live="polite">Waiting to run.</pre>
+    <iframe id="converter-frame" title="DK Converter under test" src="../dkconverter/"></iframe>
+    <script>
+        const button = document.getElementById('run-smoke');
+        const results = document.getElementById('smoke-results');
+        const frame = document.getElementById('converter-frame');
+        const includeLargeImage = new URLSearchParams(location.search).get('large') === '1';
+        const universalUtilityFunctions = [
+            'dkParseJSON',
+            'dkDecodeBaseK',
+            'dkDecodeZstdBytes',
+            'dkPlayAudio',
+            'drawLosslessImage',
+            'drawColorImage',
+            'drawReadablePixelArt',
+            'drawHugePixelArt'
+        ];
+
+        const cases = [
+            {
+                name: 'PNG, lossless DKL',
+                path: 'fixtures/dk-test.png',
+                fileName: 'dk-test.png',
+                mime: 'image/png',
+                cap: false,
+                resolution: '400',
+                successText: 'Lossless image processed',
+                heading: 'Generated Image Code',
+                utilityFunctions: ['drawLosslessImage'],
+                rendererFunction: 'drawLosslessImage'
+            },
+            {
+                name: 'PNG, color-capped DKC5',
+                path: 'fixtures/dk-test.png',
+                fileName: 'dk-test.png',
+                mime: 'image/png',
+                cap: true,
+                resolution: '400',
+                successText: 'Color-limited image processed',
+                heading: 'Generated Image Code',
+                utilityFunctions: ['drawColorImage']
+            },
+            {
+                name: 'Animated GIF, 30 FPS preset',
+                path: 'fixtures/dk-test.gif',
+                fileName: 'dk-test.gif',
+                mime: 'image/gif',
+                cap: true,
+                resolution: '400',
+                fps: 30,
+                expectedPresetFrames: 45,
+                expectedOutputFrames: 6,
+                successText: 'Color-limited GIF processed',
+                heading: 'Generated GIF Code',
+                utilityFunctions: ['drawColorImage'],
+                rendererFunction: 'drawColorImage',
+                requiresLockedColorCap: true
+            },
+            {
+                name: 'MP4 video with audio, 30 FPS preset',
+                path: 'fixtures/dk-test.mp4',
+                fileName: 'dk-test.mp4',
+                mime: 'video/mp4',
+                cap: true,
+                resolution: '400',
+                fps: 30,
+                expectedPresetFrames: 60,
+                expectedOutputFrames: 8,
+                successText: 'Color-limited video processed',
+                heading: 'Generated Video Code',
+                requiresEmbeddedAudio: true,
+                rendererFunction: 'drawColorImage',
+                utilityFunctions: ['drawColorImage', 'dkPlayAudio', 'dkDecodeBaseK']
+            },
+            {
+                name: 'WAV audio-only',
+                path: 'fixtures/dk-test.wav',
+                fileName: 'dk-test.wav',
+                mime: 'audio/wav',
+                audioQuality: 20,
+                successText: 'Audio converted successfully',
+                heading: 'Generated Audio Code',
+                requiresMp3: true,
+                utilityFunctions: ['dkPlayAudio', 'dkDecodeBaseK']
+            }
+        ];
+
+        if (includeLargeImage) {
+            cases.push({
+                name: 'Attached AVIF, color-capped DKC5',
+                path: 'fixtures/kitty.avif',
+                fileName: 'kitty.avif',
+                mime: 'image/avif',
+                cap: true,
+                resolution: '',
+                successText: 'Color-limited image processed',
+                heading: 'Generated Image Code'
+            });
+            cases.push({
+                name: 'Attached AVIF, lossless DKL',
+                path: 'fixtures/kitty.avif',
+                fileName: 'kitty.avif',
+                mime: 'image/avif',
+                cap: false,
+                resolution: '',
+                successText: 'Lossless image processed',
+                heading: 'Generated Image Code'
+            });
+        }
+
+        function waitFor(predicate, timeoutMs, description) {
+            return new Promise((resolve, reject) => {
+                const startedAt = Date.now();
+                const timer = setInterval(() => {
+                    if (predicate()) {
+                        clearInterval(timer);
+                        resolve();
+                    } else if (Date.now() - startedAt > timeoutMs) {
+                        clearInterval(timer);
+                        reject(new Error('Timed out waiting for ' + description + '.'));
+                    }
+                }, 50);
+            });
+        }
+
+        function readConverterResult(app, test, elapsedMs) {
+            const error = app.document.getElementById('error');
+            const success = app.document.getElementById('success');
+            const heading = app.document.querySelector('#result-section h2').textContent.trim();
+            const codeButton = app.document.getElementById('copy-all-button');
+            const successText = success.textContent.trim();
+            const rectCount = app.document.getElementById('rectCount').textContent.trim();
+            const utilityCode = app.eval('fullImageUtilityCode');
+            const utilityTemplate = app.eval('fullUtilityTemplate');
+            const utilityPreview = app.document.getElementById('utilityOutput').textContent;
+            const utilityCharacterCount = app.document.getElementById('utilityCharacterCount').textContent;
+            const mediaCode = app.eval('fullImageCode');
+            const expectedPreview = utilityCode.length <= 3200
+                ? utilityCode
+                : utilityCode.slice(0, 1600) +
+                    '\n\n... ' + (utilityCode.length - 3200).toLocaleString() +
+                    ' characters omitted from preview ...\n\n' +
+                    utilityCode.slice(-1600);
+            const missingUtilityFunctions = universalUtilityFunctions.concat(
+                test.utilityFunctions || []
+            ).filter(
+                functionName => !utilityCode.includes('function ' + functionName)
+            );
+            const rendererValid = !test.rendererFunction ||
+                mediaCode.includes(test.rendererFunction + '(') &&
+                utilityCode.includes('function ' + test.rendererFunction);
+            const utilityValid = utilityCharacterCount ===
+                utilityCode.length.toLocaleString() + ' characters' &&
+                utilityPreview === expectedPreview &&
+                utilityCode === utilityTemplate &&
+                utilityCode.startsWith('// DK CONVERTER UTILITY [') &&
+                utilityCode.endsWith('// ]') &&
+                missingUtilityFunctions.length === 0 &&
+                rendererValid;
+            const frameMatch = successText.match(/processed \((\d+) frames?\)/i);
+            const actualFrames = frameMatch ? Number(frameMatch[1]) : null;
+            const valid = error.style.display === 'none' &&
+                success.style.display !== 'none' &&
+                successText.indexOf(test.successText) >= 0 &&
+                heading === test.heading &&
+                codeButton.disabled === false &&
+                utilityValid &&
+                (!test.expectedOutputFrames || actualFrames === test.expectedOutputFrames) &&
+                (!test.requiresEmbeddedAudio || /Embedded [\d,]+ MP3 characters/.test(successText)) &&
+                (!test.requiresMp3 || /embedded MP3 characters/i.test(successText));
+            return {
+                status: valid ? 'PASS' : 'FAIL',
+                name: test.name,
+                milliseconds: Math.round(elapsedMs),
+                heading,
+                success: successText,
+                output: rectCount,
+                utility: app.document.getElementById('utilityCharacterCount').textContent.trim(),
+                frames: actualFrames,
+                success: successText,
+                error: error.style.display !== 'none'
+                    ? error.textContent.trim()
+                    : !utilityValid
+                        ? 'Generated utility preview, character count, or required functions are invalid.'
+                        : ''
+            };
+        }
+
+        async function runCase(test, app) {
+            const input = app.document.getElementById('image_file');
+            const response = await fetch(test.path);
+            if (!response.ok) {
+                throw new Error(test.name + ': fixture request failed (' + response.status + ').');
+            }
+            const fileBytes = await response.arrayBuffer();
+            const file = new app.File([fileBytes], test.fileName, { type: test.mime });
+            const transfer = new app.DataTransfer();
+            transfer.items.add(file);
+            input.files = transfer.files;
+            input.dispatchEvent(new app.Event('change', { bubbles: true }));
+
+            app.document.getElementById('pixel_art_mode').checked = false;
+            app.document.getElementById('pixel_art_mode').dispatchEvent(
+                new app.Event('change', { bubbles: true })
+            );
+            const cap = app.document.getElementById('cap_colors');
+            if (test.requiresLockedColorCap) {
+                cap.checked = false;
+                cap.dispatchEvent(new app.Event('change', { bubbles: true }));
+                if (!cap.disabled || !cap.checked) {
+                    throw new Error('GIF color cap must remain enabled and checked.');
+                }
+            }
+            cap.checked = Boolean(test.cap);
+            cap.dispatchEvent(new app.Event('change', { bubbles: true }));
+
+            if (test.resolution !== undefined) {
+                const resolution = app.document.getElementById('max_resolution');
+                resolution.value = test.resolution;
+                resolution.dispatchEvent(new app.Event('input', { bubbles: true }));
+            }
+            if (test.audioQuality !== undefined) {
+                const audioQuality = app.document.getElementById('audio_quality');
+                audioQuality.value = String(test.audioQuality);
+                audioQuality.dispatchEvent(new app.Event('input', { bubbles: true }));
+            }
+            if (test.fps) {
+                const fpsButton = app.document.querySelector(
+                    '.preset-pill[data-target="max_frames"][data-value="' + test.fps + '"]'
+                );
+                fpsButton.click();
+                await waitFor(
+                    () => Number(app.document.getElementById('max_frames').value) === test.expectedPresetFrames,
+                    15000,
+                    test.fps + ' FPS frame calculation'
+                );
+            }
+
+            app.document.getElementById('error').style.display = 'none';
+            app.document.getElementById('success').style.display = 'none';
+            app.document.getElementById('result-section').style.display = 'none';
+            const startedAt = performance.now();
+            app.document.getElementById('uploadForm').requestSubmit();
+
+            const startedWallTime = Date.now();
+            while (Date.now() - startedWallTime < 240000) {
+                const status = app.document.getElementById('loading-status').textContent.trim();
+                const progress = app.document.getElementById('conversion-progress-text').textContent.trim();
+                results.textContent =
+                    'Running: ' + test.name + '\n' +
+                    status + ' ' + progress + '\n\n' +
+                    results.textContent.split('\n\n').slice(1).join('\n\n');
+
+                const error = app.document.getElementById('error');
+                const success = app.document.getElementById('success');
+                if (error.style.display !== 'none' || success.style.display !== 'none') break;
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            const elapsedMs = performance.now() - startedAt;
+            const report = readConverterResult(app, test, elapsedMs);
+            if (report.status === 'FAIL' &&
+                !report.error &&
+                Date.now() - startedWallTime >= 240000) {
+                report.error = 'Conversion did not complete within 240 seconds.';
+            }
+            return report;
+        }
+
+        async function runSuite() {
+            button.disabled = true;
+            results.textContent = 'Starting local smoke checks...';
+            try {
+                await waitFor(() => frame.contentDocument &&
+                    frame.contentDocument.getElementById('utilityCharacterCount') &&
+                    frame.contentDocument.getElementById('utilityCharacterCount').textContent !== '0 characters',
+                    30000,
+                    'converter iframe initialization'
+                );
+                const app = frame.contentWindow;
+                const savedStorage = {};
+                for (let index = 0; index < localStorage.length; index++) {
+                    const key = localStorage.key(index);
+                    savedStorage[key] = localStorage.getItem(key);
+                }
+
+                const reports = [];
+                try {
+                    for (const test of cases) {
+                        results.textContent = reports.map(report =>
+                            report.status + ' | ' + report.name + ' | ' + report.milliseconds + ' ms | ' +
+                            report.output + (report.error ? ' | ' + report.error : '')
+                        ).join('\n') + (reports.length ? '\n\n' : '') + 'Running: ' + test.name;
+                        try {
+                            const report = await runCase(test, app);
+                            reports.push(report);
+                        } catch (error) {
+                            reports.push({ status: 'FAIL', name: test.name, milliseconds: 0, error: error.message });
+                        }
+                    }
+                } finally {
+                    localStorage.clear();
+                    Object.keys(savedStorage).forEach(key => localStorage.setItem(key, savedStorage[key]));
+                    frame.contentWindow.location.reload();
+                }
+
+                results.textContent = reports.map(report =>
+                    report.status + ' | ' + report.name +
+                    (report.milliseconds ? ' | ' + report.milliseconds + ' ms' : '') +
+                    (report.frames !== null && report.frames !== undefined ? ' | ' + report.frames + ' frames' : '') +
+                    (report.output ? ' | ' + report.output : '') +
+                    (report.utility ? ' | utility ' + report.utility : '') +
+                    (report.status === 'FAIL' && report.success ? ' | ' + report.success : '') +
+                    (report.error ? ' | ' + report.error : '')
+                ).join('\n') + '\n\nSuite complete. Browser localStorage was restored.';
+                results.dataset.status = reports.every(report => report.status === 'PASS') ? 'pass' : 'fail';
+            } catch (error) {
+                results.textContent = 'FAIL | Smoke suite setup | ' + error.message;
+                results.dataset.status = 'fail';
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        button.addEventListener('click', runSuite);
+    </script>
+</body>
+</html>

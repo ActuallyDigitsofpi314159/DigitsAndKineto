@@ -1,0 +1,11 @@
+﻿Zstandard WASM bundle
+====================
+
+Source: @oneidentity/zstd-js 1.0.3, wasm/index.umd.js
+Underlying Zstandard source: facebook/zstd v1.4.8
+
+Local compatibility fix:
+- The published ZstdSimple compressor allocated input length + 18 bytes, copied only the input, then compressed the entire allocation. The extra bytes could contain stale WASM heap contents. The vendored bundle now compresses exactly the input length.
+- The published ZstdSimple decompressor subtracted 18 bytes from the returned length to hide that padding. The vendored bundle now returns the full decompressed frame length.
+
+The converter pads inputs shorter than 101 bytes with known zero bytes before compression. Its decoder verifies and removes that padding.
