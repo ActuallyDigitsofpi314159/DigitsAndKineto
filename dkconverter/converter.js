@@ -36,6 +36,19 @@ let zstdMainThreadReadyPromise = null;
 let nextZstdRequestId = 1;
 let fullUtilityTemplate = '';
 
+// Names that belong to Khan Academy's Processing environment.
+const KA_RESERVED_NAMES = new Set([
+    'frameCount', 'frameRate', 'draw', 'setup', 'image', 'color', 'random',
+    'loadImage', 'createImage', 'getImage', 'getSound', 'playSound', 'stopSound',
+    'millis', 'second', 'minute', 'hour', 'day', 'month', 'year', 'width', 'height',
+    'mouseX', 'mouseY', 'mouseClicked', 'mousePressed', 'mouseReleased', 'keyPressed',
+    'keyReleased', 'text', 'textFont', 'println', 'debug', 'Program', 'noise',
+    'round', 'floor', 'ceil', 'max', 'min', 'abs', 'sqrt', 'pow', 'sin', 'cos',
+    'tan', 'atan2', 'lerp', 'map', 'constrain', 'dist', 'get', 'set', 'fill',
+    'stroke', 'rect', 'ellipse', 'line', 'point', 'background', 'loadPixels',
+    'updatePixels', 'pixels', 'cursor', 'resetMatrix', 'translate', 'scale', 'rotate'
+]);
+
 function simplifyGeneratedFunctionNames(code) {
     const functionNames = new Set();
     const sources = [code];
@@ -49,9 +62,15 @@ function simplifyGeneratedFunctionNames(code) {
     }
     let simplifiedCode = code;
     for (const name of functionNames) {
-        const simpleName = name === 'dkThrow'
+        let simpleName = name === 'dkThrow'
             ? 'raiseError'
             : name.slice(2, 3).toLowerCase() + name.slice(3);
+        // Never take a name Khan Academy's Processing already uses: renaming
+        // dkFrameCount to frameCount broke every GIF and video (the
+        // program's own frameCount stopped being a number).
+        if (KA_RESERVED_NAMES.has(simpleName)) {
+            simpleName = 'media' + name.slice(2);
+        }
         simplifiedCode = simplifiedCode.replace(
             new RegExp(`\\b${name}\\b`, 'g'),
             simpleName
@@ -283,6 +302,54 @@ colorCapper,
     image(dat._image, x, y, Math.round(dat.w * size), Math.round(dat.h * size));
 }`
     ].map(part => part.trim()).filter(Boolean).join('\n\n'));
+}
+
+// The full utility: everything in the template (all image renderers, GIF,
+// video and audio support) plus the JPEG decoder, so the same utility code
+// works for every kind of media DK Converter makes.
+let universalUtilityCache = '';
+function getUniversalUtilityCode() {
+    if (universalUtilityCache) {
+        return universalUtilityCache;
+    }
+    const decoder = decodeDKJPEG.toString()
+        .replace(/\bdecodeDKJPEG\b/g, 'dkDecodeJPEG')
+        .replace(/\s+/g, ' ')
+        .replace(/\s*([{}()[\],;:?=+*<>!&|%])\s*/g, '$1');
+    const bodyStart = decoder.indexOf('{');
+    const bodyEnd = decoder.lastIndexOf('}');
+    if (!/^function dkDecodeJPEG\s*\(/.test(decoder) || bodyStart < 0 || bodyEnd <= bodyStart) {
+        throw new Error('JPEG decoder function boundaries are missing.');
+    }
+    const lintSafeDecoder = decoder.slice(0, bodyStart + 1) +
+        '\n/* jshint ignore:start */\n' +
+        decoder.slice(bodyStart + 1, bodyEnd) +
+        '\n/* jshint ignore:end */\n' +
+        decoder.slice(bodyEnd);
+    const colorCapper = capDKJPEGColors.toString()
+        .replace(/\bcapDKJPEGColors\b/g, 'dkCapJPEGColors');
+    const jpegSection = [
+        '// DK JPEG SUPPORT START',
+        lintSafeDecoder,
+        colorCapper,
+        `function drawJPEGImage(x, y, size, dat) {
+    if (!dat._image) {
+        var rgba = dkDecodeJPEG(dkDecodeBaseK(dat.s, dat.n), dat.w, dat.h);
+        if (typeof dat.c === "number") {
+            dkCapJPEGColors(rgba, dat.c);
+        }
+        dat._image = dkCreateImageFromRGBA(rgba, dat.w, dat.h);
+    }
+    image(dat._image, x, y, Math.round(dat.w * size), Math.round(dat.h * size));
+}`,
+        '// DK JPEG SUPPORT END'
+    ].join('\n\n');
+    const template = fullUtilityTemplate;
+    const closing = template.lastIndexOf('// ]');
+    universalUtilityCache = simplifyGeneratedFunctionNames(
+        template.slice(0, closing).trimEnd() + '\n\n' + jpegSection + '\n' + template.slice(closing)
+    );
+    return universalUtilityCache;
 }
 
 function getBaseKDigitCount(byteCount) {
@@ -1556,7 +1623,7 @@ async function wrapResultCode(
             `        /* jshint ignore:end */`;
     }
     const usage = mediaType === 'video' && audioBase64
-        ? `var ${videoStartFrameName} = null;\n\nfunction ${startFunctionName}() {\n    ${videoStartFrameName} = null;\n    ${audioFunctionName}(1, function() {\n        ${videoStartFrameName} = frameCount;\n    });\n}\n\ndraw = function() {\n    ${funcName}(0, 0, 1, ${videoStartFrameName} === null ? 0 : frameCount - ${videoStartFrameName});\n};\n\nmouseClicked = function() {\n    ${startFunctionName}();\n};`
+        ? `var ${videoStartFrameName} = null;\n\nfunction ${startFunctionName}() {\n    // the picture starts at once (it used to wait on the sound, and showed\n    // only the first frame if the sound was slow or couldn't play)\n    ${videoStartFrameName} = frameCount;\n    ${audioFunctionName}(1, function() {\n        ${videoStartFrameName} = frameCount; // line up with the sound once it starts\n    });\n}\n\ndraw = function() {\n    ${funcName}(0, 0, 1, ${videoStartFrameName} === null ? 0 : frameCount - ${videoStartFrameName});\n    if (${videoStartFrameName} === null) {\n        fill(0, 0, 0, 160);\n        rect(0, 0, width, 30);\n        fill(255);\n        textAlign(CENTER, CENTER);\n        text("Click to play", width / 2, 15);\n    }\n};\n\nmouseClicked = function() {\n    ${startFunctionName}();\n};`
         : isAnimation
             ? `// For animation:\ndraw = function() {\n    ${funcName}(0, 0, 1, frameCount);\n};`
         : `${funcName}(0, 0, 1, 0);`;
@@ -1596,7 +1663,7 @@ async function wrapResultCode(
 }
 
 function updateUtilityCode(pixelArt, colorLimited) {
-    fullUtilityCode = getImageUtilityCode(pixelArt, colorLimited);
+    fullUtilityCode = getUniversalUtilityCode();
     updateUtilityCodeDisplay();
 }
 
@@ -1699,14 +1766,9 @@ async function finishConversion(
     await yieldToBrowser();
     outputCode = simplifyGeneratedFunctionNames(outputCode);
     fullImageCode = outputCode;
-    const needsUniversalUtility = mediaType === 'audio' ||
-        mediaType === 'video' && audioBase64;
-    fullImageUtilityCode = needsUniversalUtility
-        ? fullUtilityTemplate
-        : jpegFrame
-            ? getJPEGUtilityCode(maxColors !== null)
-            : getImageUtilityCode(pixelArt, maxColors !== null);
-    fullImageUtilityCode = simplifyGeneratedFunctionNames(fullImageUtilityCode);
+    // One utility for every kind of media (images, JPEGs, GIFs, video, audio):
+    // paste it once and any DK Converter output works with it.
+    fullImageUtilityCode = getUniversalUtilityCode();
     fullUtilityCode = fullImageUtilityCode;
     document.getElementById('copy-all-button').disabled = false;
     updateUtilityCodeDisplay();
@@ -2028,8 +2090,8 @@ function createAudioOutputCode(audioBase64, playbackRate) {
 async function finishAudioConversion(audioBase64, playbackRate) {
     updateProgress(90, 'Preparing audio playback code...');
     await yieldToBrowser();
-    fullImageCode = createAudioOutputCode(audioBase64, playbackRate);
-    fullImageUtilityCode = fullUtilityTemplate;
+    fullImageCode = simplifyGeneratedFunctionNames(createAudioOutputCode(audioBase64, playbackRate));
+    fullImageUtilityCode = getUniversalUtilityCode();
     fullUtilityCode = fullImageUtilityCode;
     document.getElementById('copy-all-button').disabled = false;
     updateUtilityCodeDisplay();

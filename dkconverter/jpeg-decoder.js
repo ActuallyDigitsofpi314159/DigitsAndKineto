@@ -1,4 +1,6 @@
-/* Avoid returned object literals in nested helpers; KA's Processing.js transpiler corrupts them. */
+/* Avoid returned object literals in nested helpers; KA's Processing.js transpiler corrupts them.
+   Every loop keeps its { } braces: KA's loop protector crashes on a loop without them
+   (it showed as "Unexpected identifier 'read'"). */
 function decodeDKJPEG(bytes, expectedWidth, expectedHeight) {
     var zigzag = [
         0, 1, 8, 16, 9, 2, 3, 10, 17, 24, 32, 25, 18, 11, 4, 5,
@@ -49,7 +51,9 @@ function decodeDKJPEG(bytes, expectedWidth, expectedHeight) {
 
     while (position < bytes.length) {
         if (bytes[position++] !== 255) fail();
-        while (bytes[position] === 255) position++;
+        while (bytes[position] === 255) {
+            position++;
+        }
         marker = bytes[position++];
         if (marker === 217) break;
         if (marker === 216 || marker === 1 ||
@@ -190,7 +194,9 @@ function decodeDKJPEG(bytes, expectedWidth, expectedHeight) {
     };
     var getBits = function(count) {
         var result = 0;
-        while (count--) result = result * 2 + getBit();
+        while (count--) {
+            result = result * 2 + getBit();
+        }
         return result;
     };
     var decodeHuffman = function(table) {
@@ -291,7 +297,9 @@ function decodeDKJPEG(bytes, expectedWidth, expectedHeight) {
                 mcuIndex < mcuColumns * mcuRows) {
                 bitsRemaining = 0;
                 if (bytes[position++] !== 255) fail();
-                while (bytes[position] === 255) position++;
+                while (bytes[position] === 255) {
+            position++;
+        }
                 if (bytes[position++] < 208 || bytes[position - 1] > 215) fail();
                 for (componentIndex = 0; componentIndex < components.length; componentIndex++) {
                     components[componentIndex].predictor = 0;
@@ -351,7 +359,7 @@ function decodeDKJPEG(bytes, expectedWidth, expectedHeight) {
 }
 
 function capDKJPEGColors(rgba, maxColors) {
-    if (typeof maxColors !== "number" || !isFinite(maxColors) ||
+    if (typeof maxColors !== "number" || maxColors - maxColors !== 0 ||
         Math.floor(maxColors) !== maxColors || maxColors < 1) {
         throw "DK JPEG: invalid color limit.";
     }
@@ -375,7 +383,9 @@ function capDKJPEGColors(rgba, maxColors) {
             blueLevels++;
             changed = true;
         }
-        if (!changed) break;
+        if (!changed) {
+            break;
+        }
     }
     var redStep = redLevels > 1 ? 255 / (redLevels - 1) : 0;
     var greenStep = greenLevels > 1 ? 255 / (greenLevels - 1) : 0;
