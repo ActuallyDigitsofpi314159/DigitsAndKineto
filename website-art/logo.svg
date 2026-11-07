@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+  <defs>
+    <!-- Rounded corner clipping mask (60px radius on 600x600 canvas) -->
+    <clipPath id="roundedCornerClip">
+      <rect x="0" y="0" width="600" height="600" rx="60" ry="60" />
+    </clipPath>
+  </defs>
+
+  <!-- Scalable container with center origin support -->
+  <g id="dkLogo">
+    <!-- Masked Background Layer -->
+    <g clip-path="url(#roundedCornerClip)">
+      <!-- Red Half -->
+      <rect x="0" y="0" width="600" height="600" fill="rgb(253, 58, 64)" />
+      
+      <!-- Blue Half -->
+      <polygon points="600,0 600,600 0,600" fill="rgb(44, 138, 255)" />
+      
+      <!-- Dark Blue Half -->
+      <polygon points="395,600 600,395 600,600" fill="rgb(50, 122, 254)" />
+    </g>
+
+    <!-- Red Shading Polygon -->
+    <polygon points="336,140 126,352 128,431 216,393 359,248" fill="rgb(229, 58, 63)" />
+
+    <!-- Left Stick of D -->
+    <polygon points="69,459 69,140 136,140 136,459" fill="#FFFFFF" />
+
+    <!-- Right Curve of D -->
+    <path fill="#FFFFFF" d="
+      M 135 459 
+      L 187 459 
+      C 232 459, 289 403, 289 361 
+      L 289 234 
+      C 289 215, 266 140, 182 140 
+      L 135 140 
+      L 135 200 
+      L 184 200 
+      C 209 200, 226 226, 226 243 
+      L 226 354 
+      C 226 371, 198 400, 178 400 
+      L 135 400 
+      Z" />
+
+    <!-- K Letterform -->
+    <polygon points="336,140 399,140 382,282 487,140 558,140 458,282 534,459 468,459 414,337 366,402 359,459 294,459" fill="#FFFFFF" />
+  </g>
+</svg>
