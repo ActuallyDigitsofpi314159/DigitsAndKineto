@@ -1,0 +1,26 @@
+#loading-status {
+    min-height: 2.5em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#cancel-conversion-button {
+    padding: 10px 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-text-primary);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+#cancel-conversion-button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+#cancel-conversion-button:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
