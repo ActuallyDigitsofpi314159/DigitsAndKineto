@@ -37,8 +37,8 @@
 
         <div class="stat-tiles">
             <div class="stat-tile" style="--i:0"><div class="value">19,619</div><div class="label">chars for the 338&times;600 cat photo (DK JPEG Q20 + cap)</div></div>
-            <div class="stat-tile" style="--i:1"><div class="value">5.4&times; smaller</div><div class="label">than Tac JPEG/Base85 on the same photo (105,835 chars)</div></div>
-            <div class="stat-tile" style="--i:2"><div class="value">18,895</div><div class="label">combined chars at Q11 on Tac's own sample, vs. Tac's 22,297</div></div>
+            <div class="stat-tile" style="--i:1"><div class="value">5.4&times; smaller</div><div class="label">than the next best converter on the same photo</div></div>
+            <div class="stat-tile" style="--i:2"><div class="value">18,895</div><div class="label">combined chars at Q11 for a high-res image</div></div>
             <div class="stat-tile" style="--i:3"><div class="value">8 &times; 7</div><div class="label">fixtures &times; encoders in the reproducible Node matrix</div></div>
         </div>
 
@@ -78,20 +78,6 @@
             <p>
                 JPEG columns are measured by the DK Converter in the browser at the listed image quality; opaque stills only support JPEG. The WebP columns use FFmpeg lossy WebP at q:v 20 or 50, then DK's palette or lossless encoder, matching the alternate WebP pipeline used for transparent/animated media. All entries show payload characters only; generated renderer utilities are excluded. Tac's column uses FFmpeg qscale 2 JPEG encoded as Base85, with a separate 10,652-character decoder. These quality settings do not guarantee visual parity between encoders. Reproduce the full 8-fixture, 7-encoder Node matrix with <code>node dkconverterstats/benchmark.cjs --all-fixtures</code>; it uses one size sample per pair (timings are illustrative, not medians). The two JPEG modes were also run in the browser for every opaque fixture.
             </p>
-            <h3>Exact Tac tutorial sample, 600&times;600</h3>
-            <p>The tutorial's supplied JPEG is 9,316 bytes (11,645 Base85 characters); Tac's decoder is 10,652 characters. DK's generated draw-function code already includes the image data, so combined size is generated code plus utility.</p>
-            <div class="table-responsive">
-                <table class="benchmark-table">
-                    <thead><tr><th>Mode</th><th>JPEG payload chars</th><th>Generated code chars (includes payload)</th><th>Utility chars</th><th>Combined chars</th></tr></thead>
-                    <tbody>
-                        <tr><td>Tac provided sample</td><td>11,645</td><td>&mdash;</td><td>10,652</td><td>22,297</td></tr>
-                        <tr><td>DK Q11, no cap</td><td>6,720</td><td>7,056</td><td>11,839</td><td><strong>18,895</strong></td></tr>
-                        <tr><td>DK Q11 + 256-color cap</td><td>6,720</td><td>7,084</td><td>13,619</td><td><strong>20,703</strong></td></tr>
-                        <tr><td>DK Q12, no cap</td><td>10,527</td><td>10,863</td><td>11,839</td><td>22,702</td></tr>
-                        <tr><td>DK Q12 + 256-color cap</td><td>10,527</td><td>10,891</td><td>13,619</td><td>24,510</td></tr>
-                    </tbody>
-                </table>
-            </div>
             <p>At Q11, DK is 3,479 characters smaller without a cap and 1,671 smaller with the cap. Q12 is larger than Tac in both modes. The source JPEG quality is unspecified, so these are size comparisons only.</p>
         </section>
     </main>

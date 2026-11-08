@@ -1924,14 +1924,6 @@ function drawHugePixelArt(
                         <td>22.72x</td>
                         <td>Not measured</td>
                     </tr>
-                    <tr>
-                        <td>Tac JPEG / Base85 (qscale 2)</td>
-                        <td><span class="badge-tag badge-lossy">JPEG + Base85</span></td>
-                        <td>FFmpeg qscale 2</td>
-                        <td>105,835 chars</td>
-                        <td>7.67x</td>
-                        <td>Not measured</td>
-                    </tr>
                     <tr class="highlight-row">
                         <td><strong>DK Lossless (DKL)</strong></td>
                         <td><span class="badge-tag">Lossless RGBA</span></td>
@@ -1965,6 +1957,14 @@ function drawHugePixelArt(
                         <td>Not timed</td>
                     </tr>
                     <tr>
+                        <td>Tac JPEG / Base85 (qscale 2)</td>
+                        <td><span class="badge-tag badge-lossy">JPEG + Base85</span></td>
+                        <td>FFmpeg qscale 2</td>
+                        <td>105,835 chars</td>
+                        <td>7.67x</td>
+                        <td>Not measured</td>
+                    </tr>
+                    <tr>
                         <td>Bob Lyon Imagenator</td>
                         <td><span class="badge-tag badge-lossy">Lossy (151 levels/channel)</span></td>
                         <td>Alpha stripped</td>
@@ -1984,10 +1984,7 @@ function drawHugePixelArt(
             </table>
         </div>
         <p class="helper-text">
-            <strong>Measurement note:</strong> This is the attached <code>kitty.avif</code>, scaled with Lanczos to 338&times;600 and converted in the browser in single runs. Quality 20 applies JPEG compression followed by the automatic 256-color cap; quality 50 uses JPEG without a cap. Tac's model encodes an opaque JPEG as Base85; qscale 2 is used here because the supplied tutorial does not state the source JPEG's quality. Pixel Art is capped at 93 colors; Legacy uses a 256-color cap. All entries show payload characters only and exclude utility code. Lossless DKL reconstructs every RGBA byte.
-        </p>
-        <p class="helper-text">
-            <strong>Tac JPEG sample:</strong> On the exact 600&times;600 tutorial image, DK's JPEG Q11 output plus utility is 18,818 characters without a color cap and 20,626 with the automatic 256-color cap, both below Tac's 22,297. At Q12, DK totals 22,625 without a cap and 24,433 with a cap, so Q11 is the highest measured setting that wins in either mode. The tutorial does not specify the source JPEG's quality, so this same-image size comparison is not visual-quality matched. See the full report for details.
+            <strong>Measurement note:</strong> This a cat picture, scaled with Lanczos to 338&times;600 and converted in the browser in single runs. Quality 20 applies JPEG compression followed by the automatic 256-color cap; quality 50 uses JPEG without a cap. Tac's model encodes an opaque JPEG as Base85; qscale 2 is used here because the supplied tutorial does not state the source JPEG's quality. Pixel Art is capped at 93 colors; Legacy uses a 256-color cap. All entries show payload characters only and exclude utility code. Lossless DKL reconstructs every RGBA byte.
         </p>
     </section>
 
