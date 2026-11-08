@@ -10,5 +10,5 @@ DKGames.register({
     cover: 'cover.jpg',           // square cover art (homepage buttons)
     banner: 'banner.jpg',         // wide image across the top of the game page
     logo: 'logo.png',             // optional: shown top-right of the banner
-    play: '../../dashparkour/'    // the playable game
+    play: '../../dash-parkour/'    // the playable game
 });
