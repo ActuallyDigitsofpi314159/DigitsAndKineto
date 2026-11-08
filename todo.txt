@@ -1,6 +1,0 @@
-Fix KA-related utility code syntax errors and __env__.Error is not a function throwing when I manually get it to boot
-Benchmark against larger images eventually remove the super special characters, reducing library to barely above base64
-ensure KA side rendering and decoding & rendering is laser fast
-Have no button show selected when the input is no one of the button's values, and change the 800px button to 600px.
-When converting speed, decoding speed, output character count, and benchmarks are all up to my standards, ai can remove nonessentials (like dk-test.gif, leave the stuff that ai might later use though)
-I will manually change some of the text once all that is done, then we can finally commit and claim the crown of best image converter in nearly all fields.
