@@ -26,8 +26,18 @@ Features
 
 Website
 - Visit: digitsandkineto.com
-- Homepage: /
-- DK Converter: /dkconverter/
+- Homepage: / (studio banner, featured game, searchable game list)
+- Game pages: /games/<folder>/
+- DK Converter: /dkconverter/ (stats: /dkconverterstats/)
+- About: /about/ · Updates: /updates/
+- Shared theme and scripts live in /assets/ (site.css, site.js); top nav buttons are listed at the top of assets/site.js
+
+Adding a game
+1. Copy games/dash-parkour/ to games/<new-folder>/ (index.html is identical for every game; leave it as-is)
+2. Edit games/<new-folder>/game.js: title, short description, long description, main color, and the link to the playable game
+3. Replace cover.jpg (square), banner.jpg (wide, about 4:1) and logo.png (optional, transparent)
+4. Add "<new-folder>" to the order list in games/games.js; set `featured` there to change the featured game
+- Play counts are stored per visitor in the browser (localStorage key `dk-plays:<folder>`)
 
 Usage
 - Upload or drag-and-drop an image, GIF, browser-decodable video, or audio file.

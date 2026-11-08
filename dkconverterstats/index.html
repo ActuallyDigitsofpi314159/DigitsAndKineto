@@ -7,37 +7,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#06070d">
     <title>DK Converter - Benchmarks</title>
     <link rel="icon" type="image/svg+xml" href="../logo.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Luckiest+Guy&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/site.css">
+    <link rel="stylesheet" href="../dkconverter/converter.css?v=20261107">
 </head>
 <body>
-    <!-- Top Navigation -->
-    <nav class="converter-nav" aria-label="Main navigation">
-        <div class="nav-links-group">
-            <a class="home-menu" href="../dkconverter/" aria-label="Back to DK Converter" title="Back to DK Converter">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="19" y1="12" x2="5" y2="12"></line>
-                    <polyline points="12 19 5 12 12 5"></polyline>
-                </svg>
-                <span>Back to Converter</span>
-            </a>
-            <a class="nav-sub-btn" href="../index.html" title="Studio Homepage">
-                <span>Studio Home</span>
-            </a>
-        </div>
-    </nav>
+    <header data-site-header data-site-root="../" data-current="converter"></header>
+    <script src="../assets/site.js"></script>
 
-    <!-- Main Content Container -->
-    <div class="stats-container">
-        <!-- Hero Section -->
-        <header class="stats-hero">
-            <h1>DK Converter <span class="header-accent">Benchmarks</span></h1>
+    <main class="page">
+        <section class="tool-intro">
+            <h1 class="outline-title is-small" aria-label="DK Converter Stats">
+                <svg class="lines left" viewBox="0 0 160 100" aria-hidden="true"><path d="M70 18 H156 L144 42 H58 Z"/><path d="M22 56 H150 L138 80 H10 Z"/></svg>
+                <span class="word" aria-hidden="true">STATS</span>
+                <svg class="lines right" viewBox="0 0 160 100" aria-hidden="true"><path d="M16 18 H152 L140 42 H4 Z"/><path d="M16 56 H100 L88 80 H4 Z"/></svg>
+            </h1>
             <p>Image output sizes on a shared fixture set, plus a direct comparison with the JPEG/Base85 format in Tac's tutorial.</p>
-        </header>
+            <div class="intro-actions">
+                <a class="slant-btn slant-sm" href="../dkconverter/"><span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+                    Back to Converter</span></a>
+            </div>
+        </section>
+
+        <div class="stat-tiles">
+            <div class="stat-tile" style="--i:0"><div class="value">19,619</div><div class="label">chars for the 338&times;600 cat photo (DK JPEG Q20 + cap)</div></div>
+            <div class="stat-tile" style="--i:1"><div class="value">5.4&times; smaller</div><div class="label">than Tac JPEG/Base85 on the same photo (105,835 chars)</div></div>
+            <div class="stat-tile" style="--i:2"><div class="value">18,895</div><div class="label">combined chars at Q11 on Tac's own sample, vs. Tac's 22,297</div></div>
+            <div class="stat-tile" style="--i:3"><div class="value">8 &times; 7</div><div class="label">fixtures &times; encoders in the reproducible Node matrix</div></div>
+        </div>
 
         <section class="stats-section">
             <h2>Image output sizes</h2>
@@ -91,12 +94,11 @@
             </div>
             <p>At Q11, DK is 3,479 characters smaller without a cap and 1,671 smaller with the cap. Q12 is larger than Tac in both modes. The source JPEG quality is unspecified, so these are size comparisons only.</p>
         </section>
+    </main>
 
-        <!-- Footer -->
-        <footer>
-            <p>Digits and Kineto &bull; DK Converter Benchmarks &bull; Contact us at <a href="mailto:actuallydigitsofpi314159@gmail.com">actuallydigitsofpi314159@gmail.com</a></p>
-            <p style="font-size: 0.8rem; color: var(--color-text-dim);">MIT License</p>
-        </footer>
-    </div>
+    <footer class="site-footer">
+        <span class="studio-mark">DK Studios &bull; DK Converter Benchmarks</span>
+        <span>Contact us at <a href="mailto:actuallydigitsofpi314159@gmail.com">actuallydigitsofpi314159@gmail.com</a> &bull; MIT License</span>
+    </footer>
 </body>
 </html>

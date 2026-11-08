@@ -12,38 +12,31 @@
     <link rel="icon" type="image/svg+xml" href="../logo.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <meta name="theme-color" content="#06070d">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Luckiest+Guy&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.js"></script>
-    <link rel="stylesheet" href="../styles.css">
-    <link rel="stylesheet" href="converter.css">
+    <link rel="stylesheet" href="../assets/site.css">
+    <link rel="stylesheet" href="converter.css?v=20261107">
 </head>
 <body>
-    <!-- Top Navigation -->
-    <nav class="converter-nav" aria-label="Main navigation">
-        <div class="nav-links-group">
-            <a class="home-menu" href="../index.html" aria-label="Back to studio homepage" title="Back to studio homepage">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="19" y1="12" x2="5" y2="12"></line>
-                    <polyline points="12 19 5 12 12 5"></polyline>
-                </svg>
-                <span>Studio Home</span>
-            </a>
-            <a class="nav-sub-btn" href="../dkconverterstats/" title="Full Benchmark Report">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="20" x2="18" y2="10"></line>
-                    <line x1="12" y1="20" x2="12" y2="4"></line>
-                    <line x1="6" y1="20" x2="6" y2="14"></line>
-                </svg>
-                <span>Stats &amp; Benchmarks</span>
-            </a>
-        </div>
-    </nav>
+    <header data-site-header data-site-root="../" data-current="converter"></header>
+    <script src="../assets/site.js"></script>
 
-    <!-- App Header -->
-    <header class="app-header">
-        <h1>DK <span class="header-accent">Converter</span></h1>
+    <div class="page">
+    <!-- Page intro -->
+    <section class="tool-intro">
+        <h1 class="outline-title is-small" aria-label="DK Converter">
+            <svg class="lines left" viewBox="0 0 160 100" aria-hidden="true"><path d="M70 18 H156 L144 42 H58 Z"/><path d="M22 56 H150 L138 80 H10 Z"/></svg>
+            <span class="word" aria-hidden="true">CONVERTER</span>
+            <svg class="lines right" viewBox="0 0 160 100" aria-hidden="true"><path d="M16 18 H152 L140 42 H4 Z"/><path d="M16 56 H100 L88 80 H4 Z"/></svg>
+        </h1>
         <p class="app-description">Convert images, GIFs, videos, and audio into ultra-compressed, high-fidelity Khan Academy Processing.js code.</p>
-    </header>
+        <div class="intro-actions">
+            <a class="slant-btn slant-sm" href="../dkconverterstats/"><span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                Stats &amp; Benchmarks</span></a>
+        </div>
+    </section>
 
     <!-- Main Converter Card -->
     <main class="container">
@@ -1998,10 +1991,12 @@ function drawHugePixelArt(
         </p>
     </section>
 
+    </div>
+
     <!-- Footer -->
-    <footer>
-        <p>Digits and Kineto &bull; DK Converter &bull; Contact us at <a href="mailto:actuallydigitsofpi314159@gmail.com">actuallydigitsofpi314159@gmail.com</a></p>
-        <p style="font-size: 0.8rem; color: var(--color-text-dim);">MIT License &bull; Red &amp; Blue Colliding Ink Design</p>
+    <footer class="site-footer">
+        <span class="studio-mark">DK Studios &bull; DK Converter</span>
+        <span>Contact us at <a href="mailto:actuallydigitsofpi314159@gmail.com">actuallydigitsofpi314159@gmail.com</a> &bull; MIT License</span>
     </footer>
 
     <!-- Loading Modal -->

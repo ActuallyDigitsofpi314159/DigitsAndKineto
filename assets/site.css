@@ -1,0 +1,448 @@
+/* ==========================================================================
+   DIGITS & KINETO — SHARED SITE THEME
+   Used by every page: background, header + slanted nav buttons, outlined
+   headings, fade transitions, panels, tables and the footer.
+   ========================================================================== */
+
+:root {
+    color-scheme: dark;
+
+    --dk-red: #fd3a40;
+    --dk-blue: #2c8aff;
+    --dk-red-deep: #8e1220;
+    --dk-blue-deep: #12318c;
+    --dk-purple-deep: #2a1250;
+    --dk-gradient: linear-gradient(135deg, #fd3a40 0%, #b828a0 50%, #2c8aff 100%);
+
+    --bg: #06070d;
+    --surface: rgba(16, 19, 31, 0.78);
+    --surface-solid: #10131f;
+    --surface-raised: rgba(24, 28, 44, 0.9);
+    --border: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.18);
+
+    --text: #f4f6fb;
+    --text-2: #a9b1c6;
+    --text-3: #6f7891;
+
+    --font-display: 'Luckiest Guy', 'Lilita One', Impact, sans-serif;
+    --font-head: 'Space Grotesk', 'Plus Jakarta Sans', system-ui, sans-serif;
+    --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --radius: 18px;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --page-width: 1180px;
+    --gutter: clamp(16px, 4vw, 40px);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { background: var(--bg); -webkit-text-size-adjust: 100%; }
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.55;
+    overflow-x: hidden;
+    position: relative;
+    isolation: isolate;
+    animation: dk-page-in 420ms var(--ease-out) both;
+}
+
+/* Red / blue corner glow — fixed behind every page. */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse 70% 60% at 0% 0%, rgba(253, 58, 64, 0.42), rgba(253, 58, 64, 0.12) 45%, transparent 72%),
+        radial-gradient(ellipse 70% 60% at 100% 100%, rgba(44, 138, 255, 0.44), rgba(44, 138, 255, 0.12) 45%, transparent 72%),
+        radial-gradient(ellipse 45% 40% at 50% 50%, rgba(120, 40, 160, 0.10), transparent 70%),
+        var(--bg);
+}
+
+/* Faint grid texture that echoes the studio banner. */
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.35;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 56px 56px;
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 20%, transparent 75%);
+            mask-image: radial-gradient(ellipse at center, #000 20%, transparent 75%);
+}
+
+body.is-leaving { animation: dk-page-out 220ms ease-in both; }
+
+@keyframes dk-page-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dk-page-out { from { opacity: 1; } to { opacity: 0; } }
+
+img { max-width: 100%; display: block; }
+a { color: inherit; }
+button { font: inherit; }
+
+:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 3px;
+}
+
+.sr-only {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0);
+    white-space: nowrap; border: 0;
+}
+
+.page {
+    width: min(100%, var(--page-width));
+    margin: 0 auto;
+    padding: 0 var(--gutter) 64px;
+}
+
+/* ==========================================================================
+   HEADER — logo + slanted scene buttons
+   ========================================================================== */
+.site-header {
+    width: min(100%, var(--page-width));
+    margin: 0 auto;
+    padding: 22px var(--gutter) 18px;
+    display: flex;
+    align-items: center;
+    gap: clamp(14px, 3vw, 34px);
+}
+
+.site-logo {
+    flex: 0 0 auto;
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+    display: block;
+    transition: transform 0.35s var(--ease-spring), box-shadow 0.35s var(--ease-out);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+}
+.site-logo img { width: 100%; height: 100%; }
+.site-logo:hover { transform: rotate(-6deg) scale(1.07); box-shadow: 0 12px 30px rgba(253, 58, 64, 0.35), 0 6px 26px rgba(44, 138, 255, 0.3); }
+.site-logo:active { transform: scale(0.96); }
+
+.scene-nav {
+    flex: 1 1 auto;
+    display: flex;
+    gap: clamp(10px, 2vw, 22px);
+    min-width: 0;
+}
+
+/* Slanted button: the box is skewed, the label is counter-skewed. */
+.slant-btn {
+    --skew: -18deg;
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 210px;
+    height: 52px;
+    padding: 0 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 6px;
+    /* Hover fill: a dark red→blue sweep that grows from the left. */
+    background: #0c0f1a linear-gradient(90deg, #6e0d19 0%, #3a1250 45%, #10307f 100%) no-repeat 0 0 / 0% 100%;
+    color: var(--text);
+    text-decoration: none;
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    cursor: pointer;
+    transform: skewX(var(--skew));
+    overflow: hidden;
+    isolation: isolate;
+    transition:
+        transform 0.35s var(--ease-spring),
+        background-size 0.5s var(--ease-out),
+        border-color 0.3s ease,
+        box-shadow 0.35s var(--ease-out),
+        color 0.2s ease;
+    animation: dk-slide-in 520ms var(--ease-out) backwards;
+    animation-delay: calc(var(--i, 0) * 70ms + 80ms);
+}
+
+/* Dark red→blue hint on the left side of every button. */
+.slant-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(90deg, #a3142a 0%, #5a1658 12%, #183c9e 24%, rgba(24, 60, 158, 0.35) 34%, transparent 46%);
+    transition: opacity 0.4s ease;
+}
+/* Shine sweep */
+.slant-btn::after {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0;
+    left: -60%;
+    width: 40%;
+    z-index: -1;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+    transition: left 0.6s var(--ease-out);
+}
+
+.slant-btn > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transform: skewX(calc(var(--skew) * -1));
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.slant-btn svg { width: 18px; height: 18px; flex: 0 0 auto; }
+
+.slant-btn:hover {
+    transform: skewX(var(--skew)) translateY(-4px);
+    background-size: 100% 100%;
+    border-color: rgba(255, 255, 255, 0.45);
+    box-shadow:
+        -6px 8px 22px rgba(253, 58, 64, 0.28),
+        6px 10px 26px rgba(44, 138, 255, 0.28);
+}
+.slant-btn:hover::after { left: 120%; }
+.slant-btn:active { transform: skewX(var(--skew)) translateY(0) scale(0.97); transition-duration: 0.1s; }
+
+.slant-btn.is-current {
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: inset 0 -3px 0 var(--dk-red), 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.slant-btn.is-current { background-size: 100% 100%; }
+
+/* The mystery button: not a link yet. Wobbles instead of navigating. */
+.slant-btn.is-locked { cursor: not-allowed; color: var(--text-2); }
+.slant-btn.is-locked:hover { transform: skewX(var(--skew)); background-size: 0% 100%; box-shadow: none; border-color: var(--border-strong); }
+.slant-btn.is-locked.wobble { animation: dk-wobble 420ms ease; }
+.slant-btn.is-locked .lock-tip {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #fff;
+    background: rgba(12, 15, 26, 0.92);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+.slant-btn.is-locked:hover .lock-tip,
+.slant-btn.is-locked:focus-visible .lock-tip { opacity: 1; }
+
+@keyframes dk-slide-in {
+    from { opacity: 0; transform: skewX(var(--skew)) translateY(-14px); }
+    to   { opacity: 1; transform: skewX(var(--skew)) translateY(0); }
+}
+@keyframes dk-wobble {
+    0%, 100% { transform: skewX(var(--skew)) translateX(0); }
+    20% { transform: skewX(var(--skew)) translateX(-7px); }
+    40% { transform: skewX(var(--skew)) translateX(6px); }
+    60% { transform: skewX(var(--skew)) translateX(-4px); }
+    80% { transform: skewX(var(--skew)) translateX(2px); }
+}
+
+/* Small slanted button variant (used inside pages). */
+.slant-btn.slant-sm { height: 42px; flex: 0 0 auto; max-width: none; padding: 0 22px; font-size: 0.92rem; }
+
+@media (max-width: 720px) {
+    .site-header { flex-wrap: wrap; gap: 14px; padding-top: 16px; }
+    .site-logo { width: 52px; height: 52px; border-radius: 12px; }
+    .scene-nav {
+        order: 2;
+        flex-basis: 100%;
+        overflow-x: auto;
+        padding: 6px 8px 10px;
+        margin: 0 -8px;
+        scrollbar-width: none;
+    }
+    .scene-nav::-webkit-scrollbar { display: none; }
+    .slant-btn { flex: 0 0 auto; height: 46px; padding: 0 20px; font-size: 0.92rem; }
+}
+
+/* ==========================================================================
+   OUTLINED DISPLAY HEADING with speed lines ( ═ GAMES ═ )
+   ========================================================================== */
+.outline-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(8px, 2vw, 20px);
+    margin: clamp(36px, 6vw, 64px) 0 clamp(24px, 4vw, 40px);
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(3.4rem, 11vw, 7.2rem);
+    line-height: 0.9;
+    letter-spacing: 0.04em;
+    color: var(--bg);
+    -webkit-text-stroke: clamp(3px, 0.55vw, 6px) #fff;
+    paint-order: stroke fill;
+    text-shadow:
+        -5px 5px 0 rgba(253, 58, 64, 0.55),
+        5px 8px 0 rgba(44, 138, 255, 0.45);
+    user-select: none;
+}
+.outline-title .word { display: inline-block; transform: rotate(-2deg) translateY(4px); }
+.outline-title .lines { width: clamp(64px, 14vw, 170px); height: auto; flex: 0 0 auto; overflow: visible; }
+.outline-title .lines path {
+    fill: var(--bg);
+    stroke: #fff;
+    stroke-width: 5;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+.outline-title .lines.left  { transform: translateY(16%); }
+.outline-title .lines.right { transform: translateY(-14%); }
+.outline-title .lines path { animation: dk-dash 2.8s ease-in-out infinite; }
+.outline-title .lines path:nth-child(2) { animation-delay: 0.25s; }
+.outline-title .lines.right path { animation-name: dk-dash-r; }
+@keyframes dk-dash   { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-6px); } }
+@keyframes dk-dash-r { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(6px); } }
+
+.outline-title.is-small { font-size: clamp(2.2rem, 8vw, 5rem); }
+
+@media (max-width: 480px) {
+    .outline-title .lines { width: 44px; }
+    .outline-title { -webkit-text-stroke-width: 2.5px; gap: 6px; }
+}
+
+/* ==========================================================================
+   PANELS, TABLES, MISC
+   ========================================================================== */
+.panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: clamp(18px, 3vw, 30px);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.panel h2 {
+    margin: 0 0 8px;
+    font-family: var(--font-head);
+    font-size: clamp(1.2rem, 2.4vw, 1.5rem);
+    letter-spacing: -0.01em;
+}
+.panel p { color: var(--text-2); margin: 0 0 14px; }
+.panel code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    background: rgba(255, 255, 255, 0.07);
+    padding: 1px 6px;
+    border-radius: 5px;
+}
+
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin: 16px 0;
+    background: rgba(6, 7, 13, 0.55);
+}
+
+.benchmark-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    white-space: nowrap;
+}
+.benchmark-table th {
+    position: sticky;
+    top: 0;
+    text-align: left;
+    padding: 12px 16px;
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 0.76rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    background: #0d1020;
+    border-bottom: 1px solid var(--border-strong);
+}
+.benchmark-table td {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+}
+.benchmark-table tbody tr { transition: background 0.2s ease; }
+.benchmark-table tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
+.benchmark-table tbody tr:last-child td { border-bottom: 0; }
+.benchmark-table td:first-child { color: var(--text); }
+.benchmark-table .highlight-row td { color: var(--text); }
+.benchmark-table .highlight-row td:first-child { box-shadow: inset 3px 0 0 var(--dk-red); }
+.benchmark-table .highlight-row { background: linear-gradient(90deg, rgba(253, 58, 64, 0.10), rgba(44, 138, 255, 0.04) 60%, transparent); }
+
+.badge-tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #9cc8ff;
+    background: rgba(44, 138, 255, 0.14);
+    border: 1px solid rgba(44, 138, 255, 0.3);
+}
+.badge-tag.badge-lossy { color: #ffb0b3; background: rgba(253, 58, 64, 0.12); border-color: rgba(253, 58, 64, 0.3); }
+
+.empty-note {
+    text-align: center;
+    color: var(--text-3);
+    padding: 80px 0;
+    font-family: var(--font-head);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+}
+
+/* ==========================================================================
+   FOOTER
+   ========================================================================== */
+.site-footer {
+    width: min(100%, var(--page-width));
+    margin: 0 auto;
+    padding: 28px var(--gutter) 36px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 24px;
+    color: var(--text-3);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border);
+}
+.site-footer a { color: var(--text-2); text-decoration: none; }
+.site-footer a:hover { color: #fff; }
+.site-footer .studio-mark { font-family: var(--font-head); font-weight: 700; color: var(--text-2); letter-spacing: 0.04em; }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 1ms !important;
+    }
+}
