@@ -1,0 +1,164 @@
+/* ==========================================================================
+   UPDATES PAGE
+   ========================================================================== */
+
+.updates { max-width: 860px; }
+
+.post-list {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(28px, 5vw, 44px);
+}
+
+.post {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    animation: post-in 550ms var(--ease-out) backwards;
+    animation-delay: calc(var(--i, 0) * 80ms + 100ms);
+    scroll-margin-top: 24px;
+}
+@keyframes post-in { from { opacity: 0; transform: translateY(18px); } }
+.post:target { border-color: rgba(255, 255, 255, 0.4); }
+
+.post-image {
+    border-bottom: 1px solid var(--border);
+    background: #0d1020;
+    overflow: hidden;
+}
+.post-image img {
+    width: 100%;
+    max-height: 460px;
+    object-fit: cover;
+    transition: transform 1s var(--ease-out);
+}
+.post:hover .post-image img { transform: scale(1.015); }
+
+.post-body { padding: clamp(18px, 3.2vw, 32px); }
+
+.post-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--text-3);
+}
+.post-new {
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #fff;
+    background: var(--dk-gradient);
+}
+.post-permalink {
+    margin-left: auto;
+    color: var(--text-3);
+    text-decoration: none;
+    font-family: var(--font-head);
+    font-size: 1.05rem;
+    opacity: 0;
+    transition: opacity 0.2s ease, color 0.2s ease;
+}
+.post:hover .post-permalink, .post-permalink:focus-visible { opacity: 1; }
+.post-permalink:hover { color: #fff; }
+
+.post-title {
+    margin: 0 0 12px;
+    font-family: var(--font-head);
+    font-size: clamp(1.4rem, 3.2vw, 1.9rem);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+}
+
+.post-desc p {
+    margin: 0 0 14px;
+    color: var(--text-2);
+    line-height: 1.7;
+    text-wrap: pretty;
+}
+.post-desc p:last-child { margin-bottom: 0; }
+
+/* ---- Game cards ---- */
+.post-games {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: 12px;
+    margin-top: 22px;
+}
+
+.post-game {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 14px 10px 10px;
+    border-radius: 14px;
+    border: 1.5px solid var(--border-strong);
+    background: rgba(6, 7, 13, 0.55);
+    color: var(--text);
+    text-decoration: none;
+    transition: transform 0.35s var(--ease-spring), border-color 0.25s ease, box-shadow 0.35s var(--ease-out);
+}
+.post-game img {
+    width: 56px;
+    height: 56px;
+    flex: 0 0 auto;
+    border-radius: 10px;
+    object-fit: cover;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+}
+.post-game-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.post-game-title {
+    font-family: var(--font-head);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.post-game-sub { font-size: 0.82rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.post-game-play {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #fff;
+    background: var(--game-color, var(--dk-red));
+}
+.post-game-play svg { width: 14px; height: 14px; }
+
+.post-game:hover {
+    transform: translateY(-3px);
+    border-color: var(--game-color, #fff);
+    box-shadow: 0 0 0 1px var(--game-color, #fff), 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+.post-game.is-plain { padding: 14px 18px; }
+
+/* ---- Extra links ---- */
+.post-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 22px;
+    padding-left: 6px;
+}
+.post-links .slant-btn { animation: none; }
+
+@media (max-width: 480px) {
+    .post-game-sub { display: none; }
+}

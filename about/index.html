@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Meet Digitsofpi and Kineto — two friends coding games, experiments, and anything else that sparks our interest.">
     <meta name="theme-color" content="#06070d">
     <title>About — Digits &amp; Kineto</title>
     <link rel="icon" type="image/svg+xml" href="../logo.svg">
@@ -10,14 +11,139 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/site.css">
+    <link rel="stylesheet" href="../assets/about.css">
 </head>
 <body>
     <header data-site-header data-site-root="../" data-current="about"></header>
 
-    <main class="page">
-        <!-- About page: not written yet. -->
-        <p class="empty-note">Nothing here yet</p>
+    <main class="page about">
+        <!-- ===== Logo + intro ===== -->
+        <section class="about-hero">
+            <img class="about-logo" src="../logo.svg" alt="Digits &amp; Kineto logo" width="220" height="220">
+
+            <h1 class="outline-title is-small" aria-label="About us">
+                <svg class="lines left" viewBox="0 0 160 100" aria-hidden="true">
+                    <path d="M70 18 H156 L144 42 H58 Z"/>
+                    <path d="M22 56 H150 L138 80 H10 Z"/>
+                </svg>
+                <span class="word" aria-hidden="true">ABOUT US</span>
+                <svg class="lines right" viewBox="0 0 160 100" aria-hidden="true">
+                    <path d="M16 18 H152 L140 42 H4 Z"/>
+                    <path d="M16 56 H100 L88 80 H4 Z"/>
+                </svg>
+            </h1>
+
+            <p class="about-lede">
+                Hi! We&rsquo;re <span class="name-digits">Digitsofpi</span> and <span class="name-kineto">Kineto</span>,
+                two friends devoted to coding games, experiments, and anything else that sparks our interest!
+            </p>
+            <p class="about-sub">
+                We mainly code games in Unity, but we got our start on Khan Academy &mdash; and we still check in and post there sometimes!
+            </p>
+
+            <ul class="about-stats" aria-label="Quick facts">
+                <li><strong>2021</strong><span>Started coding together</span></li>
+                <li><strong>1</strong><span>Shared Khan Academy account</span></li>
+                <li><strong>4</strong><span>Games released for a 2025 contest</span></li>
+            </ul>
+        </section>
+
+        <!-- ===== Our story ===== -->
+        <h2 class="section-label">Our story</h2>
+
+        <ol class="timeline">
+            <li class="chapter" style="--accent: var(--dk-red)">
+                <span class="chapter-year">2021</span>
+                <div class="panel">
+                    <h3>Where it started</h3>
+                    <p>
+                        We started coding together on Khan Academy in 2021. Digits made his first game earlier that year,
+                        and shortly after our partnership began, Kineto made his. Throughout the year, we conceptualized
+                        and partly developed two large-scale games: <em>Shop Run</em> and <em>Aero 2000</em>. Although
+                        neither was completed, they were an important stepping stone, teaching us key concepts of game development.
+                    </p>
+                </div>
+            </li>
+
+            <li class="chapter" style="--accent: #b828a0">
+                <span class="chapter-year">2021</span>
+                <div class="panel">
+                    <h3>One account, two coders</h3>
+                    <p>
+                        At the end of the year, we realized something crucial: Kineto&rsquo;s Khan Academy account was
+                        attached to a school he was leaving. If he didn&rsquo;t back up his projects, his account and all
+                        of his programs would be deleted. We merged our Khan Academy accounts, expecting it to be a
+                        temporary fix &mdash; but it made collaboration so much easier that we still share an account to this day.
+                    </p>
+                </div>
+            </li>
+
+            <li class="chapter" style="--accent: var(--dk-blue)">
+                <span class="chapter-year">2025</span>
+                <div class="panel">
+                    <h3>Contest winners</h3>
+                    <p>
+                        We entered and won a contest in 2025, releasing four high-quality games in just weeks.
+                        Along the way, we rebuilt <em>Aero 2000</em> from scratch, four years after we last touched it.
+                    </p>
+                </div>
+            </li>
+
+            <li class="chapter" style="--accent: var(--dk-red)">
+                <span class="chapter-year">2025</span>
+                <div class="panel">
+                    <h3>Building DK Converter</h3>
+                    <p>
+                        Nearly half of <em>Aero 2000</em>&rsquo;s development time went into its backgrounds. Khan Academy
+                        doesn&rsquo;t have a native way to load images, so we built a converter from scratch, bought this
+                        domain, and released <a href="../dkconverter/">DK Converter</a>. A week later, Khan Academy banned
+                        all images, despite them having been around for over a decade. It was done in the name of safety,
+                        but whether the change was effective is still up for debate.
+                    </p>
+                </div>
+            </li>
+
+            <li class="chapter" style="--accent: #eb0000">
+                <span class="chapter-year">2025</span>
+                <div class="panel">
+                    <h3>DASH Parkour</h3>
+                    <p>
+                        After remaking an old game idea, we decided to finally finish our most ambitious project yet:
+                        <a href="../games/dash-parkour/">DASH Parkour</a>, a 2D platformer where Dash has to beat bosses to
+                        become the Parkour Champion. When we looked back at our old code, we realized how messy it was and
+                        that we&rsquo;d need to start over. So we scrapped the old version &mdash; three years of work &mdash;
+                        and rebuilt DASH Parkour from the ground up in just a couple of months.
+                    </p>
+                </div>
+            </li>
+
+            <li class="chapter is-now" style="--accent: var(--dk-blue)">
+                <span class="chapter-year">Now</span>
+                <div class="panel">
+                    <h3>On to Unity</h3>
+                    <p>
+                        Because of the image ban, we decided to escape Khan Academy&rsquo;s constraints and move to Unity.
+                        We learned C#, released DASH Parkour 1.1 with multiplayer, rebuilt this website, and are currently
+                        working on our first Unity game.
+                    </p>
+                </div>
+            </li>
+        </ol>
+
+        <!-- ===== Call to action ===== -->
+        <section class="about-cta">
+            <p>Want to see how it&rsquo;s going?</p>
+            <div class="about-cta-buttons">
+                <a class="slant-btn slant-sm" href="../updates/"><span>Read our updates</span></a>
+                <a class="slant-btn slant-sm" href="../"><span>Play our games</span></a>
+            </div>
+        </section>
     </main>
+
+    <footer class="site-footer">
+        <span class="studio-mark">DK Studios</span>
+        <span>Contact us at <a href="mailto:actuallydigitsofpi314159@gmail.com">actuallydigitsofpi314159@gmail.com</a></span>
+    </footer>
 
     <script src="../assets/site.js"></script>
 </body>
