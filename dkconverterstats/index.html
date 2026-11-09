@@ -27,7 +27,7 @@
                 <span class="word" aria-hidden="true">STATS</span>
                 <svg class="lines right" viewBox="0 0 160 100" aria-hidden="true"><path d="M16 18 H152 L140 42 H4 Z"/><path d="M16 56 H100 L88 80 H4 Z"/></svg>
             </h1>
-            <p>Image output sizes on a shared fixture set, plus a direct comparison with the JPEG/Base85 format in Tac's tutorial.</p>
+            <p>Image output sizes on a shared fixture set.</p>
             <div class="intro-actions">
                 <a class="slant-btn slant-sm" href="../dkconverter/"><span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
@@ -38,8 +38,6 @@
         <div class="stat-tiles">
             <div class="stat-tile" style="--i:0"><div class="value">19,619</div><div class="label">chars for the 338&times;600 cat photo (DK JPEG Q20 + cap)</div></div>
             <div class="stat-tile" style="--i:1"><div class="value">5.4&times; smaller</div><div class="label">than the next best converter on the same photo</div></div>
-            <div class="stat-tile" style="--i:2"><div class="value">18,895</div><div class="label">combined chars at Q11 for a high-res image</div></div>
-            <div class="stat-tile" style="--i:3"><div class="value">8 &times; 7</div><div class="label">fixtures &times; encoders in the reproducible Node matrix</div></div>
         </div>
 
         <section class="stats-section">
@@ -75,11 +73,7 @@
                     </tbody>
                 </table>
             </div>
-            <p>
-                JPEG columns are measured by the DK Converter in the browser at the listed image quality; opaque stills only support JPEG. The WebP columns use FFmpeg lossy WebP at q:v 20 or 50, then DK's palette or lossless encoder, matching the alternate WebP pipeline used for transparent/animated media. All entries show payload characters only; generated renderer utilities are excluded. Tac's column uses FFmpeg qscale 2 JPEG encoded as Base85, with a separate 10,652-character decoder. These quality settings do not guarantee visual parity between encoders. Reproduce the full 8-fixture, 7-encoder Node matrix with <code>node dkconverterstats/benchmark.cjs --all-fixtures</code>; it uses one size sample per pair (timings are illustrative, not medians). The two JPEG modes were also run in the browser for every opaque fixture.
-            </p>
-            <p>At Q11, DK is 3,479 characters smaller without a cap and 1,671 smaller with the cap. Q12 is larger than Tac in both modes. The source JPEG quality is unspecified, so these are size comparisons only.</p>
-        </section>
+            </section>
     </main>
 
     <footer class="site-footer">
