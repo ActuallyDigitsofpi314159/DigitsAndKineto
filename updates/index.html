@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="News and dev updates from Digits &amp; Kineto.">
     <meta name="theme-color" content="#06070d">
     <title>Updates — Digits &amp; Kineto</title>
     <link rel="icon" type="image/svg+xml" href="../logo.svg">
@@ -10,15 +11,37 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/site.css">
+    <link rel="stylesheet" href="../assets/updates.css">
 </head>
 <body>
     <header data-site-header data-site-root="../" data-current="updates"></header>
 
-    <main class="page">
-        <!-- Updates page: not written yet. -->
-        <p class="empty-note">Nothing here yet</p>
+    <!-- Posts come from updates/posts.js — edit that file to add one. -->
+    <main class="page updates">
+        <h1 class="outline-title is-small" aria-label="Updates">
+            <svg class="lines left" viewBox="0 0 160 100" aria-hidden="true">
+                <path d="M70 18 H156 L144 42 H58 Z"/>
+                <path d="M22 56 H150 L138 80 H10 Z"/>
+            </svg>
+            <span class="word" aria-hidden="true">UPDATES</span>
+            <svg class="lines right" viewBox="0 0 160 100" aria-hidden="true">
+                <path d="M16 18 H152 L140 42 H4 Z"/>
+                <path d="M16 56 H100 L88 80 H4 Z"/>
+            </svg>
+        </h1>
+
+        <div class="post-list" id="post-list" aria-live="polite"></div>
     </main>
 
+    <footer class="site-footer">
+        <span class="studio-mark">DK Studios</span>
+        <span>Contact us at <a href="mailto:actuallydigitsofpi314159@gmail.com">actuallydigitsofpi314159@gmail.com</a></span>
+    </footer>
+
     <script src="../assets/site.js"></script>
+    <script src="../games/games.js"></script>
+    <script src="../assets/game-registry.js"></script>
+    <script src="posts.js"></script>
+    <script src="../assets/updates.js"></script>
 </body>
 </html>
