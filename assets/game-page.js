@@ -16,7 +16,7 @@
 
     var ICONS = {
         back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H5"/><path d="M11 5l-7 7 7 7"/></svg>',
-        play: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 3.8v16.4a1.2 1.2 0 0 0 1.8 1l14-8.2a1.2 1.2 0 0 0 0-2L7.8 2.8A1.2 1.2 0 0 0 6 3.8z"/></svg>',
+        play: '<svg viewBox="2.2 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 3.8v16.4a1.2 1.2 0 0 0 1.8 1l14-8.2a1.2 1.2 0 0 0 0-2L7.8 2.8A1.2 1.2 0 0 0 6 3.8z"/></svg>',
         share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>',
         playsSmall: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>',
         copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
@@ -31,7 +31,7 @@
         return;
     }
 
-    document.title = game.title + ' — DK Studios';
+    document.title = game.title + ' — DK Digital';
     document.body.style.setProperty('--game-color', game.color);
 
     var shareUrl = window.location.href.split('#')[0];
@@ -71,7 +71,7 @@
                 '<p>' + esc(game.description) + '</p>' +
             '</section>' +
         '</main>' +
-        '<a class="gp-studio" href="' + ROOT + '">DK Studios</a>' +
+        '<a class="gp-studio" href="' + ROOT + '">DK Digital</a>' +
         '<div class="gp-toast" id="gp-toast" role="status" aria-live="polite"></div>'
     );
 

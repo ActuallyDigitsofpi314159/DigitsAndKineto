@@ -1,6 +1,6 @@
 # Digits & Kineto
 
-The website for Digits & Kineto (DK Studios), live at **digitsandkineto.com**. It hosts our games, our story, dev updates, and **DK Converter**, an image/GIF encoder, video converter, and audio converter for Khan Academy.
+The website for Digits & Kineto (DK Digital), live at **digitsandkineto.com**. It hosts our games, our story, dev updates, and **DK Converter**, an image/GIF encoder, video converter, and audio converter for Khan Academy.
 
 The site is plain HTML, CSS and JavaScript with no build step: every page is a static file, so edit it and push.
 
@@ -27,7 +27,7 @@ The site is plain HTML, CSS and JavaScript with no build step: every page is a s
   - `img/`: images used by pages
 - `games/`: one folder per game, plus `games.js` (the homepage game list)
 - `updates/`: `posts.js` (all posts) and `images/` (post pictures)
-- `website-art/`: original art and design outlines (banner, logo, page mockups). Pages don't load these files.
+- `website-art/`: original art and design outlines (banner, logo, PDF outlines). Pages don't load these files.
 - `logo.svg`: the DK logo (header, About page, browser tab icon)
 - `CNAME`: the custom domain, digitsandkineto.com
 
