@@ -26,7 +26,7 @@ window.DK_UPDATES = [
         title: 'Welcome to the new DK website!',
         date: '2026-11-09',
         description: "We rebuilt digitsandkineto.com from the ground up! The homepage now has every one of our games in one place, and each game gets its own page with a banner, description and play button.\n\nWe also released DASH Parkour 1.1 with multiplayer, and we're hard at work on our first Unity game. We'll post progress here as it happens, so check back soon!",
-        image: '../assets/img/studio-banner.jpg',
+        image: '../assets/img/studio-banner-logo.jpg',
         games: ['dash-parkour'],
         links: [
             { label: 'Try DK Converter', url: '../dkconverter/' },
