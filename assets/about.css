@@ -181,3 +181,6 @@
     justify-content: center;
     gap: 16px;
 }
+
+.yt-link { color: var(--text-1, #fff); text-decoration: underline; text-underline-offset: 3px; }
+.yt-link:hover { opacity: 0.8; }

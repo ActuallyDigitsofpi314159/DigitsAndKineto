@@ -10,7 +10,7 @@
     // Leave `href` empty to show a locked "coming soon" button.
     var NAV = [
         { id: 'converter', label: 'DK Converter', href: 'dkconverter/' },
-        { id: 'about',     label: 'About',        href: 'about/' },
+        { id: 'about',     label: 'About Us',      href: 'about/' },
         { id: 'updates',   label: 'Updates',      href: 'updates/' },
         { id: 'mystery',   label: '???',          href: '' }
     ];
