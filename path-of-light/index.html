@@ -1,0 +1,911 @@
+<!DOCTYPE html><html>
+<!-- cred claude for converting
+Bluebird for p5.js in KA
+
+I took the original game just made it into p5.js. Antialas and faster.
+-->
+  <head>
+  <title>Path of Light pi edition</title>
+  <style>
+    body{
+        margin:0;
+        overflow:hidden;
+    }
+  </style>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.7.0/lib/p5.js"></script>
+    <script type>
+/*
+                      PROS AND KHANS
+                    Round 3 Submission
+                    
+               - P A T H   O F   L I G H T -
+                
+                        A 3D Game
+ 
+    converted to p5.js because KA's processing.js is kinda cooked
+    - swapped P3D for WEBGL createGraphics
+    - removed the FXAA shader thing (RIP), using smooth() instead
+    - fixed pointer lock so it actually works outside KA
+    - pushMatrix/popMatrix -> push/pop on g
+    - g.lights() has to be called every frame now, annoying but whatever
+*/
+ 
+// canvas ref for pointer lock, and the 3d graphics buffer
+let cnv;
+let g;
+ 
+// save code. replace this with the one printed to console if you wanna continue
+var saveCode = [0, 0, 0, 0];
+ 
+// stroke outlines on everything. preference thing
+var showOutlines = true;
+ 
+// how fast the mouse moves the camera
+var mouseSensitivity = 0.002;
+ 
+ 
+// death animation stuff [
+// (modified from a doors-inspired thing i already had)
+ 
+var drawSkull = function(x, y, s) {
+  noStroke();
+  beginShape();
+  vertex(x+s/2.5,  y-s/1.65); vertex(x+s/2.3,  y-s/1.8);
+  vertex(x+s/3.5,  y-s/3.1);  vertex(x+s/35,   y-s/4.3);
+  vertex(x+s/6,    y);         vertex(x+s/6.7,  y-s/5.5);
+  vertex(x+s/2.75, y-s/5.5);  vertex(x+s/1.96, y-s/2.5);
+  vertex(x+s/1.8,  y-s/2.5);  vertex(x+s/1.57, y-s/3.5);
+  vertex(x+s/1.57, y+s/4.4);  vertex(x+s/2.35, y+s/2.75);
+  vertex(x+s/2.7,  y+s/1.69); vertex(x+s/4.4,  y+s/1.65);
+  vertex(x+s/4.3,  y+s/2.1);  vertex(x+s/5.7,  y+s/2.1);
+  vertex(x+s/6.5,  y+s/1.65); vertex(x+s/19,   y+s/1.65);
+  vertex(x+s/20,   y+s/2.15); vertex(x-s/60,   y+s/2.15);
+  vertex(x-s/60,   y+s/1.65); vertex(x-s/10,   y+s/1.65);
+  vertex(x-s/7.4,  y+s/2.15); vertex(x-s/5.3,  y+s/2.15);
+  vertex(x-s/5.8,  y+s/1.65); vertex(x-s/3,    y+s/1.64);
+  vertex(x-s/2.5,  y+s/2.54); vertex(x-s/1.64, y+s/4);
+  vertex(x-s/1.58, y-s/3.1);  vertex(x-s/2.26, y-s/1.73);
+  vertex(x+s/2.5,  y-s/1.65);
+  endShape();
+};
+ 
+var drawEye = function(x, y, s) {
+  noStroke();
+  beginShape();
+  vertex(x-s/9,    y-s/7);   vertex(x-s/5.1,  y-s/70);
+  vertex(x-s/12,   y+s/13);  vertex(x-s/5.4,  y+s/7);
+  vertex(x-s/3.45, y+s/13);  vertex(x-s/2.75, y+s/7.6);
+  vertex(x-s/2.2,  y+s/22);  vertex(x-s/2.5,  y-s/40);
+  vertex(x-s/2.2,  y-s/10);  vertex(x-s/2.7,  y-s/5.6);
+  vertex(x-s/3.35, y-s/8);   vertex(x-s/5.1,  y-s/5);
+  vertex(x-s/9,    y-s/7);
+  endShape();
+};
+ 
+var skullSize               = 20000;
+var skullTrans              = 0;    // transparency
+var deathAnimationFrames    = 0;
+var shakeIntensity          = 25;
+var gameOverTextTransparency = 1;
+var shakeX = 0, shakeY     = 0;
+var innerCircleSize         = 1;    // the circle that expands when you die
+var dead                    = false;
+// ]
+ 
+ 
+// face drawn on the 3d buffer. modified from "happy :)" by me
+var drawFace = function(x, y, s) {
+  g.push();
+  g.translate(s - s * 1.1, s - s / 1.1); // it was slightly off center
+  g.noStroke();
+  g.fill(0, 0, 0);
+  // eyes
+  g.ellipse(x - s * 1.335, y - s / 5.5, s / 1.9, s / 1.9);
+  g.ellipse(x + s * 1.43,  y - s / 5.5, s / 1.9, s / 1.9);
+  // smile
+  g.strokeWeight(s / Math.PI);
+  g.stroke(0);
+  g.noFill();
+  g.arc(x + s / 10, y - s / 10, s / 1.3, s / 1.3, 0, PI);
+  g.pop();
+};
+ 
+ 
+// PLAYER VARS
+var playerX = 0,  playerY = 0,  playerZ = 0;
+var playerSize      = 30;
+var playerRotationY = 0;
+var playerVelocityX = 0, playerVelocityZ = 0;
+var acceleration    = 0.25;
+var friction        = 0.9;
+var maxSpeed        = 3 - 0.25; // 3 minus acceleration to make it exact
+ 
+// CAMERA VARS
+var camDist    = 150;   // player -> camera distance
+var camAngleY  = 0;     // stored in radians now
+var camAngleX  = 0.2;   // stored in radians now
+var camYOffset = -0.2;
+ 
+// JUMPING VARS
+var isJumping = false, jumpSpeed = 0, gravity = 0.4, onGround = true;
+ 
+// POSITION TRACKING
+// previous position for rollback on collision
+var prevPlayerX = 0, prevPlayerY = -100, prevPlayerZ = 0;
+// where the player spawns
+var initialPlayerX = 0, initialPlayerY = -100, initialPlayerZ = 0;
+// how far you fall before you die
+var fallResetY = 1000;
+ 
+// LEVEL VARS
+var levels       = [];
+var currentLevel = saveCode[1] / 3;
+var colliders    = [];
+var goal         = null;
+ 
+// adds commas to numbers (made this before the competition, it's 1 line anyway)
+var formatNumber = function(n) { return n.toLocaleString(); };
+ 
+var txtFade = 0;
+ 
+var levelNames = [
+  "The City of Darkness",  "The Exit",
+  "There is Hope",         "The Cliff",
+  "The Tower",             "Three Thousand Feet and Climbing",
+  "The First Life",        "A Thing Called Color",
+  "The Final Gate",
+];
+ 
+// look at Kineto such an amazing poet <3
+var levelPoems = [
+  "A shadow stirs, the path is near,\nThe tale begins, yet fate's unclear.",
+  "Through broken gates, the lost may flee,\nA hidden door shall set you free.",
+  "From ruin's depth, the steps arise,\nA fragile light betrays the skies.",
+  "Shifting forms in twilight's sway,\nGuard the secrets night won't say.",
+  "The climb begins, the air grows thin,\nEach stone recalls what lies within.",
+  "The void below, the heavens call,\nOne slip foretells the final fall.",
+  "Roots of green defy the gray,\nThe earth remembers, come what may.",
+  "Dull horizons wake with fire,\nShades reborn from long desire.",
+  "Atop the hill, the light awaits,\nThe journey ends—yet opens gates.",
+];
+ 
+// makes the typing effect work
+var currentDigitPosition = 0;
+ 
+// keys that are currently held down
+var keys = [];
+ 
+// what screen we're on
+var scene = "title";
+ 
+ 
+// TITLE SCREEN [
+ 
+// titleButtonCanClick gets reset every frame at the top of drawTitleScreen
+// so it's only true if the mouse is actually over a button right now
+var titleButtonCanClick = false;
+var sceneToGo = "";
+ 
+var titleButton = function(x, y, w, h, txt, sc) {
+  if (mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h) {
+    titleButtonCanClick = true;
+    sceneToGo = sc;
+    // grow the button a bit on hover
+    w += 10; h += 6; x -= 5; y -= 3;
+  }
+  fill(0, 17, 255);
+  rect(x, y, w, h, (w + h) / 20);
+  fill(255);
+  textSize((w + h) / 5.5);
+  text(txt, x + w / 2, y + h / 2);
+};
+ 
+var drawTitleScreen = function() {
+  titleButtonCanClick = false;
+  sceneToGo = "";
+  background(0);
+  fill(225); noStroke();
+  ellipse(width / 2, height / 2 - 50, 25, 25);
+  for (var c = 0; c < 7; c++) {
+    noFill(); strokeWeight(25.5);
+    stroke(240, 240, 255 - c * 25 - 30, 220);
+    ellipse(width / 2, height / 2 - 50, 50 + 50 * c, 50 + 50 * c);
+  }
+  noStroke(); fill(255);
+  textAlign(CENTER, CENTER);
+  textSize(70);
+  text("PATH OF LIGHT", width / 2, height / 2 - 50);
+  titleButton(width / 2 - 175, height / 2 + 20, 150, 50, "Play", "game");
+  titleButton(width / 2 + 25,  height / 2 + 20, 150, 50, "How",  "howToPlay");
+};
+ 
+// wave stuff for the how to play screen
+// based on my "2d animated ocean" program
+var waveTime = 0;
+var drawWave = function(li) {
+  var wc = lerpColor(color(120, 160, 255), color(0, 40, 100), li / max(3, 1));
+  fill(wc);
+  beginShape();
+  vertex(-10, height);
+  for (var wx = 0; wx <= width; wx += 5) {
+    var wy = map(noise(wx / 100, waveTime + li), 0, 1,
+      height * (0.6 + li * 0.05), height * (0.8 + li * 0.05));
+    vertex(wx, wy);
+  }
+  vertex(width + 10, height);
+  endShape(CLOSE);
+};
+ 
+var drawHowToPlayScreen = function() {
+  background(0);
+  for (var i = 0; i < 4; i++) drawWave(i);
+  waveTime += 0.01;
+  noStroke(); fill(255); textAlign(LEFT, TOP);
+  textSize(40); text("How to Play", 20, 30);
+  textSize(20);
+  text("W A S D to move, SPACE to jump.", 20, 100);
+  text("Click canvas to lock mouse - then look around.", 20, 140);
+  text("Reach the glowing box to advance.", 20, 180);
+  text("Don't fall into the void.", 20, 220);
+  text("ENTER prints a save code to the console.", 20, 260);
+  textAlign(CENTER, CENTER);
+  titleButton(20, height - 60, 100, 40, "Back", "title");
+};
+ 
+// ]
+ 
+ 
+// Digits made all of these. he's really good at it which is somewhat scary.
+var deathMessages = [
+  "Maybe don't fall into the void?",
+  "You've met a terrible fate, haven't you?",
+  "Owchy! That must've hurt.",
+  "Try again, but with less falling!",
+  "Gravity pulls you DOWN, remember?",
+  "Well, that's one way to go.",
+  "Another one bites the dust...",
+  "The Devs probably need to patch that.",
+  "W. A. S. T. E. D.",
+  "Well, that was anticlimactic.",
+  "We all make mistakes. Yours was this whole run.",
+  "Please try again later. Much, much later.",
+  "You're not Spider-Man.",
+  "What goes up must come down...",
+];
+var currentDeathMessage = "";
+function selectRandomDeathMessage() {
+  currentDeathMessage = deathMessages[floor(random(deathMessages.length))];
+}
+ 
+// time for score
+var TIME = saveCode[2] / Math.PI;
+ 
+ 
+// smoothly lerp between two angles without flipping at 0/360
+// this took me as long as the collisions ):
+function lerpAngle(a, b, t) {
+  var nA = (a % 360 + 360) % 360, nB = (b % 360 + 360) % 360;
+  var d  = nB - nA;
+  if (abs(d) > 180) { if (d > 0) nA += 360; else nB += 360; }
+  return (nA + (nB - nA) * t) % 360;
+}
+ 
+ 
+// AABB collision. credit to chatGPT for explaining 3D collisions.
+// consolidated from 2 functions into 1 because I am lazy
+function checkCollision(ox, oy, oz, box) {
+  var bMinX = box.position.x - box.size.width  / 2, bMaxX = box.position.x + box.size.width  / 2;
+  var bMinZ = box.position.z - box.size.length / 2, bMaxZ = box.position.z + box.size.length / 2;
+  var pMinX = ox - playerSize / 2, pMaxX = ox + playerSize / 2;
+  var pMinZ = oz - playerSize / 2, pMaxZ = oz + playerSize / 2;
+  var oH = pMaxX >= bMinX && pMinX <= bMaxX && pMaxZ >= bMinZ && pMinZ <= bMaxZ;
+ 
+  var pTop = oy - playerSize / 2, pBot = oy + playerSize / 2;
+  var bTop = box.position.y - box.size.height / 2, bBot = box.position.y + box.size.height / 2;
+  var oV   = pTop < bBot && pBot > bTop;
+ 
+  var vert = "none";
+  if (oH) {
+    if (jumpSpeed >= 0 && pBot >= bTop && pTop < bTop)     vert = "top";    // landed on top
+    else if (jumpSpeed < 0 && pTop <= bBot && pBot > bBot) vert = "bottom"; // hit from below
+  }
+  return { horizontal: oH && oV, vertical: vert };
+}
+// keeping these wrappers so I don't have to change everything else
+function checkHorizontalCollision(ox, oy, oz, box) { return checkCollision(ox, oy, oz, box).horizontal; }
+function checkVerticalCollision(ox, oy, oz, box)   { return checkCollision(ox, oy, oz, box).vertical;   }
+ 
+ 
+// make sure we don't spawn inside a wall. that wouldn't be fun right
+function safeSpawn(x, y, z) {
+  for (var i = 0; i < colliders.length; i++) {
+    var b = colliders[i];
+    if (x > b.x && x < b.x + b.w && z > b.z && z < b.z + b.d) y = b.h + 10;
+  }
+  return {x:x, y:y, z:z};
+}
+ 
+// load a level and reset everything
+function loadLevel(idx) {
+  currentLevel = idx;
+  colliders    = levels[idx].colliders;
+  goal         = levels[idx].goal;
+  var sp       = safeSpawn(initialPlayerX, initialPlayerY, initialPlayerZ);
+  playerX = sp.x; playerY = sp.y; playerZ = sp.z;
+  isJumping = false; onGround = true; jumpSpeed = 0;
+  camAngleY = 0; camAngleX = -0.2; playerRotationY = 0;
+  currentDigitPosition = 0;
+}
+ 
+ 
+// SETUP VARS - actually build the levels
+function buildLevels() {
+ 
+  // Level 1: The City of Darkness
+  levels.push({
+    colliders: (function() {
+      var c = [];
+ 
+      // main ground floor
+      c.push({ position:{x:0,y:50,z:0}, size:{width:1200,height:10,length:1200}, color:g.color(40) });
+ 
+      // scatter city buildings randomly
+      for (var b = 0; b < 30; b++) {
+        var bx = Math.floor(Math.random()*1000-500), bz = Math.floor(Math.random()*1000-500);
+        // leave the alley area clear
+        if (bx>-500&&bx<-200&&bz<-100&&bz>-500) continue;
+        var bw = 50+Math.random()*80, bl = 50+Math.random()*80;
+        // don't spawn on top of the player
+        if (Math.abs(bx)<(bw/2+120) && Math.abs(bz)<(bl/2+120)) continue;
+        c.push({ position:{x:bx,y:-100,z:bz}, size:{width:bw,height:350,length:bl}, color:g.color(60+Math.random()*40) });
+      }
+ 
+      // extra debris for that dystopian feel
+      for (var d = 0; d < 20; d++) {
+        var dx = Math.floor(Math.random()*1000-500), dz = Math.floor(Math.random()*1000-500);
+        if (Math.abs(dx)<150&&Math.abs(dz)<150) continue;
+        if (dx>-500&&dx<-200&&dz<-100&&dz>-500) continue;
+        c.push({ position:{x:dx,y:30,z:dz}, size:{width:10+Math.random()*40,height:10+Math.random()*40,length:10+Math.random()*40},
+                 color:g.color(20+Math.random()*20,20+Math.random()*20,20+Math.random()*20) });
+      }
+ 
+      // alley walls
+      c.push({ position:{x:-220,y:-100,z:-300}, size:{width:80,height:300,length:500}, color:g.color(70) });
+      c.push({ position:{x:-480,y:-100,z:-300}, size:{width:80,height:300,length:500}, color:g.color(70) });
+ 
+      // alley clutter
+      c.push({ position:{x:-350,y:30,z:-200},   size:{width:40,height:30,length:20},   color:g.color(30,40,50) });
+      c.push({ position:{x:-370,y:30,z:-260},   size:{width:25,height:25,length:25},   color:g.color(50,35,25) });
+      c.push({ position:{x:-330,y:30,z:-350},   size:{width:30,height:30,length:30},   color:g.color(45,45,45) });
+      return c;
+    })(),
+    // portal at the far end of the alley
+    goal:       { position:{x:-350,y:20,z:-480}, size:{width:40,height:40,length:40}, color:g.color(0,255,100) },
+    background: 0  // bleh
+  });
+ 
+ 
+  // Level 2: The Exit
+  levels.push({
+    colliders: (function() {
+      var c = [];
+      // floor
+      c.push({ position:{x:0,y:100,z:-500},  size:{width:200,height:10,length:1400},  color:g.color(50) });
+      // side walls
+      c.push({ position:{x:-120,y:100,z:0},  size:{width:80,height:500,length:1400},  color:g.color(70) });
+      c.push({ position:{x:120,y:100,z:0},   size:{width:80,height:500,length:1200},  color:g.color(70) });
+      c.push({ position:{x:0,y:100,z:400},   size:{width:200,height:500,length:500},  color:g.color(70) });
+      // useless blobs alternating left/right
+      // ? is underrated
+      var zp = -200;
+      for (var i = 0; i < 4; i++) {
+        c.push({ position:{x:(i%2===0)?-40:40,y:40,z:zp}, size:{width:60,height:80,length:40}, color:g.color(80) });
+        zp -= 200;
+      }
+      // extra junk that adds to the dystopian feel
+      c.push({ position:{x:0,y:60,z:-150},   size:{width:30,height:30,length:30}, color:g.color(20,20,20) });
+      c.push({ position:{x:-30,y:60,z:-350},  size:{width:25,height:25,length:25}, color:g.color(15,15,15) });
+      c.push({ position:{x:40,y:60,z:-600},   size:{width:35,height:35,length:35}, color:g.color(25,25,25) });
+      return c;
+    })(),
+    // goal at the farrr end of the corridor
+    goal:       { position:{x:0,y:40,z:-1000}, size:{width:40,height:40,length:40}, color:g.color(0,255,0) },
+    background: 20 // slightly lighter O:
+  });
+ 
+ 
+  // Level 3: There is Hope - floating platforms leading to a ledge
+  levels.push({
+    colliders: (function() {
+      var c = [], n = 4, bX = -200, bZ = -200;
+      // main floor
+      c.push({ position:{x:0,y:0,z:0}, size:{width:1200,height:10,length:1200}, color:g.color(60) });
+      // platforms going up
+      for (var i = 0; i < n; i++) {
+        c.push({ position:{x:bX+i*120+(Math.random()*30-15),y:-20-i*60,z:bZ+i*100+(Math.random()*30-15)},
+                 size:{width:70,height:10,length:70}, color:g.color(70+Math.random()*20) });
+      }
+      // final ledge at the top
+      c.push({ position:{x:bX+n*160,y:-350+n*60,z:bZ+n*100}, size:{width:300,height:300,length:300}, color:g.color(90) });
+      // some decorative blobs
+      for (var r = 0; r < 8; r++) {
+        c.push({ position:{x:Math.random()*800-400,y:0,z:Math.random()*800-400},
+                 size:{width:60+Math.random()*80,height:20+Math.random()*30,length:60+Math.random()*80},
+                 color:g.color(70+Math.random()*30) });
+      }
+      return c;
+    })(),
+    goal:       { position:{x:400,y:-350,z:350}, size:{width:40,height:40,length:40}, color:g.color(0,255,50) },
+    background: 40
+  });
+ 
+ 
+  // Level 4: The Cliff - more climbing yay
+  levels.push({
+    colliders: (function() {
+      var c = [], n = 12, last = {x:0,y:0,z:0};
+      // starting platform
+      c.push({ position:{x:0,y:0,z:0}, size:{width:100,height:10,length:100}, color:g.color(80) });
+      for (var i = 0; i < n; i++) {
+        var px = last.x+80+(Math.random()*40-20), pz = last.z+80+(Math.random()*40-20), py = -20-i*30;
+        // every 3rd one is a super narrow pillar. rip
+        if (i%3===0 && i>0) {
+          c.push({ position:{x:px,y:py,z:pz}, size:{width:10,height:30,length:10}, color:g.color(50) });
+        } else {
+          c.push({ position:{x:px,y:py,z:pz}, size:{width:40+Math.random()*30,height:10,length:40+Math.random()*30}, color:g.color(50+Math.random()*40) });
+        }
+        last = {x:px,y:py,z:pz};
+      }
+      // big platform at the end
+      c.push({ position:{x:last.x+200,y:last.y-50,z:last.z+200}, size:{width:250,height:10,length:250}, color:g.color(100) });
+      return c;
+    })(),
+    goal:       { position:{x:1200,y:-450,z:1200}, size:{width:40,height:40,length:40}, color:g.color(0,255,50) },
+    background: 60
+  });
+ 
+ 
+  // Level 5: The Tower - climb it really high
+  // variables that helped make it actually playable
+  var tPC = 15, tYS = 0, tYStep = -60, tR = 150, tAS = Math.PI/4.5, tX = 60;
+  var finalPY = tYS + tPC * tYStep;
+  levels.push({
+    colliders: (function() {
+      var c = [];
+      // starting platform (offset so you don't spawn inside the tower lol)
+      c.push({ position:{x:tX,y:0,z:0}, size:{width:150,height:10,length:150}, color:g.color(90) });
+      // dark imposing core
+      c.push({ position:{x:tX,y:finalPY/2,z:0}, size:{width:80,height:Math.abs(finalPY),length:80}, color:g.color(20,20,25) });
+      // spiral platforms using trig (sin/cos wahhhh)
+      for (var i = 1; i <= tPC; i++) {
+        var ang = i*tAS, ps = 40+(i%4)*5;
+        c.push({ position:{x:tX+tR*Math.cos(ang),y:tX+tYS+i*tYStep,z:tX+tR*Math.sin(ang)},
+                 size:{width:ps,height:10,length:ps}, color:g.color(30+(i%3)*10) });
+      }
+      // landing platform at the top
+      c.push({ position:{x:tX,y:finalPY,z:0}, size:{width:150,height:10,length:150}, color:g.color(120,100,50) });
+      return c;
+    })(),
+    goal:       { position:{x:tX,y:finalPY,z:0}, size:{width:40,height:40,length:40}, color:g.color(13,255,0) },
+    background: color(40,62,64)
+  });
+ 
+ 
+  // Level 6: 3,000 Feet and Climbing - hard jumps above void. no floor. good luck.
+  levels.push((function() {
+    var c = [], vPC = 20, vYStep = -25, last = {x:0,y:50,z:0};
+    c.push({ position:{x:0,y:50,z:0}, size:{width:80,height:10,length:80}, color:g.color(100) });
+    for (var i = 0; i < vPC; i++) {
+      var dist = 128+Math.random()*50, ang = Math.random()*1.5*Math.PI;
+      var px = last.x+dist*Math.cos(ang), pz = last.z+dist*Math.sin(ang), py = last.y+vYStep;
+      var ps = 35+Math.random()*20; // 35x35 to 50x50
+      c.push({ position:{x:px,y:py,z:pz}, size:{width:ps,height:10,length:ps}, color:g.color(100+Math.random()*40) });
+      last = {x:px,y:py,z:pz};
+    }
+    return { colliders:c,
+             goal:{ position:{x:last.x,y:last.y,z:last.z}, size:{width:40,height:40,length:40}, color:g.color(0,250,9) },
+             background: color(40,81,100) }; // oooo more blue
+  })());
+ 
+ 
+  // Level 7: The First Life - trees appear (they're just green platforms but i call them bushes)
+  levels.push((function() {
+    var c = [], pSY = -40, n = 50, last = {x:0,y:100,z:0}; // originally 150 but that was way too much lol
+    c.push({ position:{x:0,y:100,z:0}, size:{width:120,height:10,length:120}, color:g.color(50,80,50) });
+    for (var i = 0; i < n; i++) {
+      var y = last.y+pSY, dist = 70+Math.random()*60, ac = Math.PI/4+Math.random()*(Math.PI/2);
+      var px = last.x+dist*Math.cos(ac*i), pz = last.z+dist*Math.sin(ac*i);
+      c.push({ position:{x:px,y:y,z:pz}, size:{width:30,height:10,length:30}, color:g.color(60,100,60) }); // green cuz alive or something
+      last = {x:px,y:y,z:pz};
+    }
+    return { colliders:c,
+             goal:{ position:{x:last.x,y:last.y,z:last.z}, size:{width:40,height:40,length:40}, color:g.color(150,255,150) },
+             background: color(40,100,140) };
+  })());
+ 
+ 
+  // Level 8: A Thing Called Color - vibrant colors, spiral pattern
+  levels.push((function() {
+    var c = [], n = 67, bR = 100, rGrow = 5, aStep = Math.PI/8, last = {x:0,y:0,z:0};
+ 
+    // generate a random vibrant color (makes sure at least one channel is bright)
+    function vibrant() {
+      var r = Math.floor(Math.random()*255);
+      var gv = Math.floor(Math.random()*255); // gv not g, don't shadow the graphics buffer lol
+      var b = Math.floor(Math.random()*255);
+      if (r<150 && gv<150 && b<150) {
+        var ch = Math.floor(Math.random()*3);
+        if (ch===0) r=255; else if (ch===1) gv=255; else b=255;
+      }
+      return color(r, gv, b);
+    }
+ 
+    c.push({ position:{x:0,y:0,z:0}, size:{width:100,height:10,length:100}, color:vibrant() });
+    for (var i = 1; i <= n; i++) {
+      var y = i*-25, rad = bR+i*rGrow, ang = i*aStep; // growing radius = spiral expand thing
+      var px = rad*Math.cos(ang), pz = rad*Math.sin(ang), ps = 50+Math.random()*20;
+      c.push({ position:{x:px,y:y,z:pz}, size:{width:ps,height:10,length:ps}, color:vibrant() });
+      last = {x:px,y:y,z:pz};
+    }
+    return { colliders:c,
+             goal:{ position:{x:last.x,y:last.y,z:last.z}, size:{width:40,height:40,length:40}, color:g.color(0,255,0) },
+             background: color(10,150,200) };
+  })());
+ 
+ 
+  // Level 9: The Final Gate - open field, couple trees, last portal is gold this time O: O: O: :D :D :D
+  levels.push((function() {
+    var c = [];
+    // big grassy field
+    c.push({ position:{x:0,y:0,z:0},        size:{width:1500,height:40,length:1500},  color:g.color(50,70,40) });
+    // tree 1 (trunk + leaves)
+    c.push({ position:{x:-300,y:-200,z:200}, size:{width:40,height:360,length:40},     color:g.color(50,30,10) });
+    c.push({ position:{x:-300,y:-325,z:200}, size:{width:150,height:150,length:150},   color:g.color(30,150,30) });
+    // tree 2 (bigger)
+    c.push({ position:{x:400,y:-280,z:-300}, size:{width:50,height:520,length:50},     color:g.color(40,20,0) });
+    c.push({ position:{x:400,y:-600,z:-300}, size:{width:200,height:200,length:200},   color:g.color(40,180,40) });
+    // bushes
+    c.push({ position:{x:-200,y:-35,z:100},  size:{width:60,height:60,length:60},      color:g.color(20,100,20) });
+    c.push({ position:{x:100,y:-45,z:-550},  size:{width:80,height:80,length:80},      color:g.color(30,120,30) });
+    return { colliders:c,
+             goal:{ position:{x:0,y:-150,z:-600}, size:{width:100,height:100,length:100}, color:g.color(255,220,0) }, // gold!
+             background: color(0,119,255) };
+  })());
+}
+ 
+ 
+// handle mouse movement. only fires if we actually have pointer lock
+// credit to SupremeChicken for the pointer lock approach
+var handleMove = function(e) {
+  if (document.pointerLockElement !== cnv.elt) return;
+  camAngleY -= e.movementX * mouseSensitivity;
+  // angles stored in radians, clamped to just under 90 so we never flip
+  camAngleX = constrain(camAngleX - e.movementY * mouseSensitivity, radians(-89), radians(89));
+};
+ 
+// reset everything after dying
+function resetDeath() {
+  skullSize = 20000; skullTrans = 0; shakeIntensity = 25;
+  deathAnimationFrames = 0; gameOverTextTransparency = 1;
+  innerCircleSize = 1; dead = false;
+  loadLevel(currentLevel);
+  selectRandomDeathMessage();
+}
+ 
+ 
+function setup() {
+  cnv = createCanvas(600, 600);
+  smooth(); // native AA, replaces the FXAA shader
+ 
+  // off-screen WEBGL buffer for all the 3d stuff
+  g = createGraphics(600, 600, WEBGL);
+  g.smooth();
+ 
+  // one mousemove listener, handler checks lock state itself
+  document.addEventListener('mousemove', handleMove);
+ 
+  selectRandomDeathMessage();
+  buildLevels();
+  loadLevel(currentLevel);
+}
+ 
+function draw() {
+  // print save code to console (copy paste it to the saveCode variable at the top)
+  if (keys[ENTER]) {
+    console.log("var saveCode = [0, " + (currentLevel * 3) + ", " + (TIME * Math.PI).toFixed(2) + ", 5];");
+  }
+ 
+  // non-game scenes
+  if (scene === "title")     { drawTitleScreen();    return; }
+  if (scene === "howToPlay") { drawHowToPlayScreen(); return; }
+  if (scene === "won") {
+    // lame win screen lol
+    background(0); fill(255); textAlign(CENTER, CENTER);
+    textSize(100); text("YOU WON!", 300, 250);
+    textSize(30); fill(166, 0, 255);
+    text("TIME: " + formatNumber(round(TIME / 60)) + " sec", 300, 350);
+    text("Not many players win - congrats!", 300, 400);
+    noLoop(); return;
+  }
+ 
+  TIME++;
+ 
+  // clear the 3d buffer with the level's background color
+  if (levels[currentLevel] && levels[currentLevel].background) {
+    g.background(levels[currentLevel].background);
+  } else {
+    g.background(0); // fallback
+  }
+  g.lights(); // has to be called every frame in p5.js webgl, annoying
+ 
+  if (showOutlines) { g.strokeWeight(1); g.stroke(1); }
+  else              { g.noStroke(); }
+ 
+  // save position before moving so we can roll back on collision
+  prevPlayerX = playerX; prevPlayerY = playerY; prevPlayerZ = playerZ;
+ 
+  // --- player movement ---
+  var fDX = sin(camAngleY), fDZ = cos(camAngleY); // forward direction
+  var hasInput = false, targetRotY = playerRotationY;
+  var desVX = 0, desVZ = 0;
+ 
+  if (keys[87]) { desVX -= fDX; desVZ -= fDZ; hasInput = true; } // W
+  if (keys[83]) { desVX += fDX; desVZ += fDZ; hasInput = true; } // S
+  if (keys[65]) { desVX -= fDZ; desVZ += fDX; hasInput = true; } // A
+  if (keys[68]) { desVX += fDZ; desVZ -= fDX; hasInput = true; } // D
+ 
+  // get target rotation from the movement vector directly
+  // atan2 handles all diagonal combos (W+A etc) perfectly
+  if (hasInput) targetRotY = degrees(atan2(-desVX, -desVZ));
+ 
+  // normalize and apply acceleration
+  var mag = sqrt(desVX * desVX + desVZ * desVZ);
+  if (mag > 0) {
+    desVX /= mag; desVZ /= mag;
+    playerVelocityX += desVX * acceleration;
+    playerVelocityZ += desVZ * acceleration;
+  } else {
+    // no input, apply friction
+    playerVelocityX *= friction; playerVelocityZ *= friction;
+    if (abs(playerVelocityX) < 0.1) playerVelocityX = 0;
+    if (abs(playerVelocityZ) < 0.1) playerVelocityZ = 0;
+  }
+ 
+  // cap speed
+  var spd = sqrt(playerVelocityX*playerVelocityX + playerVelocityZ*playerVelocityZ);
+  if (spd > maxSpeed) {
+    playerVelocityX = playerVelocityX / spd * maxSpeed;
+    playerVelocityZ = playerVelocityZ / spd * maxSpeed;
+  }
+ 
+  // --- horizontal collisions ---
+  // check X and Z separately so you don't get caught on corners
+  playerX += playerVelocityX;
+  for (var i = 0; i < colliders.length; i++) {
+    if (checkHorizontalCollision(playerX, prevPlayerY, prevPlayerZ, colliders[i])) {
+      playerX = prevPlayerX; playerVelocityX = 0; // undo
+    }
+  }
+  playerZ += playerVelocityZ;
+  for (var i = 0; i < colliders.length; i++) {
+    if (checkHorizontalCollision(prevPlayerX, prevPlayerY, playerZ, colliders[i])) {
+      playerZ = prevPlayerZ; playerVelocityZ = 0; // undo
+    }
+  }
+ 
+  // smoothly rotate the player towards where they're moving
+  if (hasInput) playerRotationY = lerpAngle(playerRotationY, targetRotY, 0.1);
+ 
+  // gravity
+  if (!onGround) { playerY += jumpSpeed; jumpSpeed += gravity; }
+ 
+  // --- vertical collisions ---
+  var onSurface = false;
+  for (var i = 0; i < colliders.length; i++) {
+    var vr = checkVerticalCollision(playerX, playerY, playerZ, colliders[i]);
+    if (vr === "top") {
+      // landed on top of a box
+      playerY = colliders[i].position.y - colliders[i].size.height / 2 - playerSize / 2;
+      isJumping = false; onGround = true; jumpSpeed = 0; onSurface = true;
+    } else if (vr === "bottom") {
+      // hit a box from below
+      playerY = colliders[i].position.y + colliders[i].size.height / 2 + playerSize / 2;
+      jumpSpeed = 0;
+    }
+  }
+  onGround = onSurface;
+ 
+  if (keys[32] && onGround) { isJumping = true; onGround = false; jumpSpeed = -8; } // jump
+  if (playerY > fallResetY)  dead = true; // fell into the void
+ 
+  // did we reach the goal?
+  if (goal && checkHorizontalCollision(playerX, playerY, playerZ, goal)) {
+    txtFade = 0;
+    if (currentLevel < levels.length - 1) loadLevel(currentLevel + 1);
+    else scene = "won";
+  }
+ 
+  // --- camera ---
+  var ctY = playerY + camYOffset;
+  var cX  = playerX + camDist * sin(camAngleY) * cos(camAngleX);
+  var cZ  = playerZ + camDist * cos(camAngleY) * cos(camAngleX);
+  var cY  = ctY     + camDist * sin(camAngleX);
+  g.camera(cX, cY, cZ, playerX, playerY, playerZ, 0, 1, 0);
+ 
+  // --- draw the world ---
+  // we gotta put g. before anything 3d. trust me it's annoying.
+  // and python ppl think semicolons are bad
+  for (var i = 0; i < colliders.length; i++) {
+    var col = colliders[i];
+    g.fill(col.color);
+    g.push();
+    g.translate(col.position.x, col.position.y, col.position.z);
+    if (col.size.height === 1) {
+      g.rotateX(radians(90));
+      g.box(col.size.width, col.size.length, col.size.height);
+    } else {
+      g.box(col.size.width, col.size.height, col.size.length);
+    }
+    g.pop();
+  }
+ 
+  // draw the goal box
+  if (goal) {
+    g.fill(goal.color);
+    g.push();
+    g.translate(goal.position.x, goal.position.y, goal.position.z);
+    g.box(goal.size.width, goal.size.height, goal.size.length);
+    g.pop();
+  }
+ 
+  // draw the player (blue cube with face)
+  g.push();
+  g.translate(playerX, playerY, playerZ);
+  g.rotateY(radians(playerRotationY));
+  g.fill(0, 60, 255);
+  g.box(playerSize, playerSize, playerSize);
+  g.translate(0, 0, -playerSize / 2 - 0.1);
+  drawFace(0, 0, playerSize / 4);
+  g.pop();
+ 
+  // blit the 3d buffer to the main canvas
+  image(g, 0, 0);
+ 
+  // --- 2D HUD ---
+  txtFade += 2;
+  var poem = levelPoems[currentLevel].substring(0, currentDigitPosition);
+ 
+  noStroke(); fill(0, 0, 0, 100);
+  rect(width / 5, -100, width / 1.7, height / 3, 10);
+  fill(255, 255, 255, txtFade);
+  textAlign(CENTER, BASELINE);
+  textSize(22); text(levelNames[currentLevel], width / 2, height / 18);
+  textSize(15); text(poem, width / 2, height / 11);
+ 
+  // type out the poem character by character
+  if (currentDigitPosition < levelPoems[currentLevel].length &&
+      frameCount % 3 === 0 && txtFade > 255) {
+    currentDigitPosition++;
+  }
+ 
+  // --- death screen ---
+  if (dead) {
+    // shake effect
+    if (deathAnimationFrames > 20 && deathAnimationFrames < 100) {
+      if (shakeIntensity > 1) {
+        shakeX = random(-shakeIntensity, shakeIntensity);
+        shakeY = random(-shakeIntensity, shakeIntensity);
+      }
+      shakeIntensity -= 0.6;
+    }
+    noStroke();
+    fill(0, innerCircleSize * 2);
+    ellipse(300, 300, innerCircleSize - 1, innerCircleSize - 1);
+    innerCircleSize = deathAnimationFrames * 30;
+ 
+    fill(255, 255, 255, skullTrans);
+    drawSkull(300 + shakeX, 300 + shakeY, skullSize * 1.5);
+    fill(0, 0, 0, skullTrans * 2);
+    drawEye(300 + shakeX, 300 + shakeY, skullSize * 1.5);
+ 
+    fill(0, 255, 191, gameOverTextTransparency);
+    textSize(80); textAlign(CENTER, CENTER);
+    text("You Died", 300, 280);
+    textSize(25);
+    fill(41, 230, 224, gameOverTextTransparency - 255);
+    text(currentDeathMessage, 300, 340);
+    fill(214, 7, 7, gameOverTextTransparency - 500);
+    textSize(45);
+    text("- Click to Continue -", 300, 400);
+ 
+    if (deathAnimationFrames < 100 && skullTrans < 255) skullTrans += 10;
+    if (deathAnimationFrames < 100 && skullSize  > 200) skullSize  /= 1.3;
+ 
+    if (deathAnimationFrames > 120) {
+      skullSize  += 10; skullTrans -= 10; gameOverTextTransparency += 5;
+      if (mouseIsPressed) resetDeath();
+    }
+    deathAnimationFrames++;
+  }
+}
+ 
+// not too long honestly, most the code is levels + comments anyway
+ 
+// return false so the browser doesn't scroll on space/arrow keys
+function keyPressed()  { keys[keyCode] = true;  return false; }
+function keyReleased() { keys[keyCode] = false; }
+ 
+function mousePressed() {
+  // lock the mouse when clicking into the game
+  // (made it auto-lock so you don't have to think about it, thank me later)
+  if (scene === "game") cnv.elt.requestPointerLock();
+  if (dead && deathAnimationFrames > 120) resetDeath();
+}
+ 
+function mouseClicked() {
+  if (scene === "title" && titleButtonCanClick) {
+    scene = sceneToGo;
+    if (sceneToGo === "game") {
+      cnv.elt.requestPointerLock();
+      loadLevel(currentLevel);
+    }
+  } else if (scene === "howToPlay") {
+    if (mouseX > 20 && mouseX < 120 && mouseY > height - 60 && mouseY < height - 20) {
+      scene = "title";
+    }
+  }
+}
+ 
+    </script>
+  </head>
+  <body>
+    <main>
+    </main>
+    
+     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script type>
+        var r = 600; 
+        var s = document.documentElement.clientWidth;
+        console.log(window.parent,window.parent.parent)
+        window.parent.parent.html2canvas = e => {
+            try {
+                html2canvas(document.body, {
+                    width:   s,
+                    height:  s,
+                    useCORS: true,
+                    onclone: e => e.getAnimations().forEach(a=>{
+                        try {
+                            a.finish();
+                        } catch{}
+                    })
+                }).then(e => {
+                    var c = document.createElement("canvas");
+                    c.width  = r;
+                    c.height = r;
+                    c.getContext('2d').drawImage(e, 0, 0, e.width, e.height, 0, 0, r, r);
+                    console.log(c.toDataURL())
+                    window.top.postMessage(c.toDataURL(), "*");
+                }).catch(e => { 
+                    alert("Thumbnail Script Error: " + e);  
+                });
+            } catch {
+                window.top.postMessage(document.createElement("canvas").toDataURL(), "*"); 
+            }
+        }; 
+    </script> 
+    <!--This must be the last script in the document I think.
+    Basically, it replaces this html document with an iframe containg this same document. Deals with KA freezing the window object and simlar stuff.--> 
+<script type> 
+    console.log(Date.now()-sessionStorage.getItem("lastload")
+);                  
+    if(!sessionStorage.getItem("lastload") || Date.now() - sessionStorage.getItem("lastload") > 1500){
+        var fullHTML = `<!DOCTYPE html>${document.documentElement.outerHTML}`;
+        document.body.innerHTML=`<iframe src="${URL.createObjectURL(new Blob([fullHTML],{type:"text/html"}))}"style="width:100vw;height:100vh;position:absolute;top:0px;left:0px;border:none"></iframe>`;
+        sessionStorage.setItem("lastload",Date.now());
+    }
+    
+    </script>
+    <script>/*Extra Script tag for reload button.*/</script>
+    
+  </body>
+</html>

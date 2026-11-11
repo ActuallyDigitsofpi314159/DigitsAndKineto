@@ -17,8 +17,8 @@ window.DK_GAMES = {
     featured: 'dash-parkour',
     order: [
         'dash-parkour',
-        { placeholder: true, title: 'Generic Platformer' },
-        { placeholder: true, title: 'FPH' },
+        'path-of-light',
+        'generic',
         { placeholder: true, title: 'Hunt the Wumpus' },
         { placeholder: true, title: 'Donkey Khan' }
     ]

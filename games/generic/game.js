@@ -9,6 +9,5 @@ DKGames.register({
     color: 'rgba(14, 182, 78, 1)',      // main color: play button, accents
     cover: 'cover.jpg',           // square cover art (homepage buttons)
     banner: 'banner.png',         // wide image across the top of the game page
-    logo: 'logo.png',             // optional: shown top-right of the banner
-    play: '../../path-of-light/'    // the playable game
+    play: '../../generic/'    // the playable game
 });

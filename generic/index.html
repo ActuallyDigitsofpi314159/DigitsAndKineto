@@ -1,0 +1,1971 @@
+<!DOCTYPE html><html><head><script>/**
+  _____                       _      
+ / ____|                     (_) 
+ | |  __  ___ _ __   ___ _ __ _  ___    
+ | | |_ |/ _ \ '_ \ / _ \ '__| |/ __|  
+ | |__| |  __/ | | |  __/ |  | | (__  
+  \_____|\___|_| |_|\___|_|  |_|\___|  
+ |  __ \| |     | |  / _|            
+ | |__) | | __ _| |_| |_ ___  _ __ _ __ ___   ___ _ __ 
+ |  ___/| |/ _` | __|  _/ _ \| '__| '_ ` _ \ / _ \ '__|
+ | |    | | (_| | |_| || (_) | |  | | | | | |  __/ |   
+ |_|    |_|\__,_|\__|_| \___/|_|  |_| |_| |_|\___|_|   
+ 
+                - By Digits & Kineto -
+              [Thank you for 100 votes!]
+
+Leaderboard: [
+Honor system! Not all of these are legit and I know who they are but they are on this list anyway! Don't ask how Digits got such a low time! This is triggering an existential crisis!
+1. Digitsofpi: 118.81s
+2. The Steve Man: 119.89s
+3. Max Z (CanonRouge24): 138.62s
+4. ∐₦Ϊ₸ℇ₫ ₱Θ₩∃®₴ ☬64: 139.98s
+5. BABBIT🐓: 144.44s
+6. Kineto 146.34s
+7. RedRaven9: 147.20s
+8. Cyberspear: 149.60s
+9. FURY: 150.0067s
+10. Always Improving: 156.32
+
+]
+
+@TODO [
+ * Many levels. Like 30.
+ * Add face to player
+The levels are AI and pretty bad, they don't use this things full potential.
+]
+
+Controls [
+    WASD to move, space to jump. Reach the sphere, try to get the fastest time!
+    esc to open pause menu
+    r to reset
+]
+
+Credits [
+ * Credit to Vicioustre𝑥 for fullscreen tutorial (linked here: https://www.khanacademy.org/computer-programming/i/5228155892842496)
+ * Huge credit to Github Copilot for tons logic assistance. The main goal of me creating this was to get more comfortable using AI to assist (not do all the work) me in programing, because any coding jobs will be assited by it.
+ * Credit to ▪Dipper98▪ for three and cannon.js tutorial.
+ * Credit to Willard for thumbnail saving method.
+]
+
+Disclaimer [
+    This program uses localStorage to save your level. The guidelines for p.js ban all use of localStorage, but webpages have different guidelines. Here is what it says about localStorage:
+    
+    "LocalStorage: Webpages should not store large amounts of data in localStorage or intentionally use the same keys as other programs."
+    
+    This program only scores times and levels, which is next to nothing, and I didn't intentionally use the same key as another program.
+]
+
+About [
+    Path of Light was great, but I wanted to stop using P3D before I got attached. So here I am, with a 3d platformer using Three.
+    The title screen cube rain can be seen here: https://www.khanacademy.org/computer-programming/its-raining-cubes/5913551636643840
+    took just under 3 months, levels were rushed because I got lazy.
+]
+*/
+// Done it a script to make it blue lol
+</script>
+
+<title>Generic Platformer [3D]</title>
+
+<meta charset="utf-8">
+<!-- Font for the title -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;800&display=swap" rel="stylesheet">
+
+<!--Get cannon & three for the title screen-->
+<script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"></script>
+
+<style>
+	/* Style canvas */
+    body, html {
+      margin:0;
+      padding:0;
+      overflow:hidden;
+      height:100%;
+      width:100%;
+      background:#000; 
+      font-family: 'Poppins', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    #overlay {
+        position:absolute;
+        top:0;
+        left:0; 
+        width:100%; 
+        height:100%;
+        pointer-events:none; 
+        display:flex; 
+        flex-direction:column; 
+        justify-content:center; 
+        align-items:center; 
+        text-align:center;
+        background-size:cover;
+        background-position:center;
+    }
+    h1 { 
+      font-size:17vw; 
+      margin:0.2em; 
+      color:#fff;
+      text-shadow:0 6px 18px rgba(0,0,0,0.9), 0 0 25px rgba(0,255,140,0.08);
+      pointer-events:none;
+    }
+    #play-button {
+        font-size:4vw;
+        padding:1em 2em;
+        margin-top:1em; 
+        cursor:pointer;
+        border:none; 
+        border-radius:10px;
+        background:#22bb33;
+        color:white;
+        pointer-events:auto; 
+        transition: transform 0.2s, background 0.2s;
+    }
+    #play-button:hover { 
+    	background:#33cc44; 
+        transform:scale(1.06); 
+    }
+    p.note {
+    	margin-top:0.5em;
+        font-size:2vw; 
+        color:orange; 
+    }
+    canvas {
+    	display:block;
+    }
+
+    /* small preview (useful while testing) */
+    #thumbnail-preview {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 256px;
+        height: 144px;
+        border-radius: 8px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+        border: 2px solid rgba(255,255,255,0.06);
+        image-rendering: -webkit-optimize-contrast;
+        display: none; /* turn on for debugging */
+        z-index: 20;
+        pointer-events: none;
+    }
+</style>
+
+<script type="module">
+// Import three
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module.js';
+// Import Cannon
+import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
+
+// basic setup
+const canvas = document.getElementById('title-canvas');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0);
+
+// Create the camera
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 500);
+camera.position.set(8,5,8);
+
+// ----- Create renderer -----
+// preserveDrawingBuffer makes real time editors like KA scale lag forever which is really annoying, but it is needed to make the thumbnail work. Why does the thumbnail not work correctly by default? because KA is ragebaiting.
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, preserveDrawingBuffer: true});
+// setting size and stuff
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+
+// Lights
+const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+hemi.position.set(0,20,0);
+scene.add(hemi);
+const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+dir.position.set(-10,20,-5);
+scene.add(dir);
+
+// Physics world
+const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -20, 0) });
+world.broadphase = new CANNON.SAPBroadphase(world);
+world.solver.iterations = 10;
+
+// Platform 
+const platformSize = {x:8, y:0.6, z:8};
+const platformGeo = new THREE.BoxGeometry(platformSize.x, platformSize.y, platformSize.z);
+const platformMat = new THREE.MeshStandardMaterial({color:0x22aa22});
+const platformMesh = new THREE.Mesh(platformGeo, platformMat);
+platformMesh.position.set(0,0,0);
+platformMesh.receiveShadow = true;
+scene.add(platformMesh);
+
+// Cannon physics body for platform (static)
+const platformBody = new CANNON.Body({
+    mass:0,
+    shape: new CANNON.Box(new CANNON.Vec3(platformSize.x/2, platformSize.y/2, platformSize.z/2)),
+    position: new CANNON.Vec3(0,0,0)
+});
+world.addBody(platformBody);
+
+// Rain cubes 
+const rainCubes = [];
+const cubeGeo = new THREE.BoxGeometry(1,1,1);
+const maxCubes = 300;
+// Get a random vibrant color
+function vibrantColor() {
+    const h = Math.random();
+    const s = 0.9 + Math.random()*0.1;
+    const l = 0.5 + Math.random()*0.1;
+    return new THREE.Color().setHSL(h,s,l);
+}
+
+function spawnCube() {
+    // Spawn a vibrant cube with physics
+    if (rainCubes.length >= maxCubes) return;
+
+    const color = vibrantColor();
+    const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity:0.8 });
+    const mesh = new THREE.Mesh(cubeGeo, mat);
+    mesh.castShadow = true;
+    mesh.position.set((Math.random()-0.5)*10, 15 + Math.random()*5, (Math.random()-0.5)*10);
+    const scale = 0.5 + Math.random()*1.5;
+    mesh.scale.set(scale, scale, scale);
+    scene.add(mesh);
+
+    // Cannon body
+    const shape = new CANNON.Box(new CANNON.Vec3(0.5*scale,0.5*scale,0.5*scale));
+    const body = new CANNON.Body({ mass:1, shape, position: new CANNON.Vec3(mesh.position.x, mesh.position.y, mesh.position.z) });
+    body.linearDamping = 0.01;
+    body.angularDamping = 0.05;
+    world.addBody(body);
+
+    rainCubes.push({mesh, body});
+}
+
+// Animation 
+// camera orbits and it spawns cubes
+const clock = new THREE.Clock();
+let spawnAccumulator = 0;
+let angle = 0;
+
+function animateTitle() {
+    const delta = clock.getDelta();
+    requestAnimationFrame(animateTitle);
+
+    angle += 0.005;
+    const radius = 12;
+    camera.position.x = radius * Math.sin(angle);
+    camera.position.z = radius * Math.cos(angle);
+    camera.position.y = 5 + Math.sin(angle*2)*2;
+    camera.lookAt(0,1,0);
+
+    spawnAccumulator += delta;
+    while(spawnAccumulator > 0.08){
+        const toSpawn = 1 + Math.floor(Math.random()*3);
+        for(let i=0;i<toSpawn;i++) spawnCube();
+        spawnAccumulator -= 0.08;
+    }
+
+    // Step physics
+    world.step(1/60, delta, 3);
+
+    // Sync mesh positions
+    for(let i=rainCubes.length-1;i>=0;i--){
+        const {mesh, body} = rainCubes[i];
+        mesh.position.copy(body.position);
+        mesh.quaternion.copy(body.quaternion);
+        
+        if(body.position.y < -100){
+            world.removeBody(body);
+            scene.remove(mesh);
+            rainCubes.splice(i,1);
+        }
+    }
+
+    renderer.render(scene, camera);
+}
+animateTitle();
+
+setTimeout(() => {
+    renderer.render(scene, camera); // ensure canvas has pixels
+    const dataURL = canvas.toDataURL('image/png');
+});
+
+
+// ----- Play button -----
+const button = document.getElementById('play-button');
+button.addEventListener('click', () => {
+    const w = window.open();
+    w.document.open();
+    w.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Generic Platformer</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"><\/script>
+    <style>
+    /* Styling canvas and buttons in UI ----- (im too lazy to comment everything) */
+        body {
+            margin:0; 
+            overflow:hidden;
+            background:#87CEEB; 
+            font-family:
+            sans-serif; 
+        }
+        canvas {
+            display:block;
+        }
+        #ui-overlay {
+            position: absolute;
+            left: 50%;
+            top: 2%;
+            transform: translateX(-50%);
+            color:#fff;
+            pointer-events: auto;
+            font-weight: bold;
+            text-shadow: 0 1px 0 rgba(0,0,0,0.6);
+            background: rgba(0,0,0,0.45);
+            padding: 0.6em 1.0em;
+            border-radius: 0.6em;
+            font-size: 1.6vw;
+            z-index: 50;
+        }
+        .win-screen, .pause-screen, .level-select {
+            position: absolute; 
+            left:0; 
+            top:0; 
+            width:100%;
+            height:100%;
+            display:flex; 
+            align-items:center; 
+            justify-content:center;
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            font-size: 4vw; 
+            flex-direction: column; 
+            pointer-events: auto;
+            z-index: 100;
+        }
+        .win-screen button, .pause-screen button, .level-select button {
+            margin-top: 1em; 
+            font-size: 1.5vw;
+            padding: .6em 1.2em;
+            border-radius: .5em;
+            border: none; 
+            background: #22bb33; 
+            color: #fff;
+            cursor:pointer;
+        }
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 100px));
+            gap: 1em;
+            margin-top: 2em;
+            margin-bottom: 1em;
+            padding: 0 2em;
+            width: 100%;
+            max-width: none;
+            justify-content: center;
+        }
+        .level-button {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2vw;
+            padding: 0 !important;
+            border-radius: 12px;
+            background: #22bb33 !important;
+            color: #fff !important;
+            cursor: pointer !important;
+            border: none;
+            font-weight: bold;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .level-button:hover:not(.locked) {
+            transform: scale(1.05);
+            background: #33cc44 !important;
+        }
+        .level-button-number {
+            font-size: 1.5vw;
+            font-weight: bold;
+        }
+        .level-button-time {
+            font-size: 0.6vw;
+            margin-top: 0.3em;
+            opacity: 0.9;
+        }
+        .level-button.locked {
+            background: #888 !important; 
+            color:#ddd !important; 
+            cursor: default !important;
+        }
+        .level-button.locked:hover {
+            transform: none;
+        }
+        .level-select-back {
+            font-size: 2.5vw !important;
+            padding: 0.8em 2em !important;
+            margin-top: 0.5em !important;
+            background: #1a1a1a !important;
+            color: #fff !important;
+            border: 2px solid #444 !important;
+            cursor: pointer !important;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .level-select-back:hover {
+            background: #333 !important;
+            border-color: #666 !important;
+        }
+        .small { 
+            font-size: 0.6em;
+            margin-top: 0.4em; 
+        }
+        .row {
+            display:flex; 
+            gap: .6em;
+            margin-top: 1em;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui-overlay"></div>
+    <canvas id="game-canvas"></canvas>
+
+<script>
+var canvas = document.getElementById('game-canvas');
+var scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
+var renderer = new THREE.WebGLRenderer({antialias:true, canvas: canvas});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = true;
+document.body.appendChild(renderer.domElement);
+var camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
+
+// Graphics mode: 'fancy' (default) or 'fast'
+var graphicsMode = 'fancy';
+function applyGraphicsMode(mode){
+    graphicsMode = mode || graphicsMode;
+  
+    // Save graphics mode so preference sticks.
+    try { 
+        localStorage.setItem('pf_graphicsMode', graphicsMode);
+    } catch(e){
+        console.warn(e);
+    }
+  
+    // Dispose old renderer.
+    renderer.dispose();
+  
+    // Swap the canvas for a fresh one.
+    var oldCanvas = canvas;
+    var newCanvas = document.createElement('canvas');
+    newCanvas.id = 'game-canvas';
+    oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
+    canvas = newCanvas;
+  
+    // Make a new renderer; antialias depends on mode.
+    var newRenderer = new THREE.WebGLRenderer({
+        antialias: (graphicsMode === 'fancy'),
+        canvas: canvas,
+        preserveDrawingBuffer: true
+    });
+    newRenderer.setSize(window.innerWidth, window.innerHeight);
+    newRenderer.setPixelRatio(graphicsMode === 'fancy' ? (window.devicePixelRatio || 1) : 1);
+  
+	if(graphicsMode === 'fancy'){
+       newRenderer.shadowMap.enabled = true;
+       newRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+       newRenderer.shadowMap.autoUpdate = true;
+    } else {
+        newRenderer.shadowMap.enabled = false;
+    }
+  
+	renderer = newRenderer;
+}
+
+// OBB collision helpers
+function OBB(center, halfExtents, axes) {
+    this.center = center || new THREE.Vector3();
+    this.halfExtents = halfExtents || new THREE.Vector3(0.5, 0.5, 0.5);
+    this.axes = axes || [new THREE.Vector3(1,0,0), new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,1)];
+}
+
+function updateOBBFromMesh(obb, mesh) {
+    obb.center.copy(mesh.position);
+    var matWorld = mesh.matrixWorld;
+    var xAxis = new THREE.Vector3(1, 0, 0).applyMatrix4(matWorld);
+    var yAxis = new THREE.Vector3(0, 1, 0).applyMatrix4(matWorld);
+    var zAxis = new THREE.Vector3(0, 0, 1).applyMatrix4(matWorld);
+    xAxis.sub(mesh.position).normalize();
+    yAxis.sub(mesh.position).normalize();
+    zAxis.sub(mesh.position).normalize();
+    obb.axes[0].copy(xAxis);
+    obb.axes[1].copy(yAxis);
+    obb.axes[2].copy(zAxis);
+}
+
+function projectOBBOnAxis(obb, axis) {
+    var extentX = Math.abs(obb.halfExtents.x * Math.abs(obb.axes[0].dot(axis)));
+    var extentY = Math.abs(obb.halfExtents.y * Math.abs(obb.axes[1].dot(axis)));
+    var extentZ = Math.abs(obb.halfExtents.z * Math.abs(obb.axes[2].dot(axis)));
+    var extent = extentX + extentY + extentZ;
+    var centerProj = obb.center.dot(axis);
+    return {
+        min: centerProj - extent, max: centerProj + extent
+    };
+}
+
+function intervalsOverlap(p1, p2) {
+    return p1.max >= p2.min && p2.max >= p1.min;
+}
+
+function testOBBOBBSAT(obb1, obb2) {
+    var axes = [];
+    for(var i = 0; i < 3; i++) axes.push(obb1.axes[i]);
+    for(var i = 0; i < 3; i++) axes.push(obb2.axes[i]);
+  
+    for(var i = 0; i < axes.length; i++) {
+        var axis = axes[i];
+        if(axis.lengthSq() < 0.001) continue;
+        var p1 = projectOBBOnAxis(obb1, axis);
+        var p2 = projectOBBOnAxis(obb2, axis);
+        if(!intervalsOverlap(p1, p2)) return false;
+  	}
+  	return true;
+}
+
+function getOBBVertices(obb) {
+    var verts = [];
+    var c = obb.center;
+    var ax = obb.axes[0].clone().multiplyScalar(obb.halfExtents.x);
+ 	var ay = obb.axes[1].clone().multiplyScalar(obb.halfExtents.y);
+ 	var az = obb.axes[2].clone().multiplyScalar(obb.halfExtents.z);
+  
+	for(var i = 0; i < 8; i++) {
+        var v = c.clone();
+        if(i & 1) v.add(ax); else v.sub(ax);
+        if(i & 2) v.add(ay); else v.sub(ay);
+        if(i & 4) v.add(az); else v.sub(az);
+        verts.push(v);
+  	}
+  	return verts;
+}
+
+function getOBBPenetration(obb1, obb2) {
+  	var minPenetration = Infinity;
+ 	var penetrationAxis = null;
+  
+ 	var axes = [];
+    for(var i = 0; i < 3; i++) axes.push(obb1.axes[i]);
+	for(var i = 0; i < 3; i++) axes.push(obb2.axes[i]);
+  
+	for(var i = 0; i < axes.length; i++) {
+        var axis = axes[i];
+        if(axis.lengthSq() < 0.001) continue;
+        axis = axis.clone().normalize();
+        
+        var p1 = projectOBBOnAxis(obb1, axis);
+        var p2 = projectOBBOnAxis(obb2, axis);
+        
+        if(!intervalsOverlap(p1, p2)) return null;
+        
+        var penetration = Math.min(p1.max - p2.min, p2.max - p1.min);
+    	if(penetration < minPenetration) {
+            minPenetration = penetration;
+            penetrationAxis = axis.clone();
+            if(p1.max - p2.min < p2.max - p1.min) {
+                penetrationAxis.multiplyScalar(-1);
+            }
+    	}
+	}
+  
+	return {depth: minPenetration, axis: penetrationAxis};
+}
+
+function testAABBAABB(min1, max1, min2, max2) {
+  return min1.x <= max2.x && max1.x >= min2.x &&
+         min1.y <= max2.y && max1.y >= min2.y &&
+         min1.z <= max2.z && max1.z >= min2.z;
+}
+
+// for the goal
+function testSphereOBB(sphereCenter, sphereRadius, obb) {
+  var closest = sphereCenter.clone();
+  for(var i = 0; i < 3; i++) {
+    var axisProj = closest.dot(obb.axes[i]) - obb.center.dot(obb.axes[i]);
+    var clamp = Math.max(-obb.halfExtents.getComponent(i), Math.min(obb.halfExtents.getComponent(i), axisProj));
+    closest.addScaledVector(obb.axes[i], clamp - axisProj);
+  }
+  var dist = sphereCenter.distanceTo(closest);
+  return {hit: dist <= sphereRadius, closest: closest, dist: dist};
+}
+
+// lights 
+var hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0); hemi.position.set(0,20,0); scene.add(hemi);
+var dir = new THREE.DirectionalLight(0xffffff, 1.5); 
+dir.position.set(10, 30, 10); 
+dir.castShadow = true;
+dir.shadow.mapSize.width = 4096;
+dir.shadow.mapSize.height = 2048;
+dir.shadow.camera.near = 1;
+dir.shadow.camera.far = 100;
+dir.shadow.camera.left = -60;
+dir.shadow.camera.right = 60;
+dir.shadow.camera.top = 60;
+dir.shadow.camera.bottom = -40;
+dir.shadow.bias = 0.0001;
+scene.add(dir);
+
+// Player (box dude without even a face) 
+var PLAYER_SIZE = 1;
+var playerHalf = PLAYER_SIZE / 2;
+var playerGeo = new THREE.BoxGeometry(PLAYER_SIZE, PLAYER_SIZE, PLAYER_SIZE);
+var playerMat = new THREE.MeshPhongMaterial({color:0xff5555});
+var player = new THREE.Mesh(playerGeo, playerMat);
+player.position.set(0, 5, 0);
+player.castShadow = true;
+player.receiveShadow = true;
+scene.add(player);
+
+// Platforms storage (boxes & ramps)
+var platforms = [];
+var decorations = []; // non-solid items like text
+var lavaMaterials = []; // lava materials for animated color later
+var playerOnPlatform = null; // platform the player was standing on last frame
+var lavaBaseColor = new THREE.Color(0xff5500);
+var lavaTargetColor = new THREE.Color(0xff0000);
+
+// Convert RGB array or hex/number to a THREE color int
+function normalizeColor(c){
+    if(!c) return null;
+  	if(Object.prototype.toString.call(c) === '[object Array]'){
+        var r = Math.max(0, Math.min(255, Math.floor(c[0]||0)));
+        var g = Math.max(0, Math.min(255, Math.floor(c[1]||0)));
+        var b = Math.max(0, Math.min(255, Math.floor(c[2]||0)));
+        return (r<<16) | (g<<8) | b;
+    }
+    if(typeof c === 'string'){
+		if(c[0] === '#') c = c.substring(1);
+		return parseInt(c, 16);
+	}
+    return c;
+}
+
+/* Block creator
+createBlock({ x,y,z, w,h,d, rotX,rotY,rotZ, color, specialType, moveType, targetX/Y/Z, targetRotX/Y/Z, speed, duration })
+- rotX/Y/Z and targetRotX/Y/Z are in degrees in the level data (converted to radians later)
+- color: either [r,g,b] array or hex/number/string
+- specialType: 'lava' or 'trampoline' (overrides color), or 'text'
+- moveType: 'moving_normal' (constant speed bouncing) or 'moving_smooth' (ease in/out)
+- targetX/Y/Z: target position for moving platforms
+- targetRotX/Y/Z: rotation targets (degrees) for moving platforms
+- speed: speed (units/sec) of moving platforms
+*/
+function createBlock(opts){
+	// opts must be an object
+  	if(!opts || typeof opts !== 'object') return null;
+  	var ox = opts.x || 0, oy = opts.y || 0, oz = opts.z || 0;
+  	var ow = opts.w || opts.width || 1, oh = opts.h || opts.height || 1, od = opts.d || opts.depth || 1;
+  	var orx = opts.rotX || 0, ory = opts.rotY || 0, orz = opts.rotZ || 0;
+  	var ocolor = opts.color || opts.col || null;
+  	var ospecial = opts.specialType || null;
+
+    // 3d text
+    if(ospecial === 'text'){
+        var msg = opts.message || opts.text || 'Message';
+        var fontSize = Math.max(16, (opts.fontSize || 48));
+        var padding = 40;
+        
+        var measureCanvas = document.createElement('canvas');
+        var measureCtx = measureCanvas.getContext('2d');
+        measureCtx.font = fontSize + 'px sans-serif';
+        var textWidth = Math.ceil(measureCtx.measureText(msg).width);
+        var canvasW = textWidth + padding * 2;
+        var canvasH = fontSize + padding * 2;
+        var canvasTxt = document.createElement('canvas');
+        var dpr = window.devicePixelRatio || 1;
+        canvasTxt.width = Math.max(1, Math.ceil(canvasW * dpr));
+        canvasTxt.height = Math.max(1, Math.ceil(canvasH * dpr));
+        
+        canvasTxt.style.width = canvasW + 'px';
+        canvasTxt.style.height = canvasH + 'px';
+        var ctx = canvasTxt.getContext('2d');
+        ctx.scale(dpr, dpr);
+        ctx.fillStyle = 'rgba(0,0,0,0)';
+        ctx.fillRect(0, 0, canvasW, canvasH);
+        ctx.font = fontSize + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = (opts.fontColor) ? ('rgb(' + (opts.fontColor[0]||255) + ',' + (opts.fontColor[1]||255) + ',' + (opts.fontColor[2]||255) + ')') : '#fff';
+        ctx.fillText(msg, canvasW/2, canvasH/2);
+        
+        var finalCanvas = canvasTxt;
+        var finalCanvasW = canvasW;
+        var finalCanvasH = canvasH;
+        
+        var pxPerUnit = (opts.pxPerUnit && opts.pxPerUnit > 0) ? opts.pxPerUnit : 100;
+        var planeW, planeH;
+        
+        if (opts.keepPlaneSize && opts.w && opts.w > 0 && opts.h && opts.h > 0) {
+            // Both plane dims provided: ensure texture matches that aspect ratio
+            var planeAspect = opts.w / opts.h;
+            var canvasAspect = canvasW / canvasH;
+            if (Math.abs(canvasAspect - planeAspect) > 1e-3) {
+                var outW = canvasW, outH = canvasH;
+                if (planeAspect > canvasAspect) {
+                    outW = Math.ceil(canvasH * planeAspect);
+                    outH = canvasH;
+                } else {
+                    outW = canvasW;
+                    outH = Math.ceil(canvasW / planeAspect);
+                }
+                var outCanvas = document.createElement('canvas');
+                outCanvas.width = Math.max(1, Math.ceil(outW * dpr));
+                outCanvas.height = Math.max(1, Math.ceil(outH * dpr));
+                outCanvas.style.width = outW + 'px';
+                outCanvas.style.height = outH + 'px';
+                var outCtx = outCanvas.getContext('2d');
+                outCtx.scale(dpr, dpr);
+                outCtx.clearRect(0, 0, outW, outH);
+                var dx = Math.round((outW - canvasW) / 2);
+                var dy = Math.round((outH - canvasH) / 2);
+                outCtx.drawImage(canvasTxt, 0, 0, canvasTxt.width, canvasTxt.height, dx, dy, canvasW, canvasH);
+                finalCanvas = outCanvas;
+                finalCanvasW = outW;
+                finalCanvasH = outH;
+            }
+            planeW = opts.w;
+            planeH = opts.h;
+        } else if (opts.keepPlaneSize && opts.w && opts.w > 0) {
+            // Only width provided: compute height to preserve text aspect
+            planeW = opts.w;
+            planeH = planeW / (canvasW / canvasH);
+        } else if (opts.h && opts.h > 0) {
+            // Only height provided: compute width to preserve text aspect
+            planeH = opts.h;
+            planeW = planeH * (canvasW / canvasH);
+        } else {
+            planeW = canvasW / pxPerUnit;
+            planeH = canvasH / pxPerUnit;
+        }
+        var tex = new THREE.CanvasTexture(finalCanvas);
+        tex.needsUpdate = true;
+        var mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+        var geo = new THREE.PlaneGeometry(planeW, planeH);
+        var mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(ox, oy, oz);
+        mesh.rotation.set(THREE.MathUtils.degToRad(orx) || 0, THREE.MathUtils.degToRad(ory) || 0, THREE.MathUtils.degToRad(orz) || 0);
+        mesh.renderOrder = 999;
+        scene.add(mesh);
+        decorations.push({mesh:mesh, opts:opts});
+        return mesh;
+    }
+
+    var geo = new THREE.BoxGeometry(ow, oh, od);
+    var colorVal = normalizeColor(ocolor);
+    if(ospecial === 'lava') colorVal = 0xff5500;
+    if(ospecial === 'trampoline') colorVal = 0x9b59ff;
+    if(!colorVal) colorVal = 0x888888;
+    var mat = new THREE.MeshPhongMaterial({ 
+        color: colorVal
+    });
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(ox, oy, oz);
+    mesh.rotation.set(THREE.MathUtils.degToRad(orx) || 0, THREE.MathUtils.degToRad(ory) || 0, THREE.MathUtils.degToRad(orz) || 0);
+    mesh.castShadow = true; mesh.receiveShadow = true; scene.add(mesh);
+
+    var internalType = Math.abs(orx || 0) > 0.001 ? 'ramp' : 'box';
+    var p = {
+        mesh: mesh,
+        halfX: ow/2, halfY: oh/2, halfZ: od/2,
+        internalType: internalType,
+        specialType: ospecial || null,
+        planePoint: new THREE.Vector3(),
+        planeNormal: new THREE.Vector3(),
+        axisU: new THREE.Vector3(),
+        axisV: new THREE.Vector3(),
+        top: 0, bottom: 0,
+        isGround: (oh < 0.6 && Math.abs(oy) < 0.5),
+        obb: new OBB(new THREE.Vector3(ox, oy, oz), new THREE.Vector3(ow/2, oh/2, od/2)),
+        move: null,
+        prevPos: mesh.position.clone(),
+        prevQuat: mesh.quaternion.clone(),
+        playerStanding: false
+    };
+
+    if(p.specialType === 'lava'){
+        lavaMaterials.push(mat);
+        mat.emissive = mat.color.clone();
+        mat.emissiveIntensity = 0.8;
+    }
+
+    // moving platform
+    if(opts.moveType){
+        var target = new THREE.Vector3(opts.targetX || opts.x2 || ox, opts.targetY || opts.y2 || oy, opts.targetZ || opts.z2 || oz);
+        var startPos = new THREE.Vector3(ox, oy, oz);
+        var startRot = new THREE.Euler(THREE.MathUtils.degToRad(orx||0), THREE.MathUtils.degToRad(ory||0), THREE.MathUtils.degToRad(orz||0));
+        var targetRot = new THREE.Euler(THREE.MathUtils.degToRad(opts.targetRotX||opts.rotX2||0), THREE.MathUtils.degToRad(opts.targetRotY||opts.rotY2||0), THREE.MathUtils.degToRad(opts.targetRotZ||opts.rotZ2||0));
+        var targetQuat = new THREE.Quaternion().setFromEuler(targetRot);
+        var startQuat = new THREE.Quaternion().setFromEuler(startRot);
+        p.move = {
+            type: opts.moveType === 'moving_smooth' ? 'smooth' : 'normal',
+            startPos: startPos.clone(),
+            targetPos: target.clone(),
+            startQuat: startQuat.clone(),
+            targetQuat: targetQuat.clone(),
+            speed: opts.speed || 2.0,
+            duration: opts.duration || null,
+            t: 0,
+            dir: 1
+        };
+    }
+
+    updateOBBFromMesh(p.obb, mesh);
+    platforms.push(p);
+    return mesh;
+}
+
+// To clear platforms 
+function clearPlatforms(){
+    for(var i=0;i<platforms.length;i++){
+        scene.remove(platforms[i].mesh);
+    }
+    platforms = [];
+    for(var j=0;j<decorations.length;j++){
+        scene.remove(decorations[j].mesh);
+    }
+    decorations = [];
+}
+
+
+
+
+var levels = [
+{},
+
+
+{
+items: [
+
+
+    { x: 0, y: 1, z: 0, w: 6, h: 1, d: 6, color: [0,120,140] },
+
+    { x: -4, y: 3, z: 6, rotY: 90, specialType: 'text', message: 'wasd to move towards freedom', fontSize: 90 },
+    { x: -10, y: 3, z: 6, rotY: 90, specialType: 'text', message: 'mouse to look around', fontSize: 90 },
+
+    { x: -8, y: 1, z: 0, w: 6, h: 1, d: 6, color: [0,120,140] },
+
+    { x: -14, y: 3, z: 6, rotY: 90, specialType: 'text', message: 'space to jump to free yourself', fontSize: 90 },
+
+    { x: -16, y: 1.5, z: 0, w: 6, h: 1, d: 6, color: [0,120,140] },
+
+    
+    { x: -24, y: 0.5, z: 0, w: 12, h: 0.5, d: 4, specialType: 'lava' },
+    { x: -24, y: 1, z: 3, w: 12, h: 1, d: 2, color: [0,120,140] }, 
+
+    { x: -24, y: 3, z: 6, rotY: 90, specialType: 'text', message: "don't touch lava, escape this place", fontSize: 90 },
+
+
+    { x: -36, y: 0.5, z: 0, w: 8, h: 0.5, d: 8, specialType: 'lava' },
+    { x: -36, y: 1.5, z: 0, w: 3, h: 0.4, d: 3, specialType: 'trampoline' },
+
+    { x: -36, y: 3.5, z: 6, rotY: 90, specialType: 'text', message: 'trampolines send you up towards freedom', fontSize: 90 },
+
+
+    { x: -36, y: 5, z: -10, w: 6, h: 1, d: 6, color: [0,120,140] },
+
+    { x: -46, y: 5, z: -10, w: 6, h: 1, d: 6, color: [0,120,140] },
+
+    { x: -54, y: 5, z: -10, w: 6, h: 1, d: 6, color: [200,150,80],
+      moveType: 'moving_normal', targetX: -62, targetY: 5, targetZ: -10, speed: 1.5 },
+
+    { x: -70, y: 5, z: -10, w: 6, h: 1, d: 6, color: [0,120,140] },
+
+    { x: -58, y: 7, z: -6, rotY: 90, specialType: 'text', message: 'some platforms move', fontSize: 90 },
+
+    { x: -78, y: 5, z: -10, w: 6, h: 1, d: 6, color: [200,100,80],
+      moveType: 'moving_smooth', targetX: -78, targetY: 8, targetZ: -10, duration: 2, rotY: 45 },
+
+    { x: -78, y: 8, z: -18, w: 8, h: 1, d: 8, color: [0,180,0] },
+
+    { x: -78, y: 13, z: -14, rotY: 90, specialType: 'text',
+      message: 'Go there. It is towards freedom.', fontSize: 80 }
+],
+goal: { x: -78, yOffset: 2, z: -18 }
+},
+
+{
+items: [
+
+{ x: 0, y: 1, z: 0, w: 6, h: 1, d: 6, color:[200,120,80] },
+
+{ x: -12, y: 3, z: -5, w: 24, h: 6, d: 1, specialType:'lava' }, 
+{ x: -12, y: 3, z:  5, w: 24, h: 6, d: 1, specialType:'lava' },
+
+{ x: -6,  y: 2, z: -4, w: 4, h: 1, d: 2, color:[220,160,80], moveType:'moving_normal', targetX:-6,  targetY:2, targetZ:4, speed:2 },
+{ x: -12, y: 2, z: 4, w: 4, h: 1, d: 2, color:[220,160,80], moveType:'moving_normal', targetX:-12, targetY:2, targetZ:-4, speed:3 },
+{ x: -18, y: 2, z: -4, w: 4, h: 1, d: 2, color:[220,160,80], moveType:'moving_normal', targetX:-18, targetY:2, targetZ:4, speed:2.5 },
+{ x: -24, y: 2, z: 4, w: 4, h: 1, d: 2, color:[220,160,80], moveType:'moving_normal', targetX:-24, targetY:2, targetZ:-4, speed:3.5 },
+{ x: -30, y: 2, z: -4, w: 4, h: 1, d: 2, color:[220,160,80], moveType:'moving_normal', targetX:-30, targetY:2, targetZ:4, speed:2 },
+{ x: -36, y: 2, z: 4, w: 4, h: 1, d: 2, color:[220,160,80], moveType:'moving_normal', targetX:-36, targetY:2, targetZ:-4, speed:3 },
+
+{ x: -42, y: 2, z: 0, w: 6, h: 1, d: 6, color:[200,120,80] },
+
+{ x: -50, y: 2.5, z: -2, w: 4, h: 1, d: 1, color:[200,120,80] },
+{ x: -56, y: 3, z: 2,  w: 4, h: 1, d: 1, color:[200,120,80] }, 
+{ x: -62, y: 3.5, z: -1, w: 4, h: 1, d: 1, color:[200,120,80] }, 
+{ x: -68, y: 4, z: 1,  w: 4, h: 1, d: 1, color:[200,120,80] },
+{ x: -74, y: 4.5, z: -1, w: 4, h: 1, d: 1, color:[200,120,80] }, 
+{ x: -80, y: 5, z: 1,  w: 4, h: 1, d: 1, color:[200,120,80] }, 
+
+
+{ x: -86, y: 4.5, z: 0, w: 3, h: 0.4, d: 3, specialType:'trampoline' }, 
+{ x: -92, y: 7, z: 0, w: 6, h: 1, d: 6, color:[200,150,80] },
+
+{ x: -98, y: 7.5, z: 0, w: 10, h: 1, d: 10, color:[0,180,0] }
+
+],
+
+goal: { x:-98, yOffset:2, z:0 }
+},
+
+{
+items: [
+
+{ x: 0, y: 1, z: 0, w: 8, h: 1, d: 8, color:[150,180,220] },
+
+{ x: 0, y: 3, z: -6, w: 6, h: 1, d: 2, color:[180,160,200] },
+{ x: -6, y: 5, z: -6, w: 4, h: 1, d: 2, color:[180,160,200] },
+{ x: -12, y: 7, z: -4, w: 4, h: 1, d: 2, color:[180,160,200] },
+
+{ x: -18, y: 9, z: -2, w: 6, h: 1, d: 2, color:[220,160,80],
+  moveType:'moving_normal', targetX:-18, targetY:9, targetZ:2, speed:3 },
+
+{ x: -24, y: 11, z: 2, w: 6, h: 1, d: 2, color:[220,160,80],
+  moveType:'moving_normal', targetX:-24, targetY:11, targetZ:-2, speed:2 },
+
+{ x: -30, y: 13, z: -1, w: 3, h: 1, d: 1, color:[180,160,200] },
+{ x: -36, y: 15, z: 1, w: 3, h: 1, d: 1, color:[180,160,200] },
+
+{ x: -42, y: 15, z: 0, w: 4, h: 0.4, d: 4, specialType:'trampoline' },
+{ x: -48, y: 20, z: -2, w: 6, h: 1, d: 6, color:[180,150,200] },
+
+{ x: -54, y: 22, z: -4, w: 4, h: 1, d: 2, color:[180,160,200] },
+{ x: -60, y: 24, z: -2, w: 4, h: 1, d: 2, color:[180,160,200] },
+{ x: -66, y: 26, z: 0, w: 4, h: 1, d: 2, color:[180,160,200] },
+
+{ x: -72, y: 28, z: -2, w: 6, h: 1, d: 2, color:[220,160,80],
+  moveType:'moving_normal', targetX:-72, targetY:28, targetZ:2, speed:3 },
+
+{ x: -78, y: 30, z: 1, w: 3, h: 1, d: 1, color:[180,160,200] },
+{ x: -84, y: 32, z: -1, w: 3, h: 1, d: 1, color:[180,160,200] },
+{ x: -90, y: 34, z: 0, w: 4, h: 1, d: 2, color:[180,160,200] },
+
+{ x: -96, y: 36, z: 0, w: 10, h: 1, d: 10, color:[0,200,0] }
+
+],
+
+goal: { x:-96, yOffset:2, z:0 }
+},
+
+{
+items: [
+
+{ x: 0, y: 1, z: 0, w: 6, h: 1, d: 6, color:[180,200,220] },
+
+{ x: -8, y: 2, z: 2, w: 4, h: 1, d: 4, color:[200,150,180] },
+{ x: -14, y: 3, z: -3, w: 3, h: 1, d: 3, color:[200,180,150] },
+
+{ x: -20, y: 4, z: 0, w: 6, h: 1, d: 2, color:[180,200,150], moveType:'moving_normal', targetX:-20, targetY:4, targetZ:3, speed:3 },
+{ x: -26, y: 5, z: -3, w: 4, h: 1, d: 2, color:[200,180,150], moveType:'moving_normal', targetX:-26, targetY:5, targetZ:3, speed:2 },
+
+{ x: -32, y: 6, z: 2, w: 3, h: 1, d: 3, color:[180,200,150] },
+{ x: -38, y: 7, z: -2, w: 4, h: 1, d: 4, color:[200,150,180] },
+
+{ x: -44, y: 6, z: 0, w: 3, h: 0.4, d: 3, specialType:'trampoline' },
+{ x: -50, y: 9, z: 2, w: 4, h: 1, d: 4, color:[180,200,150] },
+
+{ x: -56, y: 10, z: -3, w: 3, h: 1, d: 3, color:[200,180,150] },
+{ x: -62, y: 11, z: 1, w: 4, h: 1, d: 2, color:[180,200,150], moveType:'moving_normal', targetX:-62, targetY:11, targetZ:-2, speed:2.5 },
+
+{ x: -68, y: 12, z: -2, w: 3, h: 1, d: 3, color:[200,150,180] },
+{ x: -74, y: 13, z: 3, w: 4, h: 1, d: 2, color:[180,200,150] },
+
+{ x: -80, y: 12, z: 0, w: 3, h: 0.4, d: 3, specialType:'trampoline' },
+{ x: -86, y: 15, z: -2, w: 6, h: 1, d: 4, color:[200,180,150] },
+
+{ x: -92, y: 16, z: 1, w: 3, h: 1, d: 3, color:[180,200,150] },
+{ x: -98, y: 17, z: -1, w: 4, h: 1, d: 4, color:[200,150,180] },
+{ x: -104, y: 18, z: 2, w: 6, h: 1, d: 2, color:[180,200,150], moveType:'moving_normal', targetX:-104, targetY:18, targetZ:-2, speed:3 },
+
+{ x: -110, y: 19, z: 0, w: 10, h: 1, d: 10, color:[0,200,0] }
+
+],
+
+goal: { x:-110, yOffset:2, z:0 }
+},
+
+{
+items: [
+
+{ x: 0, y: 1, z: 0, w: 6, h: 1, d: 6, color:[180,200,220] },
+
+{ x: 4,  y: 3, z: 0, w: 4, h: 1, d: 2, color:[200,160,180] },
+{ x: 4,  y: 5, z: 4, w: 4, h: 1, d: 2, color:[180,200,150] },
+{ x: 0,  y: 7, z: 4, w: 4, h: 1, d: 2, color:[200,180,150] },
+{ x: -4, y: 9, z: 0, w: 4, h: 1, d: 2, color:[180,200,150] },
+
+{ x: -4, y: 11, z: -4, w: 4, h: 1, d: 2, color:[220,160,80],
+  moveType:'moving_normal', targetX:-4, targetY:11, targetZ:0, speed:3 }, 
+{ x: 0,  y: 13, z: -4, w: 4, h: 1, d: 2, color:[220,160,80],
+  moveType:'moving_normal', targetX:0, targetY:13, targetZ:0, speed:2.5 },
+
+{ x: 4,  y: 15, z: 0, w: 3, h: 1, d: 1, color:[180,200,150] },
+{ x: 4,  y: 17, z: -4, w: 3, h: 1, d: 1, color:[200,180,150] },
+
+{ x: 0, y: 18, z: -4, w: 3, h: 0.4, d: 3, specialType:'trampoline' },
+{ x: -4, y: 21, z: -2, w: 4, h: 1, d: 4, color:[180,200,150] },
+
+{ x: -4, y: 23, z: 2, w: 4, h: 1, d: 2, color:[200,160,180] },
+{ x: 0,  y: 25, z: 4, w: 4, h: 1, d: 2, color:[180,200,150] },
+{ x: 4,  y: 27, z: 2, w: 4, h: 1, d: 2, color:[200,180,150] },
+{ x: 4,  y: 29, z: -2, w: 4, h: 1, d: 2, color:[180,200,150] },
+
+{ x: 0, y: 31, z: 0, w: 6, h: 1, d: 2, color:[220,160,80],
+  moveType:'moving_normal', targetX:0, targetY:31, targetZ:4, speed:3 },
+
+{ x: -4, y: 33, z: -2, w: 3, h: 1, d: 1, color:[180,200,150] },
+{ x: 0,  y: 35, z: 0, w: 4, h: 1, d: 2, color:[200,180,150] },
+
+],
+
+goal: { x:0, yOffset:37, z:0 } 
+},
+
+{
+items: [
+
+
+{ x: 0, y: 1, z: 0, w: 6, h: 1, d: 6, color:[180,200,220] },
+
+
+{ x: 5, y: 2, z: 6, w: 4, h: 1, d: 4, color:[200,180,160] },
+{ x: 0, y: 4, z: 12, w: 4, h: 1, d: 4, color:[180,200,150] },
+
+
+{ x: -8, y: 5, z: 18, w: 2, h: 10, d: 12, color:null, specialType:'lava' }, 
+{ x: 8,  y: 5, z: 18, w: 2, h: 10, d: 12, color:null, specialType:'lava' }, 
+{ x: 0,  y: 6, z: 18, w: 4, h: 1, d: 4, color:[220,200,180] },    
+
+
+{ x: -3, y: 8, z: 24, w: 4, h: 1, d: 4, color:[250,160,80],
+  moveType:'moving_normal', targetX:3, targetY:8, targetZ:24, speed:4 }, 
+{ x: 0, y: 10, z: 30, w: 4, h: 1, d: 4, color:[250,180,100],
+  moveType:'moving_normal', targetX:-3, targetY:10, targetZ:30, speed:3 }, 
+
+
+{ x: 2, y: 12, z: 36, w: 2, h: 1, d: 4, color:[180,220,200] },   
+{ x: -2, y: 14, z: 42, w: 2, h: 1, d: 4, color:[200,180,220] },  
+
+{ x: 0, y: 15, z: 48, w: 3, h: 0.4, d: 3, specialType:'trampoline' },
+{ x: 0, y: 19, z: 54, w: 4, h: 1, d: 4, color:[180,200,150] }, 
+{ x: -8, y: 21, z: 60, w: 2, h: 10, d: 12, color:null, specialType:'lava' }, 
+{ x: 8,  y: 21, z: 60, w: 2, h: 10, d: 12, color:null, specialType:'lava' }, 
+{ x: -2, y: 21, z: 60, w: 4, h: 1, d: 4, color:[220,160,80],
+  moveType:'moving_normal', targetX:2, targetY:21, targetZ:60, speed:4 }, 
+{ x: 0, y: 23, z: 66, w: 4, h: 1, d: 4, color:[220,180,100],
+  moveType:'moving_normal', targetX:0, targetY:23, targetZ:66, speed:3 }, 
+{ x: 0, y: 25, z: 72, w: 2, h: 1, d: 4, color:[180,220,200] },  
+{ x: 2, y: 27, z: 78, w: 2, h: 1, d: 4, color:[200,180,220] }, 
+
+{ x: 0, y: 29, z: 84, w: 10, h: 1, d: 10, color:[0,200,0] }
+
+],
+
+goal: { x:0, yOffset:0, z:84 }
+},
+
+
+{
+  items: [
+    { x: 0, y: 1, z: 0, w: 8, h: 1, d: 8, color:[150,180,220] }, 
+    { x: 6,  y: 3,  z: 0,  w: 3, h: 1, d: 1, color:[180,160,200] },
+    { x: 4,  y: 5,  z: 4,  w: 3, h: 1, d: 1, color:[180,160,200] },
+    { x: 0,  y: 7,  z: 6,  w: 3, h: 1, d: 1, color:[180,160,200] },
+    { x: -4, y: 9,  z: 4,  w: 3, h: 1, d: 1, color:[180,160,200] },
+    { x: -6, y: 11, z: 0,  w: 3, h: 1, d: 1, color:[180,160,200] },
+    { x: -4, y: 13, z: -4, w: 3, h: 1, d: 1, color:[180,160,200] },
+    { x: 0,  y: 15, z: -6, w: 3, h: 1, d: 1, color:[180,160,200] },
+    { x: 4,  y: 17, z: -4, w: 3, h: 1, d: 1, color:[180,160,200] },
+
+
+    { x: 6,  y: 19, z: 0, w: 6, h: 1, d: 2, color:[220,160,80],
+      moveType:'moving_normal', targetX:6, targetY:19, targetZ:6, speed:3 },
+
+
+    { x: 4,  y: 21, z: 4, w: 2.2, h: 1, d: 1, color:[180,160,200] },
+    { x: 0,  y: 23, z: 6, w: 2, h: 1, d: 1, color:[180,160,200] },
+    { x: -4, y: 25, z: 4, w: 1.8, h: 1, d: 1, color:[180,160,200] },
+
+    { x: -6, y: 26.5, z: 0, w: 3, h: 0.4, d: 3, specialType:'trampoline' },
+    { x: -14, y: 32,  z: 0, w: 6, h: 1, d: 6, color:[200,150,80] },
+
+
+    { x: -20, y: 34, z: -2, w: 4, h: 1, d: 2, color:[220,160,80], moveType:'moving_normal', targetX:-20, targetY:34, targetZ:8, speed:2.8 },
+    { x: -28, y: 34, z: 8,  w: 6, h: 1, d: 2, color:[220,160,80], moveType:'moving_normal', targetX:-28, targetY:34, targetZ:-2, speed:3.1 },
+
+
+    { x: -36, y: 36, z: 6, w: 3.2, h: 1, d: 3, color:[180,160,200] },
+    { x: -42, y: 38, z: 4, w: 2.2, h: 1, d: 2, color:[180,160,200] },
+    { x: -48, y: 40, z: 2, w: 2.2, h: 1, d: 2, color:[180,160,200] },
+    { x: -54, y: 42, z: 0, w: 2.2, h: 1, d: 2, color:[180,160,200] },
+
+
+    { x: -60, y: 42.5, z: 0, w: 3, h: 0.4, d: 3, specialType:'trampoline' },
+    { x: -66, y: 48, z: 0, w: 8, h: 1, d: 8, color:[0,200,0] }
+  ],
+  goal: { x:-66, yOffset:2, z:0 }
+},
+
+{
+  items: [
+
+
+    { x: 0, y: 1, z: 0, w: 4, h: 1, d: 4, color:[200,150,80] }, // spawn
+    { x: -6, y: 1, z: 0, w: 3.5, h: 1, d: 3.5, color:[200,150,80],
+      moveType:'moving_normal', targetX:-12, targetY:1, targetZ:0, speed:1.8 }, 
+    { x: -12, y: 1, z: 0, w: 4, h: 1, d: 4, color:[0,120,140] }, 
+    { x: -18, y: 1, z: 0, w: 3, h: 1, d: 3, color:[200,150,80] }, 
+
+    { x: -24, y: 0.5, z: -2, w: 12, h: 1.5, d: 1, specialType:'lava' },
+    { x: -24, y: 0.5, z: 2,  w: 12, h: 1.5, d: 1, specialType:'lava' }, 
+    { x: -24, y: 1, z: 0, w: 6, h: 1, d: 2, color:[200,180,150] }, 
+    { x: -30, y: 1.5, z: 0, w: 3, h: 0.4, d: 3, specialType:'trampoline' }, 
+    { x: -36, y: 2, z: -4, w: 4, h: 1, d: 2, color:[220,160,80], moveType:'moving_normal', targetX:-36, targetY:2, targetZ:4, speed:2.5 },
+    { x: -42, y: 3, z: 4,  w: 4, h: 1, d: 2, color:[220,160,80], moveType:'moving_normal', targetX:-42, targetY:3, targetZ:-4, speed:3 },
+    { x: -48, y: 4, z: -2, w: 3, h: 1, d: 2, color:[200,150,80], moveType:'moving_normal', targetX:-48, targetY:4, targetZ:2, speed:2 },
+
+
+    { x: -54, y: 5, z: 0, w: 3, h: 1, d: 3, color:[180,160,200], rotY:15 },
+    { x: -58, y: 7, z: 2, w: 3, h: 1, d: 2, color:[180,160,200], rotY: -20 },
+    { x: -62, y: 9, z: 0, w: 2.5, h: 1, d: 2, color:[180,160,200], rotY:10 },
+
+
+    { x: -66, y: 9.5, z: 0, w: 3, h: 0.4, d: 3, specialType:'trampoline' },
+    { x: -74, y: 14, z: -2, w: 6, h: 1, d: 4, color:[220,180,80] }, 
+
+
+    { x: -82, y: 14, z: 0, w: 6, h: 1, d: 2, color:[200,150,80], rotX:-15 }, 
+    { x: -88, y: 15, z: 0, w: 6, h: 1, d: 2, color:[200,150,80], moveType:'moving_normal', targetX:-88, targetY:15, targetZ:4, speed:2 },
+
+
+    { x: -94, y: 0.5, z: -3, w: 12, h: 1.5, d: 1, specialType:'lava' }, 
+    { x: -94, y: 0.5, z: 3,  w: 12, h: 1.5, d: 1, specialType:'lava' }, 
+    { x: -94, y: 1, z: 0, w: 4, h: 1, d: 2, color:[200,180,150] }, 
+    { x: -100, y: 1.5, z: 0, w: 3, h: 1, d: 3, color:[180,200,150], moveType:'moving_normal', targetX:-100, targetY:1.5, targetZ:2, speed:1.5 },
+
+
+    { x: -106, y: 3, z: -2, w: 3, h: 1, d: 2, color:[180,160,200], rotY:15 },
+    { x: -110, y: 5, z: 0, w: 3, h: 1, d: 2, color:[180,160,200], rotY:-10 },
+    { x: -114, y: 7, z: 2, w: 2.5, h: 1, d: 2, color:[180,160,200], rotY:20 },
+    { x: -118, y: 9, z: 0, w: 3, h: 0.4, d: 3, specialType:'trampoline' }, 
+    { x: -124, y: 14, z: 0, w: 6, h: 1, d: 4, color:[220,180,80], rotY:30 },
+
+    { x: -132, y: 15, z: -2, w: 4, h: 1, d: 2, color:[220,160,80], moveType:'moving_normal', targetX:-132, targetY:15, targetZ:2, speed:2.8, rotY:15 },
+    { x: -138, y: 16, z: 2, w: 4, h: 1, d: 2, color:[220,160,80], moveType:'moving_normal', targetX:-138, targetY:16, targetZ:-2, speed:3, rotY:-10 },
+
+    { x: -144, y: 18, z: 0, w: 8, h: 1, d: 8, color:[0,200,0] }
+
+  ],
+
+  goal: { x:-144, yOffset:2, z:0 }
+},
+
+{
+  items: [
+
+
+    { x: 0, y: 0, z: 0, w: 100, h: 1, d: 100, color:[100,200,100] },
+
+    { x: -20, y: 2, z: -10, w: 1, h: 5, d: 1, color:[120,70,20] }, 
+    { x: -20, y: 3.5 + 1, z: -10, w: 3, h: 3, d: 3, color:[30,150,30] }, 
+    
+    { x: 15, y: 2, z: 20, w: 1, h: 6, d: 1, color:[120,70,20] },
+    { x: 15, y: 4 + 3, z: 20, w: 4, h: 4, d: 4, color:[30,160,30] },
+
+
+    { x: -30, y: 2, z: 25, w: 1, h: 4, d: 1, color:[120,70,20] },
+    { x: -30, y: 2 + 3, z: 25, w: 3, h: 3, d: 3, color:[35,150,35] },
+
+
+    { x: 25, y: 2, z: -20, w: 1, h: 5, d: 1, color:[120,70,20] },
+    { x: 25, y: 2.5 + 3, z: -20, w: 3, h: 3, d: 3, color:[30,150,30] },
+
+
+
+    { x: 4, y: 3, z: 10, rotY:180, specialType:'text', message:'Free yourself.', fontSize:100 }
+  ],
+
+  goal: { x:0, yOffset:3, z:10 }
+}
+
+
+];
+
+
+
+var currentLevel = 1;
+
+// Goal 
+var goal = {
+    mesh: null,
+    radius: 0.8,
+    aabbHalf: new THREE.Vector3(0.8,0.8,0.8),
+    position: new THREE.Vector3()
+};
+function createGoalAt(x,y,z){
+    // Move or create the goal sphere so the player can touch it to win
+    if(goal.mesh) scene.remove(goal.mesh);
+    var geo = new THREE.SphereGeometry(goal.radius, 24, 24);
+    var mat = new THREE.MeshPhongMaterial({color: 0xffff66, emissive: 0xffff00, shininess: 100});
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+    goal.mesh = mesh;
+    goal.position.set(x,y,z);
+    goal.aabbHalf.set(goal.radius, goal.radius, goal.radius);
+}
+
+// Controls
+var pointerLocked = false;
+renderer.domElement.addEventListener('click', function(){ renderer.domElement.requestPointerLock(); });
+document.addEventListener('pointerlockchange', function(){
+    pointerLocked = (document.pointerLockElement === renderer.domElement);
+    if(pointerLocked){
+        removePauseScreenIfAny();
+        endPause();
+        updateUI();
+    } else {
+        if(!document.getElementById('win-screen') && !document.getElementById('level-select')){
+            buildPauseScreen();
+        }
+    }
+});
+
+// Camera look vars for following the player and looking around
+var alpha = Math.PI/2;   // yaw
+var beta  = 0.6;         // pitch
+var radius = 8;
+var sensitivity = 0.0025;
+var maxBeta = Math.PI/2 - 0.05;
+document.addEventListener('mousemove', function(e){
+    if(!pointerLocked) return;
+    var dx = Math.max(-100, Math.min(100, e.movementX));
+    var dy = Math.max(-100, Math.min(100, e.movementY));
+    alpha -= dx * sensitivity;
+    beta  += dy * sensitivity;
+    if (beta < -maxBeta) beta = -maxBeta;
+    if (beta >  maxBeta) beta =  maxBeta;
+});
+
+// keyboard 
+var keys = [];
+window.addEventListener('keydown', function(e){
+    if(e.code === "Space") e.preventDefault();
+    if(e.code === "KeyR"){
+        player.position.set(0, 5, 0);
+        velocityY = 0;
+        levelStartTime = performance.now();
+        return;
+    }
+    if(e.code === "Escape"){
+        if(document.getElementById('win-screen') || document.getElementById('level-select')) return;
+        togglePause();
+        return;
+    }
+    keys[e.code] = true;
+}, {
+    passive:false
+});
+window.addEventListener('keyup', function(e){
+    keys[e.code] = false;
+});
+
+// Player physics constants
+var SPEED = 6;
+var JUMP_SPEED = 12.5;
+var GRAVITY = -30;
+var TRAMPOLINE_BOOST = JUMP_SPEED * 1.6;
+
+var velocityY = 0;
+var grounded = false;
+var clock = new THREE.Clock();
+
+// ramp helpers
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function updateRampInfo(ramp){
+    var localTopCenter = new THREE.Vector3(0, ramp.halfY, 0);
+    var worldTopCenter = localTopCenter.clone();
+    ramp.mesh.localToWorld(worldTopCenter);
+    ramp.planePoint.copy(worldTopCenter);
+    var normalMatrix = new THREE.Matrix3().getNormalMatrix(ramp.mesh.matrixWorld);
+    ramp.planeNormal.copy(new THREE.Vector3(0,1,0).applyMatrix3(normalMatrix).normalize());
+    ramp.axisU.copy(new THREE.Vector3(1,0,0).applyMatrix3(normalMatrix).normalize());
+    ramp.axisV.copy(new THREE.Vector3(0,0,1).applyMatrix3(normalMatrix).normalize());
+    var localTop = new THREE.Vector3(0, ramp.halfY, 0), localBottom = new THREE.Vector3(0, -ramp.halfY, 0);
+    var wTop = localTop.clone();
+    ramp.mesh.localToWorld(wTop);
+    var wBottom = localBottom.clone();
+    ramp.mesh.localToWorld(wBottom);
+    ramp.top = wTop.y;
+    ramp.bottom = wBottom.y;
+}
+
+// Level & save state 
+var STORAGE_KEY = 'pf_platformer_v1';
+var saveData = {
+    unlocked: [],
+    bestTimes: []
+};
+var pauseStartTime = null;
+function beginPause(){
+    if(pauseStartTime === null) pauseStartTime = performance.now(); 
+    gamePaused = true;
+}
+function endPause(){
+    if(pauseStartTime !== null){ 
+        levelStartTime += performance.now() - pauseStartTime; pauseStartTime = null;
+        }
+    gamePaused = false;
+}
+function loadSave(){
+    // Load save data from localStorage
+    try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if(raw){ 
+            var parsed = JSON.parse(raw);
+            saveData.unlocked = parsed.unlocked || []; saveData.bestTimes = parsed.bestTimes || []; 
+        } 
+        
+    } catch(e){ 
+        console.warn(e); 
+    }
+    for(var i=0;i<levels.length;i++){
+        if(saveData.unlocked[i] === undefined) saveData.unlocked[i] = (i===1);
+        if(saveData.bestTimes[i] === undefined) saveData.bestTimes[i] = null; 
+        
+    }
+  
+    // Load graphics mode preference from localStorage
+    try { 
+        var savedMode = localStorage.getItem('pf_graphicsMode');
+        if(savedMode){ 
+            graphicsMode = savedMode; 
+            
+        }
+        
+    } catch(e){ 
+        console.warn(e);
+    }
+  
+    save();
+}
+function save(){
+    // Try to save to localStorage
+    try { 
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData)); 
+        
+    } catch(e){ 
+        // Argggg another one of these
+        console.warn(e); 
+    } 
+    
+}
+
+var levelStartTime = 0;
+var gamePaused = false;
+var uiOverlay = document.getElementById('ui-overlay');
+var minGoalEnableMs = 250;
+var lavaGraceMs = 300; // no spawnkilling
+
+function loadLevel(index){
+    // Clear current level and spawn its platforms, decorations and the goal.
+    currentLevel = index;
+    clearPlatforms();
+    var lvl = levels[index];
+    lvl.items.forEach(function (it) {
+        // Support two item forms: array or object
+        if (Array.isArray(it)) {
+            try {
+                 // array: [x,y,z,w,h,d,rotX,rotY,rotZ,color,specialType]
+                var a = it;
+                var obj = {
+                    x: a[0] || 0, y: a[1] || 0, z: a[2] || 0,
+                    w: a[3] || 1, h: a[4] || 1, d: a[5] || 1,
+                    rotX: a[6] || 0, rotY: a[7] || 0, rotZ: a[8] || 0,
+                    color: a[9] || null,
+                    specialType: a[10] || null
+                };
+                createBlock(obj);
+            } catch (e) {
+                console.warn('level item array error', e);
+            }
+        } else if (it && typeof it === 'object') {
+            try {
+                createBlock(it);
+            } catch (e) {
+                console.warn('level item object error', e);
+            }
+        }
+    });
+    var gx = lvl.goal.x;
+    var gz = lvl.goal.z;
+    var targetPlatform = null;
+    for(var i=0;i<platforms.length;i++){
+        var p = platforms[i];
+        var dx = Math.abs(p.mesh.position.x - gx);
+        var dz = Math.abs(p.mesh.position.z - gz);
+        if(dx <= p.halfX + 0.5 && dz <= p.halfZ + 0.5){
+            targetPlatform = p; break;
+        }
+    }
+    var gy;
+    if(targetPlatform){
+        gy = targetPlatform.mesh.position.y + targetPlatform.halfY + (levels[index].goal.yOffset || 1.0);
+    }
+    else { 
+        gy = (levels[index].goal.yOffset || 2.5);
+    }
+    createGoalAt(gx, gy, gz);
+    player.position.set(0, 5, 0);
+    velocityY = 0;
+    grounded = false;
+    levelStartTime = performance.now();
+    pauseStartTime = null;
+    gamePaused = false;
+    removeWinScreenIfAny();
+    removePauseScreenIfAny();
+    removeLevelSelectIfAny();
+    updateUI(); save();
+    if(document.pointerLockElement !== renderer.domElement) { 
+        buildPauseScreen();
+    }
+}
+
+// UI/menus  
+function showWinScreen(elapsedSeconds){
+    // win screen
+    beginPause();
+    try { 
+        if(document.exitPointerLock) document.exitPointerLock();
+    } catch(e){}
+    removeWinScreenIfAny();
+    var el = document.createElement('div');
+    el.id='win-screen';
+    el.className='win-screen';
+    var text = document.createElement('div');
+    text.innerHTML = '<div>Mission Passed<div class="small">Level time: ' + elapsedSeconds.toFixed(2) + 's</div></div>'; 
+    el.appendChild(text);
+    var prev = saveData.bestTimes[currentLevel]; 
+    var improved = false;
+    if(prev === null || elapsedSeconds < prev){
+        saveData.bestTimes[currentLevel] = elapsedSeconds;
+        improved = true; 
+    }
+    if(currentLevel + 1 < levels.length){ 
+        saveData.unlocked[currentLevel + 1] = true;
+    }
+    save();
+    var total = 0;
+    for(var i=0;i<saveData.bestTimes.length;i++){ 
+        if(saveData.bestTimes[i] !== null) total += saveData.bestTimes[i]; 
+    }
+    var small = document.createElement('div');
+    small.className='small';
+    small.textContent = 'Total (all fastest saves): ' + (total > 0 ? total.toFixed(2) + 's' : '—');
+    el.appendChild(small);
+    var row = document.createElement('div'); row.className='row';
+    var btnNext = document.createElement('button');
+    btnNext.textContent = (currentLevel < levels.length - 1) ? 'Next Level' : 'Restart';
+  
+    if(currentLevel < levels.length - 1 && !saveData.unlocked[currentLevel + 1]){
+        btnNext.disabled = true; 
+        btnNext.classList.add('locked');
+    }
+    
+    btnNext.addEventListener('click', function(){
+        endPause();
+        if(currentLevel < levels.length - 1){
+            loadLevel(currentLevel + 1);
+            try {
+                renderer.domElement.requestPointerLock(); 
+            } catch(e){} 
+        }
+        else { 
+            loadLevel(1);
+            try { 
+                renderer.domElement.requestPointerLock();
+            } catch(e){}
+        }
+        removeWinScreenIfAny();
+    });
+    var btnMenu = document.createElement('button');
+    btnMenu.textContent='Level Select';
+    btnMenu.style.marginLeft='0.6em';
+    btnMenu.addEventListener('click', function(){
+        buildLevelSelect();
+    });
+    row.appendChild(btnNext);
+    row.appendChild(btnMenu); 
+    el.appendChild(row);
+    
+    if(improved){ 
+        var imp = document.createElement('div');
+        imp.className='small';
+        imp.style.marginTop='0.6em'; 
+        imp.textContent = 'New best time for level ' + currentLevel + '!'; el.appendChild(imp); 
+    }
+    document.body.appendChild(el);
+}
+
+function removeWinScreenIfAny(){
+    var ex = document.getElementById('win-screen');
+    if(ex) ex.remove();
+}
+function buildLevelSelect(){
+    // Build level select UI with unlocked buttons and best times
+    beginPause(); 
+    removeWinScreenIfAny();
+    removePauseScreenIfAny();
+    removeLevelSelectIfAny();
+    var wrap = document.createElement('div');
+    wrap.id='level-select';
+    wrap.className='level-select';
+    var title = document.createElement('div');
+    title.textContent='Level select';
+    title.style.fontSize='4vw'; 
+    title.style.marginTop='0.5em';
+    wrap.appendChild(title);
+    var container = document.createElement('div');
+    container.className='level-grid';
+    for(var i=1;i<levels.length;i++){ (
+        function(i){ 
+            var b = document.createElement('button'); 
+            b.className='level-button';
+            var numDiv = document.createElement('div'); 
+            numDiv.className='level-button-number'; 
+            numDiv.textContent = i;
+            b.appendChild(numDiv);
+            var timeDiv = document.createElement('div'); 
+            timeDiv.className='level-button-time';
+            timeDiv.textContent = saveData.bestTimes[i] ? saveData.bestTimes[i].toFixed(2) + 's' : '—';
+            b.appendChild(timeDiv);
+            if(!saveData.unlocked[i]){ 
+                b.classList.add('locked'); 
+                b.disabled = true; 
+            } else { 
+                b.addEventListener('click', function(){ 
+                loadLevel(i); 
+                removeLevelSelectIfAny(); 
+                buildPauseScreen();
+            }); 
+        }
+        container.appendChild(b); 
+        })(i);
+    }
+    wrap.appendChild(container); 
+    var back = document.createElement('button'); 
+    back.textContent='Back'; 
+    back.className='level-select-back';
+    back.addEventListener('click', function(){ 
+        removeLevelSelectIfAny(); 
+        buildPauseScreen();
+    });
+    wrap.appendChild(back); 
+    document.body.appendChild(wrap);
+}
+function removeLevelSelectIfAny(){ 
+    var ex = document.getElementById('level-select');
+    if(ex) ex.remove();
+}
+function buildPauseScreen(){ 
+    // Pause menu
+    if(document.getElementById('pause-screen')) return; 
+    beginPause(); 
+    removeWinScreenIfAny();
+    removePauseScreenIfAny();
+    keys = [];
+    var el = document.createElement('div');
+    el.id='pause-screen'; 
+    el.className='pause-screen';
+    var title = document.createElement('div');
+    title.textContent='Paused';
+    title.style.fontSize='3vw';
+    el.appendChild(title);
+    var btnUnpause = document.createElement('button');
+    btnUnpause.textContent='Resume';
+    btnUnpause.addEventListener('click', function(){ 
+        endPause(); 
+        removePauseScreenIfAny(); 
+        updateUI(); 
+        try {
+            renderer.domElement.requestPointerLock();
+        } catch(e){} 
+    });
+    var btnSelect = document.createElement('button'); 
+    btnSelect.textContent='Level Select'; 
+    btnSelect.style.marginLeft='0.6em'; 
+    btnSelect.addEventListener('click', function(){ 
+        buildLevelSelect(); 
+    });
+    var row = document.createElement('div'); 
+    row.className='row'; 
+    row.appendChild(btnUnpause); 
+    row.appendChild(btnSelect); 
+    el.appendChild(row);
+
+    // Graphics toggle for ppl with slow computres
+    var gfxRow = document.createElement('div');
+    gfxRow.className = 'row';
+    var gfxLabel = document.createElement('label');
+    gfxLabel.style.fontSize = '1.4vw';
+    gfxLabel.style.display = 'flex';
+    gfxLabel.style.alignItems = 'center';
+    gfxLabel.style.gap = '0.6em';
+    var gfxCheckbox = document.createElement('input');
+    gfxCheckbox.type = 'checkbox';
+    gfxCheckbox.checked = (graphicsMode === 'fancy');
+    var gfxText = document.createElement('span'); 
+    gfxText.textContent = (graphicsMode === 'fancy' ? 'Graphics: Fancy' : 'Graphics: Fast');
+    gfxText.style.pointerEvents = 'none';
+    gfxLabel.appendChild(gfxCheckbox); 
+    gfxLabel.appendChild(gfxText);
+    gfxCheckbox.addEventListener('change', function(){
+        if(gfxCheckbox.checked){
+            gfxText.textContent = 'Graphics: Fancy'; 
+            applyGraphicsMode('fancy');
+        }
+        else {
+            gfxText.textContent = 'Graphics: Fast';
+            applyGraphicsMode('fast'); 
+        }
+    });
+    gfxRow.appendChild(gfxLabel);
+    el.appendChild(gfxRow);
+    document.body.appendChild(el);
+}
+
+function removePauseScreenIfAny(){ 
+    var ex = document.getElementById('pause-screen'); 
+    if(ex) ex.remove(); 
+}
+
+function togglePause(){ 
+    if(document.getElementById('win-screen') || document.getElementById('level-select')) return;
+    if(document.getElementById('pause-screen')){
+        removePauseScreenIfAny();
+        endPause(); 
+        updateUI();
+        try {
+            renderer.domElement.requestPointerLock();
+        } catch(e){} 
+    } else {
+        buildPauseScreen(); 
+        keys = []; 
+    } 
+}
+
+function updateUI(){ 
+    // Update HUD with level, elapsed time and best time.
+    var best = saveData.bestTimes[currentLevel]; 
+    var elapsed = ((performance.now() - levelStartTime)/1000); uiOverlay.innerHTML = 'Level: ' + currentLevel + ' &nbsp; | &nbsp; Time: ' + (elapsed.toFixed(2)) + 's' + (best ? (' &nbsp; | &nbsp; Best: ' + best.toFixed(2) + 's') : '');
+}
+// for rotations (simmilar to the one from path of light)
+function lerpAngle(a, b, t){
+    var diff = (((b - a + Math.PI) % (2*Math.PI)) + (2*Math.PI)) % (2*Math.PI) - Math.PI;
+    return a + diff * t;
+}
+// Main loop
+function animate(){
+    // update like everything...
+    var delta = clock.getDelta();
+    if(delta > 0.1) delta = 0.1;
+    
+    var GRAVITY = 30;
+    var LANDING_EPS = 0.05;
+
+    if(!gamePaused){
+        for(var pi=0; pi<platforms.length; pi++){
+            var p = platforms[pi];
+            // store previous transforms
+            p.prevPos.copy(p.mesh.position);
+            p.prevQuat.copy(p.mesh.quaternion);
+            
+            if(p.move){
+                if(p.move.type === 'normal'){
+                    // normal platforms
+                    var curTarget = (p.move.dir === 1) ? p.move.targetPos : p.move.startPos;
+                    var toTarget = new THREE.Vector3().subVectors(curTarget, p.mesh.position);
+                    var dist = toTarget.length();
+                    if(dist > 1e-5){
+                        var step = p.move.speed * delta;
+                        var moveVec = toTarget.normalize().multiplyScalar(Math.min(step, dist));
+                        p.mesh.position.add(moveVec);
+                    } else {
+                        p.move.dir *= -1;
+                    }
+                    // rotate a bit toward targetQuat for visual rotation
+                    try{
+                        p.mesh.quaternion.slerp((p.move.dir===1? p.move.targetQuat : p.move.startQuat), Math.min(1, p.move.speed * delta * 0.3));
+                    } catch(e){}
+                } else if(p.move.type === 'smooth'){
+                    // ease in/out
+                    var totalDist = p.move.startPos.distanceTo(p.move.targetPos);
+                    var dur = p.move.duration || Math.max(0.0001, totalDist / Math.max(0.0001, p.move.speed));
+                    p.move.t += (delta / dur) * p.move.dir;
+                    if(p.move.t >= 1){ 
+                        p.move.t = 1;
+                        p.move.dir = -1;
+                    }
+                    if(p.move.t <= 0){
+                        p.move.t = 0; 
+                        p.move.dir = 1; 
+                    }
+                    var ease = 0.5 - 0.5 * Math.cos(Math.PI * p.move.t); // cosine ease in/ out
+                    p.mesh.position.lerpVectors(p.move.startPos, p.move.targetPos, ease);
+                    // rotate smoothly yay
+                    var q = new THREE.Quaternion();
+                    q.copy(p.move.startQuat).slerp(p.move.targetQuat, ease);
+                    p.mesh.quaternion.copy(q);
+                }
+            }
+        }
+
+        // If player was standing on a platform last frame, move player with platform transform
+        for(var pi=0; pi<platforms.length; pi++){
+            var p = platforms[pi];
+            if(!p.playerStanding) continue;
+            // only move if player is near the top surface
+            var topY = p.mesh.position.y + p.halfY;
+            var dx = Math.abs(player.position.x - p.mesh.position.x);
+            var dz = Math.abs(player.position.z - p.mesh.position.z);
+            if(dx > p.halfX + 1.2 || dz > p.halfZ + 1.2) continue;
+            if(Math.abs(player.position.y - topY) > 2.5) continue;
+
+            // Compute platform transform....
+            var prevCenter = p.prevPos.clone();
+            var prevQuat = p.prevQuat.clone();
+            var newCenter = p.mesh.position.clone();
+            var newQuat = p.mesh.quaternion.clone();
+            
+            var vPrev = player.position.clone().sub(prevCenter);
+            var deltaQuat = newQuat.clone().multiply(prevQuat.clone().invert());
+            var vAfter = vPrev.clone().applyQuaternion(deltaQuat);
+            var newPlayerWorld = newCenter.clone().add(vAfter);
+            var desiredDelta = newPlayerWorld.clone().sub(player.position);
+            player.position.add(desiredDelta);
+        }
+        
+        // Pulse lava color
+        if(lavaMaterials.length){
+            var pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.009);
+            for(var li=0; li<lavaMaterials.length; li++){
+                var m = lavaMaterials[li];
+                m.color.copy(lavaBaseColor).lerp(lavaTargetColor, pulse);
+                if(m.emissive) m.emissive.copy(m.color);
+                m.emissiveIntensity = 0.6 + 0.6 * pulse;
+            }
+        }
+    
+        var moveX = 0, moveZ = 0;
+        if(keys["KeyW"]) moveZ -= 1;
+        if(keys["KeyS"]) moveZ += 1;
+        if(keys["KeyA"]) moveX -= 1;
+        if(keys["KeyD"]) moveX += 1;
+        
+        var forward = new THREE.Vector3(Math.sin(alpha), 0, Math.cos(alpha));
+        var rightVec = new THREE.Vector3(Math.sin(alpha + Math.PI/2), 0, Math.cos(alpha + Math.PI/2));
+        var moveDir = new THREE.Vector3();
+        if(moveZ !== 0) moveDir.addScaledVector(forward, moveZ);
+        if(moveX !== 0) moveDir.addScaledVector(rightVec, moveX);
+        if(moveDir.lengthSq() > 0) moveDir.normalize();
+        
+        var desiredVx = 0, desiredVz = 0;
+        if(moveDir.lengthSq() > 0){
+            desiredVx = moveDir.x * SPEED;
+            desiredVz = moveDir.z * SPEED;
+        }
+
+        // Apply gravity & movement 
+        velocityY -= GRAVITY * delta;
+        player.position.x += desiredVx * delta;
+        player.position.y += velocityY * delta;
+        player.position.z += desiredVz * delta;
+    
+        // Clamp velocity to prevent huge movements (it makes the camera tweek out)
+        if(velocityY < -100) velocityY = -100;
+    
+        // Build player's OBB for collision checks
+        var playerMin = new THREE.Vector3(player.position.x - playerHalf, player.position.y - playerHalf, player.position.z - playerHalf);
+        var playerMax = new THREE.Vector3(player.position.x + playerHalf, player.position.y + playerHalf, player.position.z + playerHalf);
+    
+        // Check collisions
+        grounded = false;
+        var trampolineHit = false;
+        var landedPlatform = null; // which platform we landed on this frame
+        
+        // 3 iterations
+        for(var iter = 0; iter < 3; iter++){
+            for(var i = 0; i < platforms.length; i++){
+                var platform = platforms[i];
+                updateOBBFromMesh(platform.obb, platform.mesh);
+                
+                // Create player OBB (rotated to match player)
+                var playerOBB = new OBB(player.position.clone(), new THREE.Vector3(playerHalf, playerHalf, playerHalf), [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()]);
+                // copy its axes into the OBB
+                player.updateMatrixWorld();
+                updateOBBFromMesh(playerOBB, player);
+            
+                var penetration = getOBBPenetration(playerOBB, platform.obb);
+            
+                // Overlap detected!
+                if(penetration){
+                    
+                    // Lava, so respawn player at start instantly.
+                    if(platform.specialType === 'lava'){
+                        player.position.set(0, 5, 0);
+                        velocityY = 0;
+                        levelStartTime = performance.now();
+                        continue;
+                    }
+                    
+                // Push player out along penetration axis to fix overlap.
+                var pushDir = penetration.axis.clone().normalize();
+                var pushAmount = penetration.depth + 0.005;
+              
+                // Determine collision type from axis direction
+                var yDot = Math.abs(pushDir.y);
+              
+                // Only affect velocity on strong vertical collisions
+                if(yDot > 0.7){
+                    // Strong vertical collision
+                    player.position.addScaledVector(pushDir, pushAmount);
+                
+                    if(velocityY < -0.05 && pushDir.y > 0){
+                        // Landing on top (push direction points up)
+                        velocityY = 0;
+                        grounded = true;
+                        landedPlatform = platform;
+                        if(platform.specialType === 'trampoline') trampolineHit = true;
+                        } else if(velocityY > 0.05 && pushDir.y < 0){
+                            // Hit ceiling (push direction points down)
+                            velocityY = 0;
+                        }
+                    } else {
+                        // Weak vertical component so push only horizontally 
+                        var horizPush = new THREE.Vector3(pushDir.x, 0, pushDir.z).normalize();
+                        if(horizPush.lengthSq() > 0.0001){
+                            player.position.addScaledVector(horizPush, pushAmount);
+                        } else {
+                            player.position.addScaledVector(pushDir, pushAmount);
+                        }
+                    }
+                }
+            }
+        }
+    
+        // mark which platform the player is standing on
+        for(var pi=0; pi<platforms.length; pi++) platforms[pi].playerStanding = (platforms[pi] === landedPlatform);
+        
+        if(trampolineHit){
+            velocityY = TRAMPOLINE_BOOST;
+            // prevent sticking to trampoline: don't treat it as standing platform
+            if(landedPlatform){
+                landedPlatform.playerStanding = false;
+            }
+            grounded = false;
+        }
+        
+        // Jump only if not just boosted by trampoline
+        if(keys["Space"] && grounded && !trampolineHit){
+            velocityY = JUMP_SPEED;
+        }
+        
+        // Respawn if fallen too deep
+        if(player.position.y < -30){
+            player.position.set(0, 5, 0);
+            velocityY = 0;
+            grounded = false;
+            levelStartTime = performance.now();
+        }
+        
+        // Rotate player smoothly toward movement dir like in path of light yay
+        if(moveDir.lengthSq() > 0.000001){
+            var targetAngle = Math.atan2(moveDir.x, moveDir.z); 
+            var t = 1 - Math.pow(1 - 0.12, Math.max(0, delta * 60));
+            player.rotation.y = lerpAngle(player.rotation.y, targetAngle, t);
+        }
+    }
+    // Camera
+    var target = player.position.clone();
+    var camX = target.x + radius * Math.cos(beta) * Math.sin(alpha);
+    var camY = target.y + radius * Math.sin(beta);
+    var camZ = target.z + radius * Math.cos(beta) * Math.cos(alpha);
+    camera.position.set(camX, camY, camZ);
+    camera.lookAt(target);
+    renderer.render(scene, camera);
+    
+    if(!gamePaused) updateUI();
+    
+    // Goal test
+    if(goal.mesh && !gamePaused){
+        if(performance.now() - levelStartTime > minGoalEnableMs){
+            var dx = player.position.x - goal.position.x;
+            var dy = player.position.y - goal.position.y;
+            var dz = player.position.z - goal.position.z;
+            var distSq = dx*dx + dy*dy + dz*dz;
+            var threshold = (goal.radius + playerHalf);
+            if(distSq <= threshold*threshold){
+                var elapsed = (performance.now() - levelStartTime) / 1000.0;
+                showWinScreen(elapsed);
+            }
+        }
+    }
+    
+    requestAnimationFrame(animate);
+}
+
+// start 
+loadSave();
+applyGraphicsMode(graphicsMode); // Apply saved graphics mode
+animate();
+loadLevel(currentLevel);
+
+// Resize 
+window.addEventListener('resize', function(){
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+<\/script>
+</body>
+</html>
+    `);
+    w.document.close();
+});
+
+</script>
+
+</head>
+<body>
+<div id="overlay">
+    <h1>Generic Platformer</h1>
+    <button id="play-button">Play</button>
+    <p class="note">⚠ Opens in a new window! ⚠ </p>
+</div>
+<canvas id="title-canvas"></canvas>
+</body>
+</html>
