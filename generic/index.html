@@ -442,11 +442,12 @@ button.addEventListener('click', () => {
             border-radius: 50%; background: rgba(255,255,255,0.65); pointer-events: none;
         }
         #jump-btn {
-            position: absolute; right: 32px; bottom: 40px; width: 96px; height: 96px;
+            position: absolute; right: 28px; bottom: 44px; width: 110px; height: 110px;
             border-radius: 50%; background: rgba(34,187,51,0.55); border: 2px solid rgba(255,255,255,0.6);
             color: #fff; font: bold 16px sans-serif; display: flex; align-items: center; justify-content: center;
             pointer-events: auto; touch-action: none;
         }
+        #joy-base.active { background: rgba(255,255,255,0.26); }
         #jump-btn.down { background: rgba(34,187,51,0.9); }
         .touch-small {
             position: absolute; top: 12px; width: 46px; height: 46px; border-radius: 50%;
@@ -1337,8 +1338,11 @@ window.addEventListener('keyup', function(e){
 });
 
 // ===== Touch controls: joystick (move), jump button, drag screen to look =====
+// Touches are sorted by where they land on screen (not by event target), and the
+// joystick floats: it appears wherever you press on the left side of the screen.
 var IS_TOUCH = window.matchMedia ? window.matchMedia('(pointer: coarse)').matches : ('ontouchstart' in window);
 var touchMove = { x: 0, y: 0 };   // joystick output, -1..1 (y>0 = backward)
+var jumpBufferUntil = 0;          // a tap on JUMP stays valid for a moment, so quick taps never get missed
 if(IS_TOUCH){
     (function(){
         var ui = document.createElement('div'); ui.id = 'touch-ui';
@@ -1346,47 +1350,63 @@ if(IS_TOUCH){
         var knob = document.createElement('div'); knob.id = 'joy-knob';
         base.appendChild(knob);
         var jump = document.createElement('div'); jump.id = 'jump-btn'; jump.textContent = 'JUMP';
-        var pauseB = document.createElement('div'); pauseB.className = 'touch-small'; pauseB.style.left = '12px'; pauseB.textContent = '\u23F8';
-        var resetB = document.createElement('div'); resetB.className = 'touch-small'; resetB.style.left = '66px'; resetB.textContent = '\u27F2';
+        var pauseB = document.createElement('div'); pauseB.className = 'touch-small'; pauseB.style.left = '12px'; pauseB.textContent = '⏸';
+        var resetB = document.createElement('div'); resetB.className = 'touch-small'; resetB.style.left = '66px'; resetB.textContent = '⟲';
         ui.appendChild(base); ui.appendChild(jump); ui.appendChild(pauseB); ui.appendChild(resetB);
         document.body.appendChild(ui);
 
-        var joyId = null, jumpId = null, lookId = null, lastX = 0, lastY = 0;
+        var joyId = null, jumpId = null, lookId = null;
+        var joyOX = 0, joyOY = 0, lastX = 0, lastY = 0;
         var LOOK_SENS = 0.006;
+        var JOY_RADIUS = 65;
 
-        function setJoy(t){
-            var r = base.getBoundingClientRect();
-            var rad = r.width / 2;
-            var dx = t.clientX - (r.left + rad), dy = t.clientY - (r.top + rad);
-            var len = Math.sqrt(dx*dx + dy*dy);
-            if(len > rad){ dx = dx / len * rad; dy = dy / len * rad; len = rad; }
-            knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
-            if(len / rad < 0.15){ touchMove.x = 0; touchMove.y = 0; }
-            else { touchMove.x = dx / rad; touchMove.y = dy / rad; }
+        function hitCircle(el, x, y, grow){
+            var r = el.getBoundingClientRect();
+            var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+            var dx = x - cx, dy = y - cy, rad = r.width / 2 * grow;
+            return dx * dx + dy * dy <= rad * rad;
         }
-        function releaseJoy(){ joyId = null; touchMove.x = 0; touchMove.y = 0; knob.style.transform = ''; }
+        function setJoy(x, y){
+            var dx = x - joyOX, dy = y - joyOY;
+            var len = Math.sqrt(dx*dx + dy*dy);
+            if(len > JOY_RADIUS){ dx = dx / len * JOY_RADIUS; dy = dy / len * JOY_RADIUS; len = JOY_RADIUS; }
+            knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+            if(len / JOY_RADIUS < 0.12){ touchMove.x = 0; touchMove.y = 0; }
+            else { touchMove.x = dx / JOY_RADIUS; touchMove.y = dy / JOY_RADIUS; }
+        }
+        function startJoy(id, x, y){
+            joyId = id; joyOX = x; joyOY = y;
+            base.style.left = (x - 65) + 'px'; base.style.top = (y - 65) + 'px'; base.style.bottom = 'auto';
+            base.classList.add('active');
+            setJoy(x, y);
+        }
+        function releaseJoy(){
+            joyId = null; touchMove.x = 0; touchMove.y = 0; knob.style.transform = '';
+            base.style.left = ''; base.style.top = ''; base.style.bottom = '';
+            base.classList.remove('active');
+        }
         function releaseJump(){ jumpId = null; keys["Space"] = false; jump.classList.remove('down'); }
 
         document.addEventListener('touchstart', function(e){
             for(var i = 0; i < e.changedTouches.length; i++){
-                var t = e.changedTouches[i], el = t.target;
-                if(el === pauseB || el === resetB){
-                    if(el === pauseB) togglePause();
-                    else { player.position.set(0, 5, 0); velocityY = 0; levelStartTime = performance.now(); }
-                    e.preventDefault();
-                } else if(el === jump){
-                    jumpId = t.identifier; keys["Space"] = true; jump.classList.add('down'); e.preventDefault();
-                } else if(base.contains(el)){
-                    joyId = t.identifier; setJoy(t); e.preventDefault();
-                } else if(el.tagName === 'CANVAS' && lookId === null){
-                    lookId = t.identifier; lastX = t.clientX; lastY = t.clientY; e.preventDefault();
+                var t = e.changedTouches[i], x = t.clientX, y = t.clientY, el = t.target;
+                // let menu buttons (pause / win / level select) work normally
+                if(el && el.closest && el.closest('.win-screen, .pause-screen, .level-select')) continue;
+                if(hitCircle(pauseB, x, y, 1.3)){ togglePause(); }
+                else if(hitCircle(resetB, x, y, 1.3)){ player.position.set(0, 5, 0); velocityY = 0; levelStartTime = performance.now(); }
+                else if(jumpId === null && hitCircle(jump, x, y, 1.4)){
+                    jumpId = t.identifier; keys["Space"] = true; jumpBufferUntil = performance.now() + 150;
+                    jump.classList.add('down');
                 }
+                else if(joyId === null && x < window.innerWidth * 0.45){ startJoy(t.identifier, x, y); }
+                else if(lookId === null){ lookId = t.identifier; lastX = x; lastY = y; }
+                e.preventDefault();
             }
         }, { passive: false });
         document.addEventListener('touchmove', function(e){
             for(var i = 0; i < e.changedTouches.length; i++){
                 var t = e.changedTouches[i];
-                if(t.identifier === joyId){ setJoy(t); }
+                if(t.identifier === joyId){ setJoy(t.clientX, t.clientY); }
                 else if(t.identifier === lookId){
                     if(!gamePaused){
                         alpha -= (t.clientX - lastX) * LOOK_SENS;
@@ -1409,6 +1429,8 @@ if(IS_TOUCH){
         }
         document.addEventListener('touchend', endTouch);
         document.addEventListener('touchcancel', endTouch);
+        // if the page loses focus mid-touch, let go of everything
+        window.addEventListener('blur', function(){ releaseJoy(); releaseJump(); lookId = null; });
     })();
 }
 
@@ -2009,8 +2031,9 @@ function animate(){
         }
         
         // Jump only if not just boosted by trampoline
-        if(keys["Space"] && grounded && !trampolineHit){
+        if((keys["Space"] || performance.now() < jumpBufferUntil) && grounded && !trampolineHit){
             velocityY = JUMP_SPEED;
+            jumpBufferUntil = 0;
         }
         
         // Respawn if fallen too deep
