@@ -100,13 +100,14 @@ var drawFace = function(x, y, s) {
   g.noStroke();
   g.fill(0, 0, 0);
   // eyes
-  g.ellipse(x - s * 1.335, y - s / 5.5, s / 1.9, s / 1.9);
-  g.ellipse(x + s * 1.43,  y - s / 5.5, s / 1.9, s / 1.9);
-  // smile
-  g.strokeWeight(s / Math.PI);
+  // taller oval eyes, set slightly closer together and a bit higher
+  g.ellipse(x - s * 1.2,  y - s / 4.5, s / 2.4, s / 1.5);
+  g.ellipse(x + s * 1.3,  y - s / 4.5, s / 2.4, s / 1.5);
+  // smaller, slightly lopsided smile
+  g.strokeWeight(s / 3.6);
   g.stroke(0);
   g.noFill();
-  g.arc(x + s / 10, y - s / 10, s / 1.3, s / 1.3, 0, PI);
+  g.arc(x + s / 12, y - s / 20, s / 1.5, s / 1.7, 0.1, PI - 0.25);
   g.pop();
 };
  
