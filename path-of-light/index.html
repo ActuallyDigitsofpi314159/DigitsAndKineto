@@ -5,12 +5,19 @@ Bluebird for p5.js in KA
 I took the original game just made it into p5.js. Antialas and faster.
 -->
   <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Path of Light pi edition</title>
   <style>
     body{
         margin:0;
         overflow:hidden;
+        background:#000;
+        touch-action:none;
+        -webkit-user-select:none;
+        user-select:none;
+        -webkit-touch-callout:none;
     }
+    canvas{ display:block; }
   </style>
     <script src="https://cdn.jsdelivr.net/npm/p5@1.7.0/lib/p5.js"></script>
     <script type>
@@ -33,6 +40,107 @@ I took the original game just made it into p5.js. Antialas and faster.
 // canvas ref for pointer lock, and the 3d graphics buffer
 let cnv;
 let g;
+
+// ==========================================================================
+// LAYOUT + TOUCH SUPPORT
+// The canvas fills the whole window (widescreen + phones). The 3D view and the
+// in-game HUD use the real size. The menu screens were drawn for a 600x600
+// canvas, so they're drawn in a centered 600x600 "UI space" that scales to fit.
+// ==========================================================================
+var UI_SIZE = 600;
+var US = 1, UX = 0, UY = 0;   // UI space scale + offset (set every frame)
+function computeUI() {
+  US = constrain(min(width, height) / UI_SIZE, 0.5, 1.6);
+  UX = (width  - UI_SIZE * US) / 2;
+  UY = (height - UI_SIZE * US) / 2;
+}
+// real canvas pixels -> 600x600 UI space
+function toUI(px, py) { return { x: (px - UX) / US, y: (py - UY) / US }; }
+
+// phones/tablets: on-screen joystick + jump button, drag anywhere else to look
+var IS_TOUCH = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+               (!window.matchMedia && 'ontouchstart' in window);
+var touchMoveX = 0, touchMoveY = 0, touchJump = false;  // stick: -1..1, up = -y
+var joyId = null, jumpId = null, lookId = null;
+var lookLastX = 0, lookLastY = 0, joyKnobX = 0, joyKnobY = 0;
+var touchLookSensitivity = 0.005;
+
+function joyRadius()  { return constrain(min(width, height) * 0.16, 50, 80); }
+function jumpRadius() { return constrain(min(width, height) * 0.11, 38, 56); }
+function joyCenter()  { var r = joyRadius();  return { x: r + 28,         y: height - r - 28 }; }
+function jumpCenter() { var r = jumpRadius(); return { x: width - r - 32, y: height - r - 44 }; }
+
+function updateJoy(x, y) {
+  var c = joyCenter(), r = joyRadius();
+  var dx = x - c.x, dy = y - c.y, len = sqrt(dx * dx + dy * dy);
+  if (len > r) { dx = dx / len * r; dy = dy / len * r; len = r; }
+  joyKnobX = dx; joyKnobY = dy;
+  if (len / r < 0.15) { touchMoveX = 0; touchMoveY = 0; }   // dead zone
+  else { touchMoveX = dx / r; touchMoveY = dy / r; }
+}
+
+// tap on a menu button (title / how to play), in real canvas pixels
+function menuTap(x, y) {
+  var m = toUI(x, y);
+  var inBox = function(bx, by, bw, bh) { return m.x >= bx && m.x <= bx + bw && m.y >= by && m.y <= by + bh; };
+  if (scene === "title") {
+    if (inBox(UI_SIZE / 2 - 175, UI_SIZE / 2 + 20, 150, 50)) { scene = "game"; loadLevel(currentLevel); }
+    else if (inBox(UI_SIZE / 2 + 25, UI_SIZE / 2 + 20, 150, 50)) { scene = "howToPlay"; }
+  } else if (scene === "howToPlay") {
+    if (inBox(20, UI_SIZE - 60, 100, 40)) scene = "title";
+  }
+}
+
+function onTouchStart(e) {
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i], x = t.clientX, y = t.clientY;
+    if (scene === "title" || scene === "howToPlay") { menuTap(x, y); continue; }
+    if (scene !== "game") continue;
+    if (dead) { if (deathAnimationFrames > 120) resetDeath(); continue; }
+    var jc = joyCenter(), kc = jumpCenter();
+    if (joyId === null && dist(x, y, jc.x, jc.y) < joyRadius() * 1.4) {
+      joyId = t.identifier; updateJoy(x, y);
+    } else if (jumpId === null && dist(x, y, kc.x, kc.y) < jumpRadius() * 1.3) {
+      jumpId = t.identifier; touchJump = true;
+    } else if (lookId === null) {
+      lookId = t.identifier; lookLastX = x; lookLastY = y;
+    }
+  }
+  e.preventDefault();
+}
+function onTouchMove(e) {
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    if (t.identifier === joyId) updateJoy(t.clientX, t.clientY);
+    else if (t.identifier === lookId) {
+      camAngleY -= (t.clientX - lookLastX) * touchLookSensitivity;
+      camAngleX = constrain(camAngleX - (t.clientY - lookLastY) * touchLookSensitivity, radians(-89), radians(89));
+      lookLastX = t.clientX; lookLastY = t.clientY;
+    }
+  }
+  e.preventDefault();
+}
+function onTouchEnd(e) {
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var id = e.changedTouches[i].identifier;
+    if (id === joyId)  { joyId = null; touchMoveX = 0; touchMoveY = 0; joyKnobX = 0; joyKnobY = 0; }
+    if (id === jumpId) { jumpId = null; touchJump = false; }
+    if (id === lookId) { lookId = null; }
+  }
+}
+
+function drawTouchControls() {
+  var jc = joyCenter(), jr = joyRadius(), kc = jumpCenter(), kr = jumpRadius();
+  strokeWeight(2); stroke(255, 110); fill(255, 38);
+  ellipse(jc.x, jc.y, jr * 2, jr * 2);
+  noStroke(); fill(255, 150);
+  ellipse(jc.x + joyKnobX, jc.y + joyKnobY, jr * 0.9, jr * 0.9);
+  strokeWeight(2); stroke(255, 130); fill(touchJump ? color(0, 255, 120, 170) : color(0, 200, 90, 90));
+  ellipse(kc.x, kc.y, kr * 2, kr * 2);
+  noStroke(); fill(255, 220); textAlign(CENTER, CENTER); textSize(kr * 0.36);
+  text("JUMP", kc.x, kc.y);
+}
+
  
 // save code. replace this with the one printed to console if you wanna continue
 var saveCode = [0, 0, 0, 0];
@@ -188,7 +296,8 @@ var titleButtonCanClick = false;
 var sceneToGo = "";
  
 var titleButton = function(x, y, w, h, txt, sc) {
-  if (mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h) {
+  var m = toUI(mouseX, mouseY);
+  if (m.x >= x && m.x <= x + w && m.y >= y && m.y <= y + h) {
     titleButtonCanClick = true;
     sceneToGo = sc;
     // grow the button a bit on hover
@@ -205,19 +314,20 @@ var drawTitleScreen = function() {
   titleButtonCanClick = false;
   sceneToGo = "";
   background(0);
+  translate(UX, UY); scale(US);
   fill(225); noStroke();
-  ellipse(width / 2, height / 2 - 50, 25, 25);
+  ellipse(UI_SIZE / 2, UI_SIZE / 2 - 50, 25, 25);
   for (var c = 0; c < 7; c++) {
     noFill(); strokeWeight(25.5);
     stroke(240, 240, 255 - c * 25 - 30, 220);
-    ellipse(width / 2, height / 2 - 50, 50 + 50 * c, 50 + 50 * c);
+    ellipse(UI_SIZE / 2, UI_SIZE / 2 - 50, 50 + 50 * c, 50 + 50 * c);
   }
   noStroke(); fill(255);
   textAlign(CENTER, CENTER);
   textSize(70);
-  text("PATH OF LIGHT", width / 2, height / 2 - 50);
-  titleButton(width / 2 - 175, height / 2 + 20, 150, 50, "Play", "game");
-  titleButton(width / 2 + 25,  height / 2 + 20, 150, 50, "How",  "howToPlay");
+  text("PATH OF LIGHT", UI_SIZE / 2, UI_SIZE / 2 - 50);
+  titleButton(UI_SIZE / 2 - 175, UI_SIZE / 2 + 20, 150, 50, "Play", "game");
+  titleButton(UI_SIZE / 2 + 25,  UI_SIZE / 2 + 20, 150, 50, "How",  "howToPlay");
 };
  
 // wave stuff for the how to play screen
@@ -241,16 +351,22 @@ var drawHowToPlayScreen = function() {
   background(0);
   for (var i = 0; i < 4; i++) drawWave(i);
   waveTime += 0.01;
+  translate(UX, UY); scale(US);   // text + button live in 600x600 UI space
   noStroke(); fill(255); textAlign(LEFT, TOP);
   textSize(40); text("How to Play", 20, 30);
   textSize(20);
-  text("W A S D to move, SPACE to jump.", 20, 100);
-  text("Click canvas to lock mouse - then look around.", 20, 140);
+  if (IS_TOUCH) {
+    text("Left stick to move, JUMP button to jump.", 20, 100);
+    text("Drag anywhere else to look around.", 20, 140);
+  } else {
+    text("W A S D to move, SPACE to jump.", 20, 100);
+    text("Click canvas to lock mouse - then look around.", 20, 140);
+  }
   text("Reach the glowing box to advance.", 20, 180);
   text("Don't fall into the void.", 20, 220);
-  text("ENTER prints a save code to the console.", 20, 260);
+  if (!IS_TOUCH) text("ENTER prints a save code to the console.", 20, 260);
   textAlign(CENTER, CENTER);
-  titleButton(20, height - 60, 100, 40, "Back", "title");
+  titleButton(20, UI_SIZE - 60, 100, 40, "Back", "title");
 };
  
 // ]
@@ -595,33 +711,50 @@ function resetDeath() {
  
  
 function setup() {
-  cnv = createCanvas(600, 600);
+  // sharper on small screens, but keep big windows fast
+  pixelDensity(windowWidth * windowHeight * 4 <= 3000000 ? 2 : 1);
+  cnv = createCanvas(windowWidth, windowHeight);   // fills the window
   smooth(); // native AA, replaces the FXAA shader
  
   // off-screen WEBGL buffer for all the 3d stuff
-  g = createGraphics(600, 600, WEBGL);
+  g = createGraphics(windowWidth, windowHeight, WEBGL);
   g.smooth();
  
   // one mousemove listener, handler checks lock state itself
   document.addEventListener('mousemove', handleMove);
+ 
+  // touch devices: joystick / jump / drag-to-look
+  if (IS_TOUCH) {
+    document.addEventListener('touchstart',  onTouchStart,  { passive: false });
+    document.addEventListener('touchmove',   onTouchMove,   { passive: false });
+    document.addEventListener('touchend',    onTouchEnd);
+    document.addEventListener('touchcancel', onTouchEnd);
+  }
  
   selectRandomDeathMessage();
   buildLevels();
   loadLevel(currentLevel);
 }
  
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  g.resizeCanvas(windowWidth, windowHeight);
+}
+ 
 function draw() {
+  computeUI();
   // print save code to console (copy paste it to the saveCode variable at the top)
   if (keys[ENTER]) {
     console.log("var saveCode = [0, " + (currentLevel * 3) + ", " + (TIME * Math.PI).toFixed(2) + ", 5];");
   }
  
   // non-game scenes
-  if (scene === "title")     { drawTitleScreen();    return; }
-  if (scene === "howToPlay") { drawHowToPlayScreen(); return; }
+  if (scene === "title")     { push(); drawTitleScreen();     pop(); return; }
+  if (scene === "howToPlay") { push(); drawHowToPlayScreen(); pop(); return; }
   if (scene === "won") {
     // lame win screen lol
     background(0); fill(255); textAlign(CENTER, CENTER);
+    translate(UX, UY); scale(US);
     textSize(100); text("YOU WON!", 300, 250);
     textSize(30); fill(166, 0, 255);
     text("TIME: " + formatNumber(round(TIME / 60)) + " sec", 300, 350);
@@ -654,6 +787,12 @@ function draw() {
   if (keys[83]) { desVX += fDX; desVZ += fDZ; hasInput = true; } // S
   if (keys[65]) { desVX -= fDZ; desVZ += fDX; hasInput = true; } // A
   if (keys[68]) { desVX += fDZ; desVZ -= fDX; hasInput = true; } // D
+  // touch joystick (up = forward, same directions as W/A/S/D)
+  if (touchMoveX !== 0 || touchMoveY !== 0) {
+    desVX += fDX * touchMoveY + fDZ * touchMoveX;
+    desVZ += fDZ * touchMoveY - fDX * touchMoveX;
+    hasInput = true;
+  }
  
   // get target rotation from the movement vector directly
   // atan2 handles all diagonal combos (W+A etc) perfectly
@@ -716,7 +855,7 @@ function draw() {
   }
   onGround = onSurface;
  
-  if (keys[32] && onGround) { isJumping = true; onGround = false; jumpSpeed = -8; } // jump
+  if ((keys[32] || touchJump) && onGround) { isJumping = true; onGround = false; jumpSpeed = -8; } // jump
   if (playerY > fallResetY)  dead = true; // fell into the void
  
   // did we reach the goal?
@@ -731,6 +870,8 @@ function draw() {
   var cX  = playerX + camDist * sin(camAngleY) * cos(camAngleX);
   var cZ  = playerZ + camDist * cos(camAngleY) * cos(camAngleX);
   var cY  = ctY     + camDist * sin(camAngleX);
+  // same vertical field of view as the old 600x600 view, so a wider window shows more to the sides
+  g.perspective(2 * Math.atan(300 / 800), width / height, 80, 8000);
   g.camera(cX, cY, cZ, playerX, playerY, playerZ, 0, 1, 0);
  
   // --- draw the world ---
@@ -777,11 +918,11 @@ function draw() {
   var poem = levelPoems[currentLevel].substring(0, currentDigitPosition);
  
   noStroke(); fill(0, 0, 0, 100);
-  rect(width / 5, -100, width / 1.7, height / 3, 10);
+  rect(width / 2 - 176, -100, 353, 200, 10);
   fill(255, 255, 255, txtFade);
   textAlign(CENTER, BASELINE);
-  textSize(22); text(levelNames[currentLevel], width / 2, height / 18);
-  textSize(15); text(poem, width / 2, height / 11);
+  textSize(22); text(levelNames[currentLevel], width / 2, 33);
+  textSize(15); text(poem, width / 2, 54);
  
   // type out the poem character by character
   if (currentDigitPosition < levelPoems[currentLevel].length &&
@@ -789,8 +930,11 @@ function draw() {
     currentDigitPosition++;
   }
  
+  if (IS_TOUCH && !dead) drawTouchControls();
+
   // --- death screen ---
   if (dead) {
+    push(); translate(UX, UY); scale(US);   // drawn in 600x600 UI space
     // shake effect
     if (deathAnimationFrames > 20 && deathAnimationFrames < 100) {
       if (shakeIntensity > 1) {
@@ -827,6 +971,7 @@ function draw() {
       if (mouseIsPressed) resetDeath();
     }
     deathAnimationFrames++;
+    pop();
   }
 }
  
@@ -839,7 +984,7 @@ function keyReleased() { keys[keyCode] = false; }
 function mousePressed() {
   // lock the mouse when clicking into the game
   // (made it auto-lock so you don't have to think about it, thank me later)
-  if (scene === "game") cnv.elt.requestPointerLock();
+  if (scene === "game" && !IS_TOUCH) cnv.elt.requestPointerLock();
   if (dead && deathAnimationFrames > 120) resetDeath();
 }
  
@@ -847,11 +992,12 @@ function mouseClicked() {
   if (scene === "title" && titleButtonCanClick) {
     scene = sceneToGo;
     if (sceneToGo === "game") {
-      cnv.elt.requestPointerLock();
+      if (!IS_TOUCH) cnv.elt.requestPointerLock();
       loadLevel(currentLevel);
     }
   } else if (scene === "howToPlay") {
-    if (mouseX > 20 && mouseX < 120 && mouseY > height - 60 && mouseY < height - 20) {
+    var m = toUI(mouseX, mouseY);
+    if (m.x > 20 && m.x < 120 && m.y > UI_SIZE - 60 && m.y < UI_SIZE - 20) {
       scene = "title";
     }
   }

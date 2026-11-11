@@ -24,7 +24,7 @@
     <polygon points="336,140 126,352 128,431 216,393 359,248" fill="rgb(229, 58, 63)" />
 
     <!-- Left Stick of D -->
-    <polygon points="69,459 69,140 136,140 136,459" fill="#FFFFFF" />
+    <polygon points="69,459 69,140 150,140 150,200 135,200 135,400 150,400 150,459" fill="#FFFFFF" />
 
     <!-- Right Curve of D -->
     <path fill="#FFFFFF" d="
