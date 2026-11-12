@@ -204,7 +204,7 @@ function text(str, x, y, w, h) {
     ctx.textBaseline = "top";
     const ax = ha === "center" ? x + w / 2 : ha === "right" ? x + w : x;
     for (let i = 0; i < out.length; i++) ctx.fillText(out[i], ax, y + i * lead);
-    return;
+    return out.length;
   }
   let y0 = y;
   if (_tAlignY === CENTER) { ctx.textBaseline = "middle"; y0 = y - (lines.length - 1) * lead / 2; }
@@ -212,7 +212,9 @@ function text(str, x, y, w, h) {
   else if (_tAlignY === BOTTOM) { ctx.textBaseline = "bottom"; y0 = y - (lines.length - 1) * lead; }
   else { ctx.textBaseline = "alphabetic"; }
   for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], x, y0 + i * lead);
+  return lines.length;
 }
+function textWidth(str) { ctx.font = _tSize + "px Arial, Helvetica, sans-serif"; return ctx.measureText(String(str)).width; }
 function pushMatrix() { ctx.save(); }
 function popMatrix() { ctx.restore(); }
 function translate(x, y) { ctx.translate(x, y); }
@@ -413,10 +415,29 @@ let deadWumpY = 10, fallAccel = 0, shakeFrames = 0, winPlayerY = 400, winFade = 
 let winJump = true, playerJumpY = 0, jumpAccel = 7;
 const gravity = 0.2;
 
-// Wumpus / pit
-let wumpusLocX, wumpusLocY;
+// Wumpus / pit (lists, so Mega Mode can have more than one)
+let wumpX = [], wumpY = [], wumpAlive = [];
+let pitX = [], pitY = [];
 let inWumpusFrames = 0, jawY = 0;
-let pitfallLocX, pitfallLocY;
+let killed = 0, lastKilled = -1, killBanner = 0, hudPop = 0;
+let qPressed = false, dirPressed = 0;
+let caughtByPredator = false, predatorStep = false, hitIndex = -1, arrowResolved = false;
+
+// Modes + unlocks
+let mode = "normal";          // "normal" | "blind" | "mega" | "predator"
+let N = 6;                    // map size (Mega Mode = 9)
+const MODE_POINTS = { normal: 1, blind: 2, mega: 3, predator: 2 };
+const PREDATOR_CHASE = 0.75;  // chance the Predator steps toward you (otherwise it wanders)
+const SAVE_KEY = "wumpusHunt.unlocks.v1";
+const unlocked = { normal: true, blind: false, mega: false, predator: false };
+const isNew = { blind: false, mega: false, predator: false };
+let unlockMsg = "";
+let time = 0;
+try {
+  const sv = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
+  if (sv) { unlocked.blind = !!sv.blind; unlocked.mega = !!sv.mega; unlocked.predator = !!sv.predator; }
+} catch (_) {}
+function saveUnlocks() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(unlocked)); } catch (_) {} }
 
 // Player
 let winStreak = 0;
@@ -428,7 +449,8 @@ let bowPop = 0;
 
 // Instruction page
 let scrollY = 0, scrollTarget = 0, scrollVel = 0;
-const SCROLL_MIN = -1255, SCROLL_MAX = 0;
+let SCROLL_MIN = -1555; const SCROLL_MAX = 0;
+let howtoBackY = 1880;
 const moveX = [-200];
 
 // Rooms
@@ -436,9 +458,9 @@ let rooms = [];
 let haveStepped = false;
 function resetRooms() {
   rooms = [];
-  for (let i = 1; i <= 6; i++) {
+  for (let i = 1; i <= N; i++) {
     rooms[i] = [];
-    for (let j = 1; j <= 6; j++) rooms[i][j] = { shown: false, type: "basic", stepCount: 0, reveal: 0 };
+    for (let j = 1; j <= N; j++) rooms[i][j] = { shown: false, type: "basic", stepCount: 0, reveal: 0 };
   }
 }
 resetRooms();
@@ -813,10 +835,10 @@ function transition(x, y, sz) {
   drawBarrel(x + sz / 2 - 138, y + sz / 2 - 168, 12);
 }
 
-// Menu button with smooth (lerped) hover + press
-function selectButton(x, y, mode, w, h, id) {
-  id = id || mode;
-  const st = btnState[id] || (btnState[id] = { t: 0, p: 0 });
+// Menu button with smooth (lerped) hover + press.
+// action() runs on click. Locked buttons shake and show `hint` instead.
+function selectButton(x, y, label, w, h, id, action, locked, hint, isNewBadge) {
+  const st = btnState[id] || (btnState[id] = { t: 0, p: 0, shake: 0, hint: 0, h: 0 });
   const halfH = Math.max(20, h / 2);
   const over = function (px, py) { return px >= x - w / 2 && px <= x + w / 2 && py >= y - halfH && py <= y + halfH; };
   const hovered = !transitionIs && over(mouseX, mouseY);
@@ -826,82 +848,130 @@ function selectButton(x, y, mode, w, h, id) {
 
   if (click && !transitionIs && over(click.x, click.y)) {
     click = null;
-    transitionIs = true;
-    if (mode === "NORMAL") { tScene = "game"; blindfoldMode = false; }
-    if (mode === "BLINDFOLDED") { tScene = "game"; blindfoldMode = true; }
-    if (mode === "HOW TO PLAY") { tScene = "instruction"; }
-    if (mode === "BACK") { tScene = "title"; }
+    if (locked) { st.shake = 1; st.hint = 1.6; }
+    else { transitionIs = true; action(); }
   }
+  st.shake = Math.max(0, st.shake - dt * 2.5);
+  st.hint = Math.max(0, st.hint - dt);
+  st.h = approach(st.h, locked && (hovered || st.hint > 0) ? 1 : 0, 12);
+  const sx = Math.sin(st.shake * 40) * 6 * st.shake;
 
-  const ww = lerp(w, 190, st.t) * (1 - 0.05 * st.p);
+  const ww = (w + 20 * st.t) * (1 - 0.05 * st.p);
   const hh = h * (1 - 0.05 * st.p);
-  stroke(lerp(150, 200, st.t), 0, 0);
+  if (locked) stroke(lerp(175, 140, st.t)); else stroke(lerp(150, 200, st.t), 0, 0);
   strokeWeight(10);
   rectMode(CENTER);
   noFill();
-  rect(x, y, ww, hh, 50);
-  fill(0);
+  rect(x + sx, y, ww, hh, 50);
+
+  textAlign(CENTER, CENTER);
   textSize(h / 2.5);
-  textAlign(CENTER);
-  text(mode, x, y + ww / 30);
+  if (locked) {
+    const a = 255 * (1 - st.h);
+    const tw = textWidth(label);
+    const lx = x + sx - tw / 2 - 4;
+    fill(140, 140, 140, a);
+    text(label, x + sx + 7, y + 1);
+    // padlock
+    noStroke(); fill(140, 140, 140, a); rectMode(CENTER);
+    rect(lx, y + 2, 10, 8, 2);
+    noFill(); stroke(140, 140, 140, a); strokeWeight(2);
+    arc(lx, y - 2, 7, 10, 180, 360);
+    noStroke();
+    fill(170, 0, 0, 255 * st.h);
+    textSize(9.5);
+    text(hint, x + sx, y + 1);
+  } else {
+    fill(0);
+    text(label, x + sx, y + 1);
+  }
+  if (isNewBadge) {
+    const pulse = 1 + 0.1 * Math.sin(time * 6);
+    pushMatrix();
+    translate(x + ww / 2 - 14, y - hh / 2 - 2);
+    scale(pulse);
+    noStroke(); fill(255, 190, 0); rectMode(CENTER);
+    rect(0, 0, 32, 14, 7);
+    fill(0); textSize(9.5); textAlign(CENTER, CENTER);
+    text("NEW", 0, 1);
+    popMatrix();
+  }
+}
+
+function modeButton(x, y, label, m, hint) {
+  selectButton(x, y, label, 160, 35, "MODE_" + m, function () {
+    mode = m;
+    blindfoldMode = (m === "blind" || m === "predator");
+    tScene = "game";
+    if (isNew[m]) isNew[m] = false;
+  }, !unlocked[m], hint, !!isNew[m]);
 }
 
 // ============================================================
 //  Game logic helpers
 // ============================================================
-function rr() { return round(random(1, 6)); }
+function rr() { return round(random(1, N)); }
+function isPit(x, y) { for (let k = 0; k < pitX.length; k++) if (pitX[k] === x && pitY[k] === y) return true; return false; }
+function wumpusAt(x, y) { for (let k = 0; k < wumpX.length; k++) if (wumpAlive[k] && wumpX[k] === x && wumpY[k] === y) return k; return -1; }
 
 function canMove() {
   return scene === "game" && !(transitionIs && tProg < 0.5) &&
     !inPit && !inWumpus && !arrowShot && !aimIs && !batAnim;
 }
 function onKeyPressed(k) {
+  if (scene === "game") {               // remember taps so even a very quick press registers
+    if (k === KEY_Q) qPressed = true;
+    if (k >= 37 && k <= 40) dirPressed = k;
+  }
   if (!canMove()) return;
-  if (k === LEFT && playerLocX > 1) { playerLocX--; haveStepped = true; }
-  else if (k === RIGHT && playerLocX < 6) { playerLocX++; haveStepped = true; }
-  else if (k === UP && playerLocY > 1) { playerLocY--; haveStepped = true; }
-  else if (k === DOWN && playerLocY < 6) { playerLocY++; haveStepped = true; }
+  const ox = playerLocX, oy = playerLocY;
+  if (k === LEFT && playerLocX > 1) playerLocX--;
+  else if (k === RIGHT && playerLocX < N) playerLocX++;
+  else if (k === UP && playerLocY > 1) playerLocY--;
+  else if (k === DOWN && playerLocY < N) playerLocY++;
+  if (ox !== playerLocX || oy !== playerLocY) {
+    haveStepped = true;
+    if (mode === "predator") predatorStep = true;
+  }
 }
 
 function onHazard(x, y) {
-  return (x === wumpusLocX && y === wumpusLocY) || (x === pitfallLocX && y === pitfallLocY) ||
+  return wumpusAt(x, y) >= 0 || isPit(x, y) ||
     (x === batLocX[0] && y === batLocY[0]) || (x === batLocX[1] && y === batLocY[1]);
 }
 
-// Re-places the wumpus, pit, bats and player, and rebuilds the rooms
+// Re-places the wumpi, pits, bats and player for the current mode
 function newRound() {
-  wumpusLocX = rr(); wumpusLocY = rr();
-  do { pitfallLocX = rr(); pitfallLocY = rr(); } while (pitfallLocX === wumpusLocX && pitfallLocY === wumpusLocY);
-
+  N = mode === "mega" ? 9 : 6;
+  const nW = mode === "mega" ? 2 : 1, nP = mode === "mega" ? 3 : 1;
+  wumpX = []; wumpY = []; wumpAlive = []; pitX = []; pitY = [];
+  for (let k = 0; k < nW; k++) {
+    let x, y;
+    do { x = rr(); y = rr(); } while (wumpusAt(x, y) >= 0);
+    wumpX.push(x); wumpY.push(y); wumpAlive.push(true);
+  }
+  for (let k = 0; k < nP; k++) {
+    let x, y;
+    do { x = rr(); y = rr(); } while (wumpusAt(x, y) >= 0 || isPit(x, y));
+    pitX.push(x); pitY.push(y);
+  }
   numOfBats = floor(random(1, 3));
   batLocX = []; batLocY = [];
   for (let b = 0; b < 2; b++) {
     let bx, by;
-    do { bx = rr(); by = rr(); } while (bx === pitfallLocX && by === pitfallLocY);
+    do { bx = rr(); by = rr(); } while (isPit(bx, by));
     batLocX.push(bx); batLocY.push(by);
   }
-
   resetRooms();
-  // Assign room types (proximity warnings)
-  for (let x = 1; x <= 6; x++) {
-    for (let y = 1; y <= 6; y++) {
-      const nearPit =
-        (x === pitfallLocX - 1 && y === pitfallLocY) || (x === pitfallLocX + 1 && y === pitfallLocY) ||
-        (x === pitfallLocX && y === pitfallLocY - 1) || (x === pitfallLocX && y === pitfallLocY + 1);
-      const nearWumpus =
-        (x === wumpusLocX - 1 && y === wumpusLocY) || (x === wumpusLocX + 1 && y === wumpusLocY) ||
-        (x === wumpusLocX && y === wumpusLocY - 1) || (x === wumpusLocX && y === wumpusLocY + 1) ||
-        (x === wumpusLocX - 2 && y === wumpusLocY) || (x === wumpusLocX - 1 && y === wumpusLocY - 1) ||
-        (x === wumpusLocX - 1 && y === wumpusLocY + 1) || (x === wumpusLocX && y === wumpusLocY - 2) ||
-        (x === wumpusLocX && y === wumpusLocY + 2) || (x === wumpusLocX + 1 && y === wumpusLocY - 1) ||
-        (x === wumpusLocX + 1 && y === wumpusLocY + 1) || (x === wumpusLocX + 2 && y === wumpusLocY);
-      if (nearWumpus) rooms[x][y].type = nearPit ? "combo" : "red";
-      else if (nearPit) rooms[x][y].type = "green";
-    }
-  }
-
-  do { playerLocX = rr(); playerLocY = rr(); } while (onHazard(playerLocX, playerLocY));
+  // Player never starts on a hazard. In Predator, start at least 3 steps from the Wumpus.
+  let tries = 0;
+  do { playerLocX = rr(); playerLocY = rr(); tries++; }
+  while (onHazard(playerLocX, playerLocY) ||
+    (mode === "predator" && tries < 300 && abs(playerLocX - wumpX[0]) + abs(playerLocY - wumpY[0]) < 3));
   pvx = playerLocX; pvy = playerLocY;
+  killed = 0; lastKilled = -1; killBanner = 0; hudPop = 0;
+  caughtByPredator = false; predatorStep = false; hitIndex = -1;
+  qPressed = false; dirPressed = 0;
 }
 
 function resetRoundState() {
@@ -910,13 +980,49 @@ function resetRoundState() {
   skullSize = 20000; skullTrans = 0; deathAnimationFrames = 0; shakeIntensity = 25; gameOverTextTransparency = 1;
   playerAnimY = 0; animAccel = 0;
   deadWumpY = 10; fallAccel = 0; shakeFrames = 0; winPlayerY = 400; winFade = 0; winTxtFade = 0;
-  wumpusShot = false; wumpusDead = false; arrowProg = 0;
+  wumpusShot = false; wumpusDead = false; arrowProg = 0; arrowResolved = false; unlockMsg = "";
   batAnim = false; batFrames = 0; batCol = 0; bowPop = 0; haveStepped = false;
 }
 
+// Warning colour for a room, worked out live (so it follows a moving Predator / dead wumpi).
+// Red = a living Wumpus within 2 squares (Predator: his own room is red as well).
+function roomType(i, j) {
+  let nearW = false, nearP = false;
+  for (let k = 0; k < wumpX.length; k++) {
+    if (!wumpAlive[k]) continue;
+    const d = abs(i - wumpX[k]) + abs(j - wumpY[k]);
+    if (mode === "predator" ? d <= 2 : (d >= 1 && d <= 2)) nearW = true;   // Predator: his own room looks red too
+  }
+  for (let k = 0; k < pitX.length; k++) {
+    if (abs(i - pitX[k]) + abs(j - pitY[k]) === 1) nearP = true;
+  }
+  return nearW ? (nearP ? "combo" : "red") : (nearP ? "green" : "basic");
+}
+
+// Predator: the Wumpus takes one step every time you do (usually toward you, never into a pit)
+function movePredator() {
+  const wx = wumpX[0], wy = wumpY[0];
+  const opts = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+    .map(function (d) { return [wx + d[0], wy + d[1]]; })
+    .filter(function (c) { return c[0] >= 1 && c[0] <= N && c[1] >= 1 && c[1] <= N && !isPit(c[0], c[1]); });
+  if (!opts.length) return;
+  let pick;
+  if (Math.random() < PREDATOR_CHASE) {
+    const dist = function (c) { return abs(c[0] - playerLocX) + abs(c[1] - playerLocY); };
+    let best = Infinity;
+    opts.forEach(function (c) { best = Math.min(best, dist(c)); });
+    const bestOpts = opts.filter(function (c) { return dist(c) === best; });
+    pick = bestOpts[floor(random(bestOpts.length))];
+  } else {
+    pick = opts[floor(random(opts.length))];
+  }
+  wumpX[0] = pick[0]; wumpY[0] = pick[1];
+  if (pick[0] === playerLocX && pick[1] === playerLocY) { inWumpus = true; caughtByPredator = true; }
+}
+
 function updatePlayerRoom() {
-  if (playerLocX === wumpusLocX && playerLocY === wumpusLocY) inWumpus = true;
-  if (playerLocX === pitfallLocX && playerLocY === pitfallLocY) inPit = true;
+  if (wumpusAt(playerLocX, playerLocY) >= 0) inWumpus = true;
+  if (isPit(playerLocX, playerLocY)) inPit = true;
   rooms[playerLocX][playerLocY].shown = true;
   if (haveStepped) rooms[playerLocX][playerLocY].stepCount++;
 }
@@ -928,6 +1034,44 @@ function ringStyle(type) {
   else if (type === "green") { fill(0, 255, 0, 100); }
   else if (type === "combo") { fill(0, 255, 0, 100); stroke(255, 50, 0); }
   else { noFill(); }
+}
+
+// Mega Mode squeezes the 9x9 map into the play area, leaving a strip on top for the counter
+function gridTransform() { if (N === 9) { translate(17.1, 29.8); scale(0.62); } }
+
+function handleWin() {
+  wumpusDead = true;
+  scene = "gameWin";
+  const got = [];
+  if (mode === "normal" && !unlocked.blind) { unlocked.blind = true; isNew.blind = true; got.push("BLINDFOLDED"); }
+  if (mode === "blind" && !(unlocked.mega && unlocked.predator)) {
+    unlocked.mega = unlocked.predator = true; isNew.mega = isNew.predator = true;
+    got.push("MEGA MODE", "PREDATOR");
+  }
+  if (got.length) { saveUnlocks(); unlockMsg = "New mode" + (got.length > 1 ? "s" : "") + " unlocked: " + got.join(" & ") + "!"; }
+}
+
+function drawMegaHUD() {
+  if (mode !== "mega") return;
+  const total = wumpX.length;
+  textAlign(CENTER, CENTER);
+  noStroke();
+  if (killBanner > 0) {
+    const a = 255 * clamp(Math.min(killBanner / 0.3, (2.2 - killBanner) / 0.15), 0, 1);
+    textSize(17); fill(255, 100, 0, a);
+    text("WUMPUS DOWN!  " + (total - killed) + " TO GO", 165, 16);
+  } else {
+    textSize(15); fill(0);
+    text("WUMPI HUNTED: " + killed + " / " + total, 165, 16);
+  }
+  for (let k = 0; k < total; k++) {
+    const s = 13 * (1 + (k === lastKilled ? 0.5 * hudPop : 0));
+    pushMatrix();
+    translate(305 + k * 30, 16);
+    if (wumpAlive[k]) wumpus(-0.1 * s, -0.775 * s, s, 150);
+    else wumpus(-0.1 * s, -0.775 * s, s, 0, "dead");
+    popMatrix();
+  }
 }
 
 // ============================================================
@@ -951,14 +1095,17 @@ function sceneTitle() {
 
   logo(100, 110, 85);
 
-  if (genRandom === 1) { pushMatrix(); rotate(350); wumpus(10, 210, 50, titleOp); popMatrix(); }
-  if (genRandom === 2) { pushMatrix(); rotate(10); player(380, 140, 60, titleOp); popMatrix(); }
-  if (genRandom === 3) { pushMatrix(); rotate(20); bow(160, 300, 70, titleOp); popMatrix(); }
-  if (genRandom === 4) { pushMatrix(); rotate(340); bat(190, 440, 40, titleOp); popMatrix(); }
+  // decorations sit in the bottom corners, out of the buttons' way
+  if (genRandom === 1) { pushMatrix(); translate(52, 345); rotate(350); wumpus(-4, -35, 45, titleOp); popMatrix(); }
+  if (genRandom === 2) { pushMatrix(); translate(352, 345); rotate(10); player(0, -24, 55, titleOp); popMatrix(); }
+  if (genRandom === 3) { pushMatrix(); translate(55, 342); rotate(20); bow(0, 0, 65, titleOp); popMatrix(); }
+  if (genRandom === 4) { pushMatrix(); translate(338, 345); rotate(340); bat(-15, 0, 38, titleOp); popMatrix(); }
 
-  selectButton(200, 240, "NORMAL", 170, 35);
-  selectButton(200, 295, "BLINDFOLDED", 170, 35);
-  selectButton(200, 350, "HOW TO PLAY", 170, 35);
+  modeButton(110, 232, "NORMAL", "normal", "");
+  modeButton(290, 232, "BLINDFOLDED", "blind", "WIN NORMAL TO UNLOCK");
+  modeButton(110, 280, "MEGA MODE", "mega", "WIN BLINDFOLDED TO UNLOCK");
+  modeButton(290, 280, "PREDATOR", "predator", "WIN BLINDFOLDED TO UNLOCK");
+  selectButton(200, 335, "HOW TO PLAY", 170, 35, "HOWTO", function () { tScene = "instruction"; });
 
   if (titleOp >= 255) { titleOp = 255; tOpChange = -2; hasGenerated = false; }
   if (titleOp <= 0) { titleOp = 0; tOpChange = 2; generatedNum = genRandom; }
@@ -971,31 +1118,62 @@ function sceneTitle() {
 
 function sceneGame() {
   background(255);
+  killBanner = Math.max(0, killBanner - dt);
+  hudPop = approach(hudPop, 0, 5);
 
   updatePlayerRoom();
+  if (predatorStep) {
+    predatorStep = false;
+    if (!inWumpus && !inPit) movePredator();
+  }
   pvx = approach(pvx, playerLocX, 16);
   pvy = approach(pvy, playerLocY, 16);
 
+  pushMatrix();
+  gridTransform();
   // Draw visible rooms (they fade/pop in when first revealed)
-  for (let i = 1; i <= 6; i++) {
-    for (let j = 1; j <= 6; j++) {
+  for (let i = 1; i <= N; i++) {
+    for (let j = 1; j <= N; j++) {
       const r = rooms[i][j];
       if (!r.shown) continue;
       r.reveal = Math.min(1, r.reveal + dt * 4);
       const e = easeOut3(r.reveal);
       if (blindfoldMode) {
         if (i === playerLocX && j === playerLocY) {
-          ringStyle(r.type); setAlpha(e);
+          ringStyle(roomType(i, j)); setAlpha(e);
           ellipse(pvx * 65 - 30, pvy * 65 - 30, 50, 50);
           setAlpha(1);
         }
       } else {
-        ringStyle(r.type); setAlpha(e);
+        ringStyle(roomType(i, j)); setAlpha(e);
         const d = 50 * (0.7 + 0.3 * e);
         ellipse(i * 65 - 30, j * 65 - 30, d, d);
         setAlpha(1);
       }
     }
+  }
+
+  // Predator: you can also see the rooms above, below, left and right of you
+  if (mode === "predator") {
+    const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+    for (const d of dirs) {
+      const nx = playerLocX + d[0], ny = playerLocY + d[1];
+      if (nx < 1 || nx > N || ny < 1 || ny > N) continue;
+      ringStyle(roomType(nx, ny));
+      setAlpha(0.6 * easeOut3(rooms[playerLocX][playerLocY].reveal));
+      ellipse((pvx + d[0]) * 65 - 30, (pvy + d[1]) * 65 - 30, 44, 44);
+      setAlpha(1);
+    }
+  }
+
+  // Mega Mode: wumpi you've already shot stay on the map, upside down
+  for (let k = 0; k < wumpX.length; k++) {
+    if (wumpAlive[k]) continue;
+    pushMatrix();
+    translate(wumpX[k] * 65 - 30, wumpY[k] * 65 - 30);
+    rotate(180);
+    wumpus(-3, -22, 28, 0, "dead");
+    popMatrix();
   }
 
   player(pvx * 65 - 30, pvy * 65 - 43, 30);
@@ -1011,7 +1189,7 @@ function sceneGame() {
       }
       setAlpha(1);
     }
-    if (batLocX[b] === pitfallLocX && batLocY[b] === pitfallLocY) {
+    if (isPit(batLocX[b], batLocY[b])) {
       batLocX = [rr(), rr()];
       batLocY = [rr(), rr()];
     }
@@ -1019,6 +1197,9 @@ function sceneGame() {
       batAnim = true;
     }
   }
+  popMatrix();
+
+  drawMegaHUD();
 
   if (batAnim) {
     batFrames += F;
@@ -1055,9 +1236,22 @@ function sceneGame() {
     }
     pushMatrix(); translate(ax, ay); rotate(ang); arrow(0, 0, 100); popMatrix();
 
-    if (arrowX === wumpusLocX && arrowY === wumpusLocY) wumpusShot = true;
-    if (!wumpusShot && arrowProg >= 1) inWumpus = true;
-    if (wumpusShot && arrowProg >= 1) { wumpusDead = true; scene = "gameWin"; }
+    if (arrowProg >= 1 && !arrowResolved) {
+      arrowResolved = true;
+      if (hitIndex < 0) {
+        inWumpus = true;                       // missed: one miss and you die (every mode)
+      } else {
+        wumpusShot = true;
+        wumpAlive[hitIndex] = false;
+        killed++; lastKilled = hitIndex; hitIndex = -1;
+        if (killed >= wumpX.length) {
+          handleWin();
+        } else {                               // Mega Mode: one down, keep hunting
+          arrowShot = false; aimIs = false; canShoot = true; bowPop = 0;
+          killBanner = 2.2; hudPop = 1;
+        }
+      }
+    }
   }
 
   if (inWumpus) {
@@ -1095,12 +1289,14 @@ function sceneGame() {
     if (playerAnimY >= 600) scene = "gameOver";
   }
 
-  if (keys[KEY_Q] && !batAnim) aimIs = true;
+  if ((keys[KEY_Q] || qPressed) && !batAnim) aimIs = true;
+  qPressed = false;
 
   bowPop = approach(bowPop, (aimIs && !arrowShot && canShoot) ? 1 : 0, 18);
   if (aimIs && !arrowShot) {
     if (canShoot && bowPop > 0.01) {
       pushMatrix();
+      gridTransform();
       translate(pvx * 65 - 20, pvy * 65 - 30);
       scale(0.4 + 0.6 * bowPop);
       setAlpha(bowPop);
@@ -1108,13 +1304,17 @@ function sceneGame() {
       setAlpha(1);
       popMatrix();
     }
-    const fire = function (dir, ax, ay) { arrowDir = dir; arrowX = ax; arrowY = ay; arrowProg = 0; arrowShot = true; };
-    if (keys[UP]) fire("up", playerLocX, playerLocY - 1);
-    else if (keys[DOWN]) fire("down", playerLocX, playerLocY + 1);
-    else if (keys[LEFT]) fire("left", playerLocX - 1, playerLocY);
-    else if (keys[RIGHT]) fire("right", playerLocX + 1, playerLocY);
+    const fire = function (dir, tx, ty) {
+      arrowDir = dir; arrowX = tx; arrowY = ty; arrowProg = 0; arrowShot = true;
+      arrowResolved = false; hitIndex = wumpusAt(tx, ty);
+    };
+    if (keys[UP] || dirPressed === UP) fire("up", playerLocX, playerLocY - 1);
+    else if (keys[DOWN] || dirPressed === DOWN) fire("down", playerLocX, playerLocY + 1);
+    else if (keys[LEFT] || dirPressed === LEFT) fire("left", playerLocX - 1, playerLocY);
+    else if (keys[RIGHT] || dirPressed === RIGHT) fire("right", playerLocX + 1, playerLocY);
   }
 
+  dirPressed = 0;
   haveStepped = false;
 }
 
@@ -1135,6 +1335,7 @@ function sceneGameOver() {
   fill(5, 168, 119, gameOverTextTransparency - 255);
   if (deathCause === "wumpus") {
     if (arrowShot === true) { textSize(20); text("- Hunted BY the Wumpus -\n(You missed)", 200, 220); }
+    else if (caughtByPredator) text("- Caught by the Wumpus -", 200, 220);
     else text("- Eaten by Wumpus -", 200, 220);
   } else if (deathCause === "pit") {
     text("- Fell into Pit -", 200, 220);
@@ -1207,7 +1408,13 @@ function sceneGameWin() {
 
     fill(255, 0, 0);
     textSize(25);
-    if (blindfoldMode === true) text("Completed in BLINDFOLD Mode!", 200, 30);
+    const modeLabel = { blind: "BLINDFOLD", mega: "MEGA", predator: "PREDATOR" }[mode];
+    if (modeLabel) text("Completed in " + modeLabel + " Mode!", 200, 30);
+    if (unlockMsg) {
+      textSize(15);
+      fill(200, 110, 0, winTxtFade - 150);
+      text(unlockMsg, 200, 58);
+    }
 
     textSize(25);
     fill(50, 50, 50, winTxtFade - 700);
@@ -1226,8 +1433,7 @@ function sceneGameWin() {
         click = null;
         transitionIs = true;
         tScene = "title";
-        winStreak++;
-        if (blindfoldMode) winStreak++;
+        winStreak += MODE_POINTS[mode] || 1;
       }
     }
   }
@@ -1265,7 +1471,7 @@ function sceneInstruction() {
   fill(0);
   text(touchMode ? "Swipe to scroll" : "Scroll, drag, or use the arrow keys", 200, 185 + scrollY);
 
-  selectButton(200, 290 + scrollY, "BACK", 170, 55, "BACK_TOP");
+  selectButton(200, 290 + scrollY, "BACK", 170, 55, "BACK_TOP", function () { tScene = "title"; });
 
   // background grid
   for (let i = 1; i <= 6; i++) {
@@ -1273,9 +1479,10 @@ function sceneInstruction() {
       const x = i * 65 - 30, y = j * 65 - 30;
       strokeWeight(5);
       stroke(0, 100, 255, 30);
-      if (rooms[i][j].type === "red") { stroke(255, 50, 0, 30); noFill(); }
-      else if (rooms[i][j].type === "green") { fill(0, 255, 0, 30); }
-      else if (rooms[i][j].type === "combo") { fill(0, 255, 0, 30); stroke(255, 50, 0, 30); }
+      const rt = roomType(i, j);
+      if (rt === "red") { stroke(255, 50, 0, 30); noFill(); }
+      else if (rt === "green") { fill(0, 255, 0, 30); }
+      else if (rt === "combo") { fill(0, 255, 0, 30); stroke(255, 50, 0, 30); }
       else { noFill(); }
       ellipse(x, y, 50, 50);
     }
@@ -1284,7 +1491,7 @@ function sceneInstruction() {
   rectMode(LEFT);
   fill(255);
   noStroke();
-  rect(VL - 20, 400 + scrollY, VW + 40, Math.max(1100, VB - (400 + scrollY) + 20));
+  rect(VL - 20, 400 + scrollY, VW + 40, Math.max(howtoBackY, VB - (400 + scrollY) + 20));
 
   textSize(17);
   fill(0);
@@ -1348,7 +1555,32 @@ function sceneInstruction() {
 
   player(280, scrollY + 1400, 70);
 
-  selectButton(200, 1580 + scrollY, "BACK", 170, 55, "BACK_BOTTOM");
+  // Modes
+  textAlign(CENTER);
+  textSize(30);
+  fill(0, 100, 0);
+  text("MODES", 200, scrollY + 1530);
+  const modeInfo = [
+    ["NORMAL", "The classic hunt. Worth 1 streak point."],
+    ["BLINDFOLDED", "You can only see the room you're standing in. Unlocks after you win Normal. Worth 2 points."],
+    ["MEGA MODE", "A 9x9 map with two Wumpi and three Pitfalls. Hunt them both, but one miss and you're dead. Worth 3 points."],
+    ["PREDATOR", "Blindfolded, and the Wumpus moves one space every time you do. You can see the four rooms around you, and red means he's two (or fewer) spaces away. Worth 2 points."]
+  ];
+  let my = 1565;
+  for (const mi of modeInfo) {
+    textSize(17); fill(200, 0, 0);
+    text(mi[0], 200, scrollY + my);
+    textSize(15); fill(0);
+    const n = text(mi[1], 40, scrollY + my + 8, 320, 1000);
+    my += 8 + n * 18 + 30;
+  }
+  textSize(14); fill(110);
+  const n2 = text("Mega Mode and Predator unlock after you win Blindfolded.", 40, scrollY + my - 10, 320, 1000);
+  my += n2 * 17;
+  howtoBackY = my + 60;
+  SCROLL_MIN = -(howtoBackY - 325);
+
+  selectButton(200, howtoBackY + scrollY, "BACK", 170, 55, "BACK_BOTTOM", function () { tScene = "title"; });
 
   if (scrollY <= -160 && moveX[0] < 200) moveX[0] = Math.min(200, moveX[0] + 10 * F);
 }
@@ -1875,6 +2107,7 @@ function frame(now) {
   if (!(dt > 0)) dt = 0;
   if (dt > 0.1) dt = 0.1;     // tab switches / hiccups don't jump the game forward
   F = dt * 60;
+  time += dt;
 
   layout();
   click = pendingClick; pendingClick = null;
