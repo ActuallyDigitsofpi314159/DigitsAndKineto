@@ -67,8 +67,10 @@ var touchLookSensitivity = 0.005;
 
 function joyRadius()  { return constrain(min(width, height) * 0.16, 50, 80); }
 function jumpRadius() { return constrain(min(width, height) * 0.11, 38, 56); }
-function joyCenter()  { var r = joyRadius();  return { x: r + 28,         y: height - r - 28 }; }
-function jumpCenter() { var r = jumpRadius(); return { x: width - r - 32, y: height - r - 44 }; }
+// in portrait, lift the controls so mobile browser bars don't cover them
+function bottomPad()  { return height > width ? Math.max(70, height * 0.1) : 0; }
+function joyCenter()  { var r = joyRadius();  return { x: r + 28,         y: height - r - 28 - bottomPad() }; }
+function jumpCenter() { var r = jumpRadius(); return { x: width - r - 32, y: height - r - 44 - bottomPad() }; }
 
 function updateJoy(x, y) {
   var c = joyCenter(), r = joyRadius();
@@ -222,7 +224,7 @@ var friction        = 0.9;
 var maxSpeed        = 3 - 0.25; // 3 minus acceleration to make it exact
  
 // CAMERA VARS
-var camDist    = 150;   // player -> camera distance
+var camDist    = 175;   // player -> camera distance
 var camAngleY  = 0;     // stored in radians now
 var camAngleX  = 0.2;   // stored in radians now
 var camYOffset = -0.2;
@@ -878,7 +880,10 @@ function draw() {
   var cZ  = playerZ + camDist * cos(camAngleY) * cos(camAngleX);
   var cY  = ctY     + camDist * sin(camAngleX);
   // same vertical field of view as the old 600x600 view, so a wider window shows more to the sides
-  g.perspective(2 * Math.atan(300 / 800), width / height, 80, 8000);
+  // on tall (portrait) screens the sides get cramped, so widen the vertical fov a bit
+  var fovHalf = 300 / 800;
+  if (width < height) fovHalf *= 1 + Math.min(0.5, (height / width - 1) * 0.45);
+  g.perspective(2 * Math.atan(fovHalf), width / height, 80, 8000);
   g.camera(cX, cY, cZ, playerX, playerY, playerZ, 0, 1, 0);
  
   // --- draw the world ---

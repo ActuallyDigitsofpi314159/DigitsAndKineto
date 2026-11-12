@@ -102,14 +102,14 @@ About [
         background-position:center;
     }
     h1 { 
-      font-size:17vw; 
+      font-size:min(17vw, 14vh); 
       margin:0.2em; 
       color:#fff;
       text-shadow:0 6px 18px rgba(0,0,0,0.9), 0 0 25px rgba(0,255,140,0.08);
       pointer-events:none;
     }
     #play-button {
-        font-size:4vw;
+        font-size:min(4vw, 3.4vh);
         padding:1em 2em;
         margin-top:1em; 
         cursor:pointer;
@@ -125,7 +125,7 @@ About [
         transform:scale(1.06); 
     }
     @media (pointer: coarse) {
-        #play-button { font-size:max(4vw, 22px); }
+        #play-button { font-size:max(min(4vw, 3.4vh), 22px); }
         p.note { font-size:max(2vw, 14px); }
     }
     p.note {
@@ -247,7 +247,9 @@ const clock = new THREE.Clock();
 let spawnAccumulator = 0;
 let angle = 0;
 
+let titleRunning = true;
 function animateTitle() {
+    if(!titleRunning) return;
     const delta = clock.getDelta();
     requestAnimationFrame(animateTitle);
 
@@ -294,7 +296,9 @@ setTimeout(() => {
 // ----- Play button -----
 const button = document.getElementById('play-button');
 button.addEventListener('click', () => {
-    const w = window.open();
+    // Run the game in this same page (no about:blank tab): stop the title scene, then rewrite the document.
+    titleRunning = false;
+    const w = window;
     w.document.open();
     w.document.write(`
 <!DOCTYPE html>
@@ -447,6 +451,11 @@ button.addEventListener('click', () => {
             color: #fff; font: bold 16px sans-serif; display: flex; align-items: center; justify-content: center;
             pointer-events: auto; touch-action: none;
         }
+        @media (orientation: portrait) {
+            /* lift controls clear of mobile browser bars */
+            #joy-base { bottom: calc(80px + env(safe-area-inset-bottom)); }
+            #jump-btn { bottom: calc(96px + env(safe-area-inset-bottom)); }
+        }
         #joy-base.active { background: rgba(255,255,255,0.26); }
         #jump-btn.down { background: rgba(34,187,51,0.9); }
         .touch-small {
@@ -484,6 +493,9 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.shadowMap.autoUpdate = true;
 document.body.appendChild(renderer.domElement);
 var camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
+// zoom out a bit on tall (portrait) screens so more of the level fits
+function fitFov(){ var a = window.innerWidth/window.innerHeight; camera.fov = a < 1 ? Math.min(100, 70 + (1 - a) * 45) : 70; }
+fitFov();
 
 // Graphics mode: 'fancy' (default) or 'fast'
 var graphicsMode = 'fancy';
@@ -2089,6 +2101,7 @@ loadLevel(currentLevel);
 // Resize 
 window.addEventListener('resize', function(){
     camera.aspect = window.innerWidth / window.innerHeight;
+    fitFov();
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
@@ -2106,7 +2119,7 @@ window.addEventListener('resize', function(){
 <div id="overlay">
     <h1>Generic Platformer</h1>
     <button id="play-button">Play</button>
-    <p class="note">⚠ Opens in a new window! ⚠ </p>
+    
 </div>
 <canvas id="title-canvas"></canvas>
 </body>

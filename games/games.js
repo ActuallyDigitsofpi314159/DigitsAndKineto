@@ -19,7 +19,7 @@ window.DK_GAMES = {
         'dash-parkour',
         'path-of-light',
         'generic',
-        { placeholder: true, title: 'Hunt the Wumpus' },
+        'wumpus',
         { placeholder: true, title: 'Donkey Khan' }
     ]
 };
