@@ -18,8 +18,8 @@ window.DK_GAMES = {
     order: [
         'dash-parkour',
         'path-of-light',
+        'maze-man-2',
+        'wumpus-hunt',
         'generic',
-        'wumpus',
-        'mm2',
     ]
 };
