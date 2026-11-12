@@ -10,5 +10,5 @@ DKGames.register({
     cover: 'cover.png',           // square cover art (homepage buttons)
     banner: 'banner.jpg',         // wide image across the top of the game page
     logo: 'logo.png',             // optional: shown top-right of the banner
-    play: '../../mm2/'    // the playable game
+    play: '../../maze-man-2/'    // the playable game
 });
