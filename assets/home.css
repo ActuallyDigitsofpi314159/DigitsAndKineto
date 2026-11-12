@@ -25,32 +25,6 @@
 }
 .hero:hover img { transform: scale(1.015); }
 
-/* Studio name, drawn as live text above the "AN INDIE DEV STUDIO" pill that is
-   baked into the banner image. Sizes use cqw (1% of the banner's width) so the
-   text scales with the image. */
-.hero-wordmark {
-    position: absolute;
-    left: 65.8%;
-    width: 29.2%;
-    top: 31%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-family: var(--font-display);
-    font-size: 8.6cqw;
-    line-height: 0.92;
-    letter-spacing: 0.02em;
-    pointer-events: none;
-    text-shadow: 0 0.06em 0.18em rgba(0, 0, 0, 0.6);
-}
-.hero-wordmark .digits { color: var(--dk-red); }
-.hero-wordmark .kineto { color: var(--dk-blue); }
-.hero-wordmark .amp {
-    color: #fff;
-    font-size: 0.55em;
-    margin-left: 0.12em;
-    vertical-align: 0.5em;
-}
 @keyframes hero-in { from { opacity: 0; transform: translateY(18px) scale(0.985); } }
 
 @media (max-width: 560px) {
