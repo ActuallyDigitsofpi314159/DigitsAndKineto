@@ -20,6 +20,6 @@ window.DK_GAMES = {
         'path-of-light',
         'generic',
         'wumpus',
-        { placeholder: true, title: 'Donkey Khan' }
+        'mm2',
     ]
 };
