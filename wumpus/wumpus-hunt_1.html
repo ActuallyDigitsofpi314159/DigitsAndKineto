@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Wumpus Hunt</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; overscroll-behavior: none; }
+  canvas {
+    position: fixed; left: 0; top: 0; width: 100%; height: 100%; display: block;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; outline: none;
+  }
+  #safe {
+    position: fixed; visibility: hidden; pointer-events: none;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+</style>
+</head>
+<body>
+<canvas id="game" tabindex="0" aria-label="Wumpus Hunt game"></canvas>
+<div id="safe"></div>
+<script>
+/*
+                 _____   _____      ____
+|  | |   | |\  |   |       |   |  | |
+|__| |   | | \ |   |       |   |__| |__
+|  | |   | |  \|   |       |   |  | |
+|  |  \_/  |   |   |       |   |  | |___
+ _             _ _   _    _      _    ____  _   _  ____
+| \    __    /  | | | |  / \    / \  /    \| | | |/    \
+\  \  /  \  /  /| | | | /   \  /   \ |  __/| | | |   \_/
+ \  \/ /\ \/  / | | | |/  /\ \/ /\  \| |   | | | | _  \
+  \   /  \   /  \ \_/ /| |  \  /  | || |   \ \_/ // \  |
+   \_/    \_/    \___/ |_|   \/   |_||_|    \___/ \___/
+
+   W E B   E D I T I O N   (ported from the Khan Academy edition)
+
+    ABOUT [
+    Hunt the Wumpus is a really old game made all the way back in 1973. I've played it
+    before and decided to remake it here. It's not an exact recreation to it, but the
+    basic idea is there.
+    Here is an example of some gameplay:
+    https://www.youtube.com/watch?v=xGVOw8gXl6Y
+    -Kineto
+    ]
+
+    CONTROLS [
+    Arrow keys to move (up, down, left, right), and q to shoot your bow.
+    On touch screens: on-screen arrow buttons + bow button.
+    ]
+
+    AI DISCLAIMER [
+    I did use AI for like 10% of the code and to clean it up and stuff
+    The other 90% is my original code though
+    oh yeah and the death screen is inspired by doors
+    ]
+
+    WEB PORT NOTES [
+    - Runs on a plain <canvas> with a tiny Processing-style helper layer, so the
+      original drawing code is kept almost word for word (degrees, rectMode, etc).
+    - All animation is delta-time based ("F" = how many 60fps frames have passed).
+    - The 400x400 play area scales by height; extra width just shows more background.
+    ]
+*/
+(function () {
+"use strict";
+
+// ============================================================
+//  Processing-style helper layer (Khan Academy flavoured)
+// ============================================================
+const cv = document.getElementById("game");
+const mainCtx = cv.getContext("2d");
+let ctx = mainCtx;                       // the helpers below draw to whatever ctx points at
+const layer = document.createElement("canvas");
+const layerCtx = layer.getContext("2d");
+// Draw something fully opaque on a separate layer, then put it on screen at alpha a (0-255).
+// Stops overlapping parts of a shape from looking patchy while it fades.
+function drawFaded(a, fn) {
+  a = _c(a) / 255;
+  if (a <= 0) return;
+  if (layer.width !== cv.width || layer.height !== cv.height) { layer.width = cv.width; layer.height = cv.height; }
+  layerCtx.setTransform(1, 0, 0, 1, 0, 0);
+  layerCtx.clearRect(0, 0, layer.width, layer.height);
+  layerCtx.setTransform(mainCtx.getTransform());
+  layerCtx.lineCap = "round"; layerCtx.lineJoin = "miter";
+  ctx = layerCtx;
+  try { fn(); } finally { ctx = mainCtx; }
+  mainCtx.save();
+  mainCtx.setTransform(1, 0, 0, 1, 0, 0);
+  mainCtx.globalAlpha = a;
+  mainCtx.drawImage(layer, 0, 0);
+  mainCtx.restore();
+}
+const D2R = Math.PI / 180;
+const CORNER = 0, BASELINE = 0, CENTER = 3, LEFT = 37, UP = 38, RIGHT = 39, DOWN = 40, TOP = 101, BOTTOM = 102;
+const KEY_Q = 81;
+
+let _fill = "rgba(255,255,255,1)", _stroke = "rgba(0,0,0,1)", _sw = 1;
+let _rectMode = CORNER, _tSize = 12, _tAlignX = LEFT, _tAlignY = BASELINE;
+let _shape = null;
+
+function _c(v) { v = +v; if (v !== v) return 0; return v < 0 ? 0 : v > 255 ? 255 : v; }
+function _col(a) {
+  if (a.length === 1 && typeof a[0] === "string") return a[0];
+  let r, g, b, al = 255;
+  if (a.length === 1) { r = g = b = a[0]; }
+  else if (a.length === 2) { r = g = b = a[0]; al = a[1]; }
+  else { r = a[0]; g = a[1]; b = a[2]; if (a.length > 3) al = a[3]; }
+  return "rgba(" + Math.round(_c(r)) + "," + Math.round(_c(g)) + "," + Math.round(_c(b)) + "," + (_c(al) / 255) + ")";
+}
+function color() { return _col(arguments); }
+function fill() { _fill = _col(arguments); }
+function noFill() { _fill = null; }
+function stroke() { _stroke = _col(arguments); }
+function noStroke() { _stroke = null; }
+function strokeWeight(w) { _sw = w; }
+function rectMode(m) { _rectMode = (m === CENTER) ? CENTER : CORNER; } // LEFT/RIGHT act like CORNER (same as KA)
+function textSize(s) { _tSize = s; }
+function textAlign(x, y) { _tAlignX = x; _tAlignY = (y === undefined) ? BASELINE : y; }
+function setAlpha(a) { ctx.globalAlpha = a < 0 ? 0 : a > 1 ? 1 : a; }
+
+function _doFill() { if (_fill) { ctx.fillStyle = _fill; ctx.fill(); } }
+function _doStroke() { if (_stroke && _sw > 0) { ctx.strokeStyle = _stroke; ctx.lineWidth = _sw; ctx.stroke(); } }
+
+function rect(x, y, w, h, r) {
+  if (_rectMode === CENTER) { x -= w / 2; y -= h / 2; }
+  ctx.beginPath();
+  if (r && w > 0 && h > 0) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  } else {
+    ctx.rect(x, y, w, h);
+  }
+  _doFill(); _doStroke();
+}
+function ellipse(x, y, w, h) {
+  ctx.beginPath();
+  ctx.ellipse(x, y, Math.abs(w) / 2, Math.abs(h) / 2, 0, 0, Math.PI * 2);
+  _doFill(); _doStroke();
+}
+function arc(x, y, w, h, a, b) {
+  const rx = Math.abs(w) / 2, ry = Math.abs(h) / 2, A = a * D2R, B = b * D2R;
+  if (_fill) {
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.ellipse(x, y, rx, ry, 0, A, B); ctx.closePath();
+    ctx.fillStyle = _fill; ctx.fill();
+  }
+  if (_stroke && _sw > 0) {
+    ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, A, B);
+    ctx.strokeStyle = _stroke; ctx.lineWidth = _sw; ctx.stroke();
+  }
+}
+function line(x1, y1, x2, y2) {
+  if (!_stroke || _sw <= 0) return;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+  ctx.strokeStyle = _stroke; ctx.lineWidth = _sw; ctx.stroke();
+}
+function triangle(x1, y1, x2, y2, x3, y3) {
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineTo(x3, y3); ctx.closePath();
+  _doFill(); _doStroke();
+}
+function beginShape() { _shape = []; }
+function vertex(x, y) { _shape.push(x, y); }
+function endShape() {
+  if (!_shape || _shape.length < 4) { _shape = null; return; }
+  ctx.beginPath(); ctx.moveTo(_shape[0], _shape[1]);
+  for (let i = 2; i < _shape.length; i += 2) ctx.lineTo(_shape[i], _shape[i + 1]);
+  if (_fill) { ctx.fillStyle = _fill; ctx.fill(); }
+  _doStroke();
+  _shape = null;
+}
+function background() {
+  const c = _col(arguments);
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
+  ctx.fillStyle = c; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.restore();
+}
+function text(str, x, y, w, h) {
+  if (!_fill) return;
+  str = String(str);
+  ctx.font = _tSize + "px Arial, Helvetica, sans-serif";
+  ctx.fillStyle = _fill;
+  const lead = _tSize * 1.2;
+  let lines = str.split("\n");
+  const ha = _tAlignX === CENTER ? "center" : _tAlignX === RIGHT ? "right" : "left";
+  ctx.textAlign = ha;
+  if (w !== undefined) {           // text in a box: word wrap, top aligned
+    const out = [];
+    for (const ln of lines) {
+      const words = ln.split(" ");
+      let cur = "";
+      for (const wd of words) {
+        const test = cur ? cur + " " + wd : wd;
+        if (cur && ctx.measureText(test).width > w) { out.push(cur); cur = wd; } else cur = test;
+      }
+      out.push(cur);
+    }
+    ctx.textBaseline = "top";
+    const ax = ha === "center" ? x + w / 2 : ha === "right" ? x + w : x;
+    for (let i = 0; i < out.length; i++) ctx.fillText(out[i], ax, y + i * lead);
+    return;
+  }
+  let y0 = y;
+  if (_tAlignY === CENTER) { ctx.textBaseline = "middle"; y0 = y - (lines.length - 1) * lead / 2; }
+  else if (_tAlignY === TOP) { ctx.textBaseline = "top"; }
+  else if (_tAlignY === BOTTOM) { ctx.textBaseline = "bottom"; y0 = y - (lines.length - 1) * lead; }
+  else { ctx.textBaseline = "alphabetic"; }
+  for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], x, y0 + i * lead);
+}
+function pushMatrix() { ctx.save(); }
+function popMatrix() { ctx.restore(); }
+function translate(x, y) { ctx.translate(x, y); }
+function rotate(a) { ctx.rotate(a * D2R); }
+function scale(a, b) { ctx.scale(a, b === undefined ? a : b); }
+function random(a, b) { if (b === undefined) { b = a; a = 0; } return a + Math.random() * (b - a); }
+const round = Math.round, floor = Math.floor, abs = Math.abs;
+
+// ============================================================
+//  Timing helpers (delta time)
+// ============================================================
+let dt = 0;   // seconds since last frame
+let F = 0;    // "frames" since last frame at 60fps (dt * 60). Multiply old per-frame steps by F.
+function lerp(a, b, t) { return a + (b - a) * t; }
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function approach(cur, target, rate) { return cur + (target - cur) * (1 - Math.exp(-rate * dt)); }
+function easeOut3(t) { t = clamp(t, 0, 1); return 1 - Math.pow(1 - t, 3); }
+
+// ============================================================
+//  Screen layout (widescreen + touch controls)
+// ============================================================
+let W = 0, H = 0, DPR = 1, S = 1, OX = 0, OY = 0;
+let VL = 0, VR = 400, VT = 0, VB = 400, VW = 400, VH = 400; // visible area in game units
+let layoutKey = "";
+let touchMode = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+const safeProbe = document.getElementById("safe");
+const safe = { l: 0, r: 0, t: 0, b: 0 };
+
+const tBtns = [
+  { id: "up", key: UP, dx: 0, dy: -1 },
+  { id: "down", key: DOWN, dx: 0, dy: 1 },
+  { id: "left", key: LEFT, dx: -1, dy: 0 },
+  { id: "right", key: RIGHT, dx: 1, dy: 0 },
+  { id: "bow", key: KEY_Q, dx: 0, dy: 0 }
+];
+tBtns.forEach(function (b) { b.x = 0; b.y = 0; b.r = 0; b.held = false; b.press = 0; });
+
+function layout() {
+  const w = window.innerWidth, h = window.innerHeight;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  const key = w + "x" + h + "x" + dpr + "x" + touchMode;
+  if (key === layoutKey) return;
+  layoutKey = key;
+  W = w; H = h; DPR = dpr;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+
+  const cs = getComputedStyle(safeProbe);
+  safe.l = parseFloat(cs.paddingLeft) || 0; safe.r = parseFloat(cs.paddingRight) || 0;
+  safe.t = parseFloat(cs.paddingTop) || 0; safe.b = parseFloat(cs.paddingBottom) || 0;
+
+  const b = Math.max(46, Math.min(80, Math.min(W, H) * 0.13)); // touch button spacing
+  const m = Math.max(14, b * 0.3);
+  const need = 3 * b + 2 * m;
+
+  if (W >= H) {
+    // Landscape: scale by height, extra width = more background left/right
+    S = H / 400;
+    if (touchMode) S = Math.min(S, Math.max(W - 2 * (need + Math.max(safe.l, safe.r)), W * 0.5) / 400);
+    OX = (W - 400 * S) / 2; OY = (H - 400 * S) / 2;
+  } else {
+    // Portrait: scale by width, extra height = more background
+    S = W / 400;
+    if (touchMode) {
+      const avail = H - need - safe.b;
+      S = Math.min(S, Math.max(avail, H * 0.5) / 400);
+      OX = (W - 400 * S) / 2; OY = Math.max(safe.t, (avail - 400 * S) / 2);
+    } else { OX = (W - 400 * S) / 2; OY = (H - 400 * S) / 2; }
+  }
+  VL = -OX / S; VT = -OY / S; VR = (W - OX) / S; VB = (H - OY) / S; VW = VR - VL; VH = VB - VT;
+
+  const pcx = m + safe.l + 1.5 * b, pcy = H - m - safe.b - 1.5 * b;
+  tBtns.forEach(function (t) {
+    if (t.id === "bow") { t.r = b * 0.8; t.x = W - m - safe.r - b * 0.95; t.y = pcy; }
+    else { t.r = b * 0.47; t.x = pcx + t.dx * b; t.y = pcy + t.dy * b; }
+  });
+}
+
+// ============================================================
+//  Input
+// ============================================================
+const keys = [];
+let mouseX = -9999, mouseY = -9999, mouseIsPressed = false;
+let click = null, pendingClick = null;
+let dragActive = false;
+const pointers = new Map();
+
+function toGame(sx, sy) { return { x: (sx - OX) / S, y: (sy - OY) / S }; }
+function canvasXY(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+
+function touchUIActive() { return touchMode && touchAlpha > 0.3 && scene === "game"; }
+function touchButtonAt(sx, sy) {
+  if (!touchUIActive()) return null;
+  for (const b of tBtns) { if (Math.hypot(sx - b.x, sy - b.y) <= b.r * 1.15) return b; }
+  return null;
+}
+function pressTouchButton(b) { b.held = true; keys[b.key] = true; onKeyPressed(b.key); }
+function releaseTouchButton(b) { b.held = false; keys[b.key] = false; }
+
+cv.addEventListener("pointerdown", function (e) {
+  try { cv.focus({ preventScroll: true }); } catch (_) {}
+  if (e.pointerType === "touch" || e.pointerType === "pen") {
+    if (!touchMode) { touchMode = true; layout(); }
+  }
+  const p = canvasXY(e);
+  const b = touchButtonAt(p.x, p.y);
+  if (b) { pointers.set(e.pointerId, { kind: "btn", btn: b }); pressTouchButton(b); e.preventDefault(); return; }
+  const g = toGame(p.x, p.y);
+  mouseX = g.x; mouseY = g.y; mouseIsPressed = true;
+  pointers.set(e.pointerId, { kind: "ui", type: e.pointerType, sx: p.x, sy: p.y, ly: p.y, lt: performance.now(), v: 0, dragging: false, scroll0: scrollTarget });
+  try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+  e.preventDefault();
+});
+cv.addEventListener("pointermove", function (e) {
+  const p = canvasXY(e);
+  const st = pointers.get(e.pointerId);
+  if (!st) {
+    if (e.pointerType === "mouse") { const g = toGame(p.x, p.y); mouseX = g.x; mouseY = g.y; }
+    return;
+  }
+  if (st.kind !== "ui") return;
+  const g = toGame(p.x, p.y); mouseX = g.x; mouseY = g.y;
+  if (!st.dragging && Math.hypot(p.x - st.sx, p.y - st.sy) > 8) { st.dragging = true; st.scroll0 = scrollTarget - (p.y - st.sy) / S; }
+  if (st.dragging && scene === "instruction") {
+    dragActive = true;
+    scrollTarget = clamp(st.scroll0 + (p.y - st.sy) / S, SCROLL_MIN, SCROLL_MAX);
+    const now = performance.now(), dtm = Math.max(1, now - st.lt);
+    st.v = st.v * 0.5 + (((p.y - st.ly) / S) / dtm * 1000) * 0.5;
+    st.ly = p.y; st.lt = now;
+    scrollVel = 0;
+  }
+});
+function endPointer(e, cancelled) {
+  const st = pointers.get(e.pointerId);
+  if (!st) return;
+  pointers.delete(e.pointerId);
+  if (st.kind === "btn") { releaseTouchButton(st.btn); return; }
+  const p = canvasXY(e), g = toGame(p.x, p.y);
+  if (!cancelled && !st.dragging) pendingClick = { x: g.x, y: g.y };
+  if (st.dragging && scene === "instruction" && performance.now() - st.lt < 90) scrollVel = clamp(st.v, -4000, 4000);
+  let anyUI = false; pointers.forEach(function (q) { if (q.kind === "ui") anyUI = true; });
+  mouseIsPressed = anyUI;
+  dragActive = false; pointers.forEach(function (q) { if (q.kind === "ui" && q.dragging) dragActive = true; });
+  if (st.type !== "mouse") { mouseX = -9999; mouseY = -9999; } else { mouseX = g.x; mouseY = g.y; }
+}
+cv.addEventListener("pointerup", function (e) { endPointer(e, false); });
+cv.addEventListener("pointercancel", function (e) { endPointer(e, true); });
+cv.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse" && !pointers.has(e.pointerId)) { mouseX = -9999; mouseY = -9999; } });
+cv.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+cv.addEventListener("wheel", function (e) {
+  e.preventDefault();
+  if (scene !== "instruction") return;
+  let d = e.deltaY;
+  if (e.deltaMode === 1) d *= 16; else if (e.deltaMode === 2) d *= H;
+  scrollTarget = clamp(scrollTarget - d / S, SCROLL_MIN, SCROLL_MAX);
+  scrollVel = 0;
+}, { passive: false });
+
+window.addEventListener("keydown", function (e) {
+  const k = e.keyCode;
+  if (k === 32 || (k >= 37 && k <= 40)) e.preventDefault();
+  keys[k] = true;
+  onKeyPressed(k);
+});
+window.addEventListener("keyup", function (e) { keys[e.keyCode] = false; });
+window.addEventListener("blur", function () { keys.length = 0; tBtns.forEach(function (b) { b.held = false; }); });
+
+// ============================================================
+//  Game state (same names as the KA version where possible)
+// ============================================================
+let titleOp = 0;
+let tOpChange = 5;
+let genRandom = round(random(0.5, 4.4));
+let hasGenerated = true;
+let generatedNum;
+
+let scene = "title";
+let inPit = false;
+let inWumpus = false;
+let aimIs = false;
+let arrowShot = false;
+let arrowY, arrowX;
+let canShoot = false;
+let arrowDir = "left";
+let arrowProg = 0;           // 0..1 progress of the arrow cut-scene
+let wumpusShot = false;
+let wumpusDead = false;
+
+// Bats
+let numOfBats = floor(random(1, 3));
+let batLocX = [round(random(1, 6)), round(random(1, 6))];
+let batLocY = [round(random(1, 6)), round(random(1, 6))];
+let batCol = 0;
+let batAnim = false;
+let batFrames = 0;
+
+// Win screen
+let deadWumpY = 10, fallAccel = 0, shakeFrames = 0, winPlayerY = 400, winFade = 0, winTxtFade = 0;
+let winJump = true, playerJumpY = 0, jumpAccel = 7;
+const gravity = 0.2;
+
+// Wumpus / pit
+let wumpusLocX, wumpusLocY;
+let inWumpusFrames = 0, jawY = 0;
+let pitfallLocX, pitfallLocY;
+
+// Player
+let winStreak = 0;
+let playerAnimY = 0, animAccel = 0;
+let playerLocX = round(random(1, 6));
+let playerLocY = round(random(1, 6));
+let pvx = playerLocX, pvy = playerLocY;   // smoothed (drawn) position
+let bowPop = 0;
+
+// Instruction page
+let scrollY = 0, scrollTarget = 0, scrollVel = 0;
+const SCROLL_MIN = -1255, SCROLL_MAX = 0;
+const moveX = [-200];
+
+// Rooms
+let rooms = [];
+let haveStepped = false;
+function resetRooms() {
+  rooms = [];
+  for (let i = 1; i <= 6; i++) {
+    rooms[i] = [];
+    for (let j = 1; j <= 6; j++) rooms[i][j] = { shown: false, type: "basic", stepCount: 0, reveal: 0 };
+  }
+}
+resetRooms();
+
+// Transition
+let transitionIs = false, tProg = 0, tSwapped = false, tScene = "";
+let blindfoldMode = false;
+
+// Game over
+let skullSize = 20000, skullTrans = 0, deathAnimationFrames = 0, shakeIntensity = 25, gameOverTextTransparency = 1;
+let deathCause = "wumpus";
+
+// Intro curtain (the old fadeIntoGame)
+let curtain = 805, curtainV = 1;
+
+// UI
+const btnState = {};
+let wantPointer = false;
+let touchAlpha = 0;
+
+// ============================================================
+//  Art (ported as-is from the KA version)
+// ============================================================
+function logo(x, y, s) {
+  noFill();
+  strokeWeight(s / 7);
+  stroke(0, 100, 0);
+  // W
+  arc(x - s, y, s / 3, s, 270, 360);
+  arc(x - s / 3, y, s / 3, s / 1.2, 0, 180);
+  arc(x - s / 1.5, y, s / 3, s / 1.2, 0, 180);
+  arc(x, y, s / 3, s, 180, 270);
+  // U
+  arc(x + s / 3, y - s / 3.8, s / 2.3, s * 1.4, 0, 180);
+  // M
+  arc(x + s / 1.1, y + s / 2.4, s / 3, s * 1.5, 180, 350);
+  arc(x + s * 1.25, y + s / 2.4, s / 3, s * 1.5, 190, 360);
+  // P
+  line(x + s * 1.6, y + s / 2.5, x + s * 1.6, y - s / 8);
+  arc(x + s * 1.7, y - s / 10, s / 2, s / 2, 240, 450);
+  // Another U
+  arc(x + s * 2.4, y - s / 3.8, s / 2.3, s * 1.4, 0, 180);
+  // S
+  arc(x + s * 3.05, y - s / 6, s / 2, s / 2.5, 90, 340);
+  arc(x + s * 3.05, y + s / 4, s / 2, s / 2.3, 270, 520);
+}
+
+function bat(x, y, s, op) {
+  if (op === undefined) op = 0;
+  rectMode(LEFT);
+  if (scene === "game") fill(batCol, 0, 0); else fill(0, 0, 0);
+  noStroke();
+  // Upper Wings
+  arc(x, y, s * 1.5, s / 2, 180, 270);
+  arc(x, y, s / 2.2, s / 2, 270, 360);
+  arc(x + s / 1.2, y, s * 1.5, s / 2, 270, 360);
+  arc(x + s / 1.2, y, s / 1.9, s / 2, 180, 270);
+  // Filling gaps in wings
+  rect(x - s / 3.1, y - s / 10, s * 1.5, s / 5);
+  rect(x - s / 20, y - s / 50, s / 1.15, s / 6);
+  // Head
+  ellipse(x + s / 2.5, y - s / 5, s / 2, s / 2);
+  // Lower Wings
+  if (scene === "game") stroke(batCol, 0, 0); else stroke(0, 0, 0);
+  strokeWeight(s / 10);
+  noFill();
+  arc(x - s / 1.48, y + s / 7, s / 1.2, s / 3, 270, 350);
+  arc(x - s / 4, y + s / 3.7, s, s / 3, 270, 330);
+  arc(x + s * 1.53, y + s / 7, s / 1.2, s / 3, 200, 270);
+  arc(x + s * 1.1, y + s / 3.7, s, s / 3, 210, 270);
+  // Antennas
+  line(x + s / 2, y, x + s / 4, y - s / 2);
+  line(x + s / 3, y, x + s / 1.9, y - s / 2);
+  // Legs
+  strokeWeight(s / 5);
+  line(x + s / 2.5, y, x + s / 8, y + s / 2.4);
+  line(x + s / 2.5, y, x + s / 1.3, y + s / 2.4);
+
+  fill(255, 255, 255, op);
+  noStroke();
+  rect(x - s / 1.2, y - s / 1.8, s * 2.5, s * 1.2);
+}
+
+function wumpus(x, y, s, op, expression) {
+  if (op === undefined) op = 0;
+  if (expression === undefined) expression = "normal";
+  fill(245, 138, 24);
+  strokeWeight(s / 100);
+  stroke(0, 0, 0, op);
+  // Body shape
+  beginShape();
+  vertex(x - s / 3, y);
+  vertex(x + s / 2, y);
+  vertex(x + s, y + s / 1.8); // Right Leg
+  vertex(x + s, y + s * 1.2);
+  vertex(x + s / 1.2, y + s * 1.35);
+  vertex(x + s, y + s * 1.55);
+  vertex(x + s / 1.2, y + s * 1.55);
+  vertex(x + s / 1.6, y + s * 1.55);
+  vertex(x + s / 2.2, y + s * 1.55);
+  vertex(x + s / 1.3, y + s * 1.2);
+  vertex(x + s / 1.3, y + s / 1.4);
+  vertex(x + s / 2, y + s / 1.7);
+  vertex(x + s / 2, y + s * 1.2); // Main body
+  vertex(x + s / 3, y + s * 1.4);
+  vertex(x - s / 5, y + s * 1.4);
+  vertex(x - s / 3, y + s * 1.2);
+  vertex(x - s / 3, y + s / 1.7); // Left leg
+  vertex(x - s / 1.7, y + s / 1.4);
+  vertex(x - s / 1.7, y + s * 1.2);
+  vertex(x - s / 3.5, y + s * 1.55);
+  vertex(x - s / 2.2, y + s * 1.55);
+  vertex(x - s / 1.5, y + s * 1.55);
+  vertex(x - s / 1.25, y + s * 1.55);
+  vertex(x - s / 1.5, y + s * 1.35);
+  vertex(x - s / 1.25, y + s * 1.2);
+  vertex(x - s / 1.25, y + s / 1.8);
+  vertex(x - s / 3, y);
+  endShape();
+  // Eyes
+  if (expression === "normal") {
+    fill(255, 255, 255);
+    noStroke();
+    ellipse(x - s / 10, y + s / 2.5, s / 5, s / 4);
+    ellipse(x + s / 4, y + s / 2.5, s / 5, s / 4);
+    fill(0, 0, 0);
+    ellipse(x - s / 10, y + s / 2.2, s / 8, s / 8);
+    ellipse(x + s / 4, y + s / 2.2, s / 8, s / 8);
+    stroke(245, 138, 24);
+    strokeWeight(s / 10);
+    line(x - s / 10, y + s / 5, x + s / 50, y + s / 3);
+    line(x + s / 4, y + s / 5, x + s / 9, y + s / 3);
+  } else {
+    stroke(0, 0, 0);
+    strokeWeight(s / 10);
+    line(x - s / 6, y + s / 4, x - s / 50, y + s / 2.2);
+    line(x - s / 6, y + s / 2.2, x - s / 50, y + s / 4);
+    line(x + s / 3, y + s / 4, x + s / 5, y + s / 2.2);
+    line(x + s / 3, y + s / 2.2, x + s / 5, y + s / 4);
+  }
+  // Mouth & Teeth
+  fill(255, 255, 255);
+  noStroke();
+  rectMode(LEFT);
+  rect(x - s / 7.5, y + s / 1.4, s / 2.4, s / 2.2);
+  ellipse(x - s / 10, y + s / 1.07, s / 4, s / 2.2);
+  ellipse(x + s / 3.5, y + s / 1.07, s / 4, s / 2.2);
+  fill(0, 0, 0);
+  triangle(x - s / 7, y + s / 1.42, x - s / 50, y + s / 1.42, x - s / 14, y + s / 1.15); // Top teeth
+  triangle(x + s / 10, y + s / 1.422, x - s / 50, y + s / 1.42, x + s / 20, y + s / 1.2);
+  triangle(x + s / 10, y + s / 1.4, x + s / 5, y + s / 1.42, x + s / 7, y + s / 1.2);
+  triangle(x + s / 3, y + s / 1.42, x + s / 5, y + s / 1.42, x + s / 4, y + s / 1.15);
+  triangle(x + s / 3, y + s * 1.17, x + s / 5, y + s * 1.17, x + s / 4, y + s * 1.03); // Bottom Teeth
+  triangle(x + s / 5, y + s * 1.17, x + s / 10, y + s * 1.17, x + s / 7, y + s * 1.06);
+  triangle(x - s / 50, y + s * 1.17, x + s / 10, y + s * 1.17, x + s / 20, y + s * 1.07);
+  triangle(x - s / 50, y + s * 1.17, x - s / 7, y + s * 1.17, x - s / 14, y + s * 1.03);
+
+  rectMode(LEFT);
+  fill(255, 255, 255, op);
+  rect(x - s, y - s * 0.1, s * 2.1, s * 1.7);
+}
+
+function wumpusFace(x, y, jaw) {
+  fill(255);
+  noStroke();
+  // Small Teeth
+  arc(x - 90, y + 200, 50, 150, 180, 360);
+  arc(x - 45, y + 200, 50, 150, 180, 360);
+  arc(x, y + 200, 50, 150, 180, 360);
+  arc(x + 45, y + 200, 50, 150, 180, 360);
+  arc(x + 90, y + 200, 50, 150, 180, 360);
+  arc(x + 90, y - 150 + jaw, 50, 150, 0, 180);
+  arc(x + 45, y - 150 + jaw, 50, 150, 0, 180);
+  arc(x - 45, y - 150 + jaw, 50, 150, 0, 180);
+  arc(x, y - 150 + jaw, 50, 150, 0, 180);
+  arc(x - 90, y - 150 + jaw, 50, 150, 0, 180);
+  // Big Teeth
+  arc(x - 150, y + 200, 75, 200, 180, 360);
+  arc(x + 150, y + 200, 75, 200, 180, 360);
+  arc(x + 150, y - 200 + jaw, 75, 200, 0, 180);
+  arc(x - 150, y - 200 + jaw, 75, 200, 0, 180);
+
+  rectMode(LEFT);
+  rect(x - 210, y - 200, 40, 400);
+  rect(x + 170, y - 200, 30, 400);
+  rect(x - 200, y - 210, 400, 61 + jaw);
+  rect(-10, -10, 20, 20);
+  rect(390, -10, 20, 420);
+  rect(-10, 390, 420, 20);
+  // Widescreen: keep the "mouth frame" white outside the 400x400 box
+  rect(VL - 20, VT - 20, 5 - (VL - 20), VH + 40);
+  rect(395, VT - 20, VR - 395 + 20, VH + 40);
+  rect(VL - 20, VT - 20, VW + 40, 5 - (VT - 20));
+  rect(VL - 20, 395, VW + 40, VB - 395 + 20);
+
+  fill(255, 100, 0);
+  rect(x - 110, y - 100, 220, 80, 30);
+  fill(255);
+  ellipse(x - 60, y - 60, 50, 50);
+  ellipse(x + 60, y - 60, 50, 50);
+  fill(0);
+  ellipse(x - 60, y - 60, 30, 30);
+  ellipse(x + 60, y - 60, 30, 30);
+}
+
+// Pit cut-scene backdrop (walls + water stretch to the screen edges)
+function pitScene() {
+  rectMode(LEFT);
+  noStroke();
+  fill(0, 100, 255, 120);
+  rect(50, 300, 300, VB - 300 + 20);
+  fill(80, 0, 0);
+  rect(VL - 20, VT - 20, 50 - (VL - 20), VH + 40);
+  rect(350, VT - 20, VR - 350 + 20, VH + 40);
+}
+
+const barrelData = [
+  "----BBBBBBBBBBBBBBB----",
+  "---BgbbbbbbbbbbbbbgB---",
+  "---BgggggggggggggggB---",
+  "--BbbgggggggggggggbbB--",
+  "--BbbbbbbbbbbbbbbbbbB--",
+  "--BbbbbbbbbbbbbbbbbbB--",
+  "-BbbbbbbbbbbbbbbbbbbbB-",
+  "-BggbbbbbbbbbbbbbbbggB-",
+  "-BgggggggggggggggggggB-",
+  "-BbbgrrrgggggllgglgbbB-",
+  "BbbbbrrrrbbbbblbllbbbbB",
+  "BbbbbrrbrbbbbblblbbbbbB",
+  "BbbbbrrbrbbwbblllbbbbbB",
+  "BbbbbrrbrbwwwbllbbbbbbB",
+  "BbbbbrrbrbbwbblllbbbbbB",
+  "BbbbbrrbrbbbbblblbbbbbB",
+  "BgbbbrrrrbbbbblbllbbbgB",
+  "BgggbrrrbbbbbllbblbgggB",
+  "-BgggggggggggggggggggB-",
+  "-BbbgggggggggggggggbbB-",
+  "-BbbbbbbbbbbbbbbbbbbbB-",
+  "-BbbbbbbbbbbbbbbbbbbbB-",
+  "--BbbbbbbbbbbbbbbbbbB--",
+  "--BbbbbbbbbbbbbbbbbbB--",
+  "--BgbbbbbbbbbbbbbbbgB--",
+  "---BgggggggggggggggB---",
+  "---BgggggggggggggggB---",
+  "----BBBBBBBBBBBBBBB----"
+];
+const barrelColors = {
+  "b": color(143, 84, 17),
+  "d": color(125, 72, 16),
+  "r": color(255, 0, 0),
+  "g": color(59, 59, 59),
+  "l": color(0, 200, 255),
+  "w": color(255),
+  "B": color(0)
+};
+function drawBarrel(startX, startY, pixelSize) {
+  noStroke();
+  rectMode(CORNER);
+  for (let r = 0; r < barrelData.length; r++) {
+    const row = barrelData[r];
+    for (let c = 0; c < row.length; c++) {
+      const ch = row[c];
+      if (ch !== "-") {
+        fill(barrelColors[ch]);
+        rect(startX + c * pixelSize, startY + r * pixelSize, pixelSize + 0.5, pixelSize + 0.5);
+      }
+    }
+  }
+}
+
+function bow(x, y, s, op) {
+  if (op === undefined) op = 0;
+  noFill();
+  stroke(0, 0, 0);
+  strokeWeight(s / 15);
+  line(x, y - s / 2, x, y + s / 2);
+  stroke(100, 0, 0);
+  strokeWeight(s / 10);
+  arc(x, y, s / 1.5, s, 260, 460);
+  rectMode(CENTER);
+  fill(255, 255, 255, op);
+  noStroke();
+  rect(x, y, s, s * 1.2);
+}
+
+function arrow(x, y, s) {
+  strokeWeight(s / 11);
+  stroke(0, 200, 0);
+  line(x, y, x + s / 3, y);
+  stroke(200);
+  line(x + s / 2.5, y - s / 9, x + s / 3, y);
+  line(x + s / 2.5, y + s / 9, x + s / 3, y);
+  line(x + s / 1.7, y + s / 9, x + s / 2, y);
+  line(x + s / 1.7, y - s / 9, x + s / 2, y);
+  line(x + s / 3, y, x + s / 2, y);
+  fill(200);
+  noStroke();
+  triangle(x - s / 5, y, x, y - s / 7, x, y + s / 7);
+}
+
+// Player drawing only (the room logic moved to updatePlayerRoom)
+function player(x, y, s, op) {
+  if (op === undefined) op = 0;
+  const drawFace = function (x, y, s) {
+    pushMatrix();
+    translate(s - s * 1.1, s - s / 1.1);
+    noStroke();
+    fill(0, 0, 0);
+    ellipse(x - s * 1.335, y - s / 1.9, s / 1.7, s / 1.7);
+    ellipse(x + s * 1.43, y - s / 1.9, s / 1.7, s / 1.7);
+    strokeWeight(s / 4);
+    stroke(0, 0, 0);
+    noFill();
+    arc(x + s / 10, y - s / 5, s / 1.1, s / 1.4, 0, 180);
+    popMatrix();
+  };
+  fill(0, 200, 200); // head
+  noStroke();
+  ellipse(x, y, s / 2, s / 2);
+  strokeWeight(s / 5); // body
+  stroke(0, 200, 200);
+  line(x, y, x, y + s / 1.5);
+  line(x + s / 5, y + s, x, y + s / 1.5);
+  line(x - s / 5, y + s, x, y + s / 1.5);
+  line(x, y + s / 4, x - s / 3, y + s / 2);
+  line(x, y + s / 4, x + s / 3, y + s / 2);
+  drawFace(x, y, s / 9);
+
+  rectMode(CENTER);
+  fill(255, 255, 255, op);
+  noStroke();
+  rect(x, y + s / 2.4, s, s * 1.4);
+}
+
+// Death screen figure: white stick figure with X eyes (replaces the skull).
+// (x, y) is the figure's centre, s is roughly its height.
+function drawDeadFigure(x, y, s, a) {
+  const P = s * 0.8;            // same proportions as player(x, y, P)
+  const hx = x, hy = y - P * 0.375;
+  // body
+  stroke(255, 255, 255, a);
+  strokeWeight(P / 5);
+  noFill();
+  line(hx, hy, hx, hy + P / 1.5);
+  line(hx + P / 5, hy + P, hx, hy + P / 1.5);
+  line(hx - P / 5, hy + P, hx, hy + P / 1.5);
+  line(hx, hy + P / 4, hx - P / 3, hy + P / 2);
+  line(hx, hy + P / 4, hx + P / 3, hy + P / 2);
+  // head
+  noStroke();
+  fill(255, 255, 255, a);
+  ellipse(hx, hy, P / 2, P / 2);
+  // X eyes
+  stroke(0, 0, 0, a);
+  strokeWeight(P / 28);
+  const ex = P * 0.1, ey = hy - P * 0.045, e = P * 0.04;
+  line(hx - ex - e, ey - e, hx - ex + e, ey + e);
+  line(hx - ex - e, ey + e, hx - ex + e, ey - e);
+  line(hx + ex - e, ey - e, hx + ex + e, ey + e);
+  line(hx + ex - e, ey + e, hx + ex + e, ey - e);
+  // little frown
+  noFill();
+  arc(hx, hy + P * 0.14, P * 0.14, P * 0.09, 195, 345);
+}
+
+// Black wipe with the barrel in the middle. (x, y) = top-left, sz = size
+function transition(x, y, sz) {
+  rectMode(CORNER);
+  fill(0);
+  noStroke();
+  rect(x, y, sz, sz);
+  drawBarrel(x + sz / 2 - 138, y + sz / 2 - 168, 12);
+}
+
+// Menu button with smooth (lerped) hover + press
+function selectButton(x, y, mode, w, h, id) {
+  id = id || mode;
+  const st = btnState[id] || (btnState[id] = { t: 0, p: 0 });
+  const halfH = Math.max(20, h / 2);
+  const over = function (px, py) { return px >= x - w / 2 && px <= x + w / 2 && py >= y - halfH && py <= y + halfH; };
+  const hovered = !transitionIs && over(mouseX, mouseY);
+  if (hovered) wantPointer = true;
+  st.t = approach(st.t, hovered ? 1 : 0, 14);
+  st.p = approach(st.p, hovered && mouseIsPressed ? 1 : 0, 22);
+
+  if (click && !transitionIs && over(click.x, click.y)) {
+    click = null;
+    transitionIs = true;
+    if (mode === "NORMAL") { tScene = "game"; blindfoldMode = false; }
+    if (mode === "BLINDFOLDED") { tScene = "game"; blindfoldMode = true; }
+    if (mode === "HOW TO PLAY") { tScene = "instruction"; }
+    if (mode === "BACK") { tScene = "title"; }
+  }
+
+  const ww = lerp(w, 190, st.t) * (1 - 0.05 * st.p);
+  const hh = h * (1 - 0.05 * st.p);
+  stroke(lerp(150, 200, st.t), 0, 0);
+  strokeWeight(10);
+  rectMode(CENTER);
+  noFill();
+  rect(x, y, ww, hh, 50);
+  fill(0);
+  textSize(h / 2.5);
+  textAlign(CENTER);
+  text(mode, x, y + ww / 30);
+}
+
+// ============================================================
+//  Game logic helpers
+// ============================================================
+function rr() { return round(random(1, 6)); }
+
+function canMove() {
+  return scene === "game" && !(transitionIs && tProg < 0.5) &&
+    !inPit && !inWumpus && !arrowShot && !aimIs && !batAnim;
+}
+function onKeyPressed(k) {
+  if (!canMove()) return;
+  if (k === LEFT && playerLocX > 1) { playerLocX--; haveStepped = true; }
+  else if (k === RIGHT && playerLocX < 6) { playerLocX++; haveStepped = true; }
+  else if (k === UP && playerLocY > 1) { playerLocY--; haveStepped = true; }
+  else if (k === DOWN && playerLocY < 6) { playerLocY++; haveStepped = true; }
+}
+
+function onHazard(x, y) {
+  return (x === wumpusLocX && y === wumpusLocY) || (x === pitfallLocX && y === pitfallLocY) ||
+    (x === batLocX[0] && y === batLocY[0]) || (x === batLocX[1] && y === batLocY[1]);
+}
+
+// Re-places the wumpus, pit, bats and player, and rebuilds the rooms
+function newRound() {
+  wumpusLocX = rr(); wumpusLocY = rr();
+  do { pitfallLocX = rr(); pitfallLocY = rr(); } while (pitfallLocX === wumpusLocX && pitfallLocY === wumpusLocY);
+
+  numOfBats = floor(random(1, 3));
+  batLocX = []; batLocY = [];
+  for (let b = 0; b < 2; b++) {
+    let bx, by;
+    do { bx = rr(); by = rr(); } while (bx === pitfallLocX && by === pitfallLocY);
+    batLocX.push(bx); batLocY.push(by);
+  }
+
+  resetRooms();
+  // Assign room types (proximity warnings)
+  for (let x = 1; x <= 6; x++) {
+    for (let y = 1; y <= 6; y++) {
+      const nearPit =
+        (x === pitfallLocX - 1 && y === pitfallLocY) || (x === pitfallLocX + 1 && y === pitfallLocY) ||
+        (x === pitfallLocX && y === pitfallLocY - 1) || (x === pitfallLocX && y === pitfallLocY + 1);
+      const nearWumpus =
+        (x === wumpusLocX - 1 && y === wumpusLocY) || (x === wumpusLocX + 1 && y === wumpusLocY) ||
+        (x === wumpusLocX && y === wumpusLocY - 1) || (x === wumpusLocX && y === wumpusLocY + 1) ||
+        (x === wumpusLocX - 2 && y === wumpusLocY) || (x === wumpusLocX - 1 && y === wumpusLocY - 1) ||
+        (x === wumpusLocX - 1 && y === wumpusLocY + 1) || (x === wumpusLocX && y === wumpusLocY - 2) ||
+        (x === wumpusLocX && y === wumpusLocY + 2) || (x === wumpusLocX + 1 && y === wumpusLocY - 1) ||
+        (x === wumpusLocX + 1 && y === wumpusLocY + 1) || (x === wumpusLocX + 2 && y === wumpusLocY);
+      if (nearWumpus) rooms[x][y].type = nearPit ? "combo" : "red";
+      else if (nearPit) rooms[x][y].type = "green";
+    }
+  }
+
+  do { playerLocX = rr(); playerLocY = rr(); } while (onHazard(playerLocX, playerLocY));
+  pvx = playerLocX; pvy = playerLocY;
+}
+
+function resetRoundState() {
+  arrowShot = false; aimIs = false; inWumpus = false; inPit = false;
+  playerJumpY = 0; jumpAccel = 7; inWumpusFrames = 0; jawY = 0;
+  skullSize = 20000; skullTrans = 0; deathAnimationFrames = 0; shakeIntensity = 25; gameOverTextTransparency = 1;
+  playerAnimY = 0; animAccel = 0;
+  deadWumpY = 10; fallAccel = 0; shakeFrames = 0; winPlayerY = 400; winFade = 0; winTxtFade = 0;
+  wumpusShot = false; wumpusDead = false; arrowProg = 0;
+  batAnim = false; batFrames = 0; batCol = 0; bowPop = 0; haveStepped = false;
+}
+
+function updatePlayerRoom() {
+  if (playerLocX === wumpusLocX && playerLocY === wumpusLocY) inWumpus = true;
+  if (playerLocX === pitfallLocX && playerLocY === pitfallLocY) inPit = true;
+  rooms[playerLocX][playerLocY].shown = true;
+  if (haveStepped) rooms[playerLocX][playerLocY].stepCount++;
+}
+
+function ringStyle(type) {
+  strokeWeight(5);
+  stroke(0, 100, 255);
+  if (type === "red") { stroke(255, 50, 0); noFill(); }
+  else if (type === "green") { fill(0, 255, 0, 100); }
+  else if (type === "combo") { fill(0, 255, 0, 100); stroke(255, 50, 0); }
+  else { noFill(); }
+}
+
+// ============================================================
+//  Scenes
+// ============================================================
+function sceneTitle() {
+  canShoot = true;
+  background(255, 255, 255);
+
+  textSize(20);
+  fill(255, 150, 0);
+  textAlign(CENTER);
+  text("Win Streak: " + winStreak, 320, 30);
+
+  textAlign(LEFT);
+  fill(0);
+  textSize(40);
+  text("H - U - N - T", 100, 190);
+  textSize(15);
+  text("T H E   H U N T   B E G I N S . . .", 10, 40);
+
+  logo(100, 110, 85);
+
+  if (genRandom === 1) { pushMatrix(); rotate(350); wumpus(10, 210, 50, titleOp); popMatrix(); }
+  if (genRandom === 2) { pushMatrix(); rotate(10); player(380, 140, 60, titleOp); popMatrix(); }
+  if (genRandom === 3) { pushMatrix(); rotate(20); bow(160, 300, 70, titleOp); popMatrix(); }
+  if (genRandom === 4) { pushMatrix(); rotate(340); bat(190, 440, 40, titleOp); popMatrix(); }
+
+  selectButton(200, 240, "NORMAL", 170, 35);
+  selectButton(200, 295, "BLINDFOLDED", 170, 35);
+  selectButton(200, 350, "HOW TO PLAY", 170, 35);
+
+  if (titleOp >= 255) { titleOp = 255; tOpChange = -2; hasGenerated = false; }
+  if (titleOp <= 0) { titleOp = 0; tOpChange = 2; generatedNum = genRandom; }
+  titleOp += tOpChange * F;
+  if (!hasGenerated) {
+    genRandom = round(random(0.5, 4.4));
+    if (genRandom !== generatedNum) hasGenerated = true;
+  }
+}
+
+function sceneGame() {
+  background(255);
+
+  updatePlayerRoom();
+  pvx = approach(pvx, playerLocX, 16);
+  pvy = approach(pvy, playerLocY, 16);
+
+  // Draw visible rooms (they fade/pop in when first revealed)
+  for (let i = 1; i <= 6; i++) {
+    for (let j = 1; j <= 6; j++) {
+      const r = rooms[i][j];
+      if (!r.shown) continue;
+      r.reveal = Math.min(1, r.reveal + dt * 4);
+      const e = easeOut3(r.reveal);
+      if (blindfoldMode) {
+        if (i === playerLocX && j === playerLocY) {
+          ringStyle(r.type); setAlpha(e);
+          ellipse(pvx * 65 - 30, pvy * 65 - 30, 50, 50);
+          setAlpha(1);
+        }
+      } else {
+        ringStyle(r.type); setAlpha(e);
+        const d = 50 * (0.7 + 0.3 * e);
+        ellipse(i * 65 - 30, j * 65 - 30, d, d);
+        setAlpha(1);
+      }
+    }
+  }
+
+  player(pvx * 65 - 30, pvy * 65 - 43, 30);
+
+  for (let b = 0; b < numOfBats; b++) {
+    const bx = batLocX[b], by = batLocY[b];
+    if (rooms[bx][by].shown) {
+      setAlpha(easeOut3(rooms[bx][by].reveal));
+      if (blindfoldMode) {
+        if (bx === playerLocX && by === playerLocY) bat(bx * 65 - 38, by * 65 - 30, 20);
+      } else {
+        bat(bx * 65 - 38, by * 65 - 30, 20);
+      }
+      setAlpha(1);
+    }
+    if (batLocX[b] === pitfallLocX && batLocY[b] === pitfallLocY) {
+      batLocX = [rr(), rr()];
+      batLocY = [rr(), rr()];
+    }
+    if (playerLocX === batLocX[b] && playerLocY === batLocY[b] && rooms[playerLocX][playerLocY].stepCount > 1) {
+      batAnim = true;
+    }
+  }
+
+  if (batAnim) {
+    batFrames += F;
+    batCol = 255;
+    if (batFrames >= 40) {
+      batCol = 0;
+      batAnim = false;
+      batFrames = 0;
+      playerLocX = rr();
+      playerLocY = rr();
+    }
+  }
+
+  if (arrowShot) {
+    canShoot = false;
+    background(255);
+    rectMode(LEFT);
+    noStroke();
+    fill(0, 200, 255);
+    arrowProg = Math.min(1, arrowProg + dt / 1.75);
+    let ax, ay, ang;
+    if (arrowDir === "left" || arrowDir === "right") {
+      rect(VL - 20, VT - 20, VW + 40, 100 - (VT - 20));
+      rect(VL - 20, 300, VW + 40, VB - 300 + 20);
+      ay = 200;
+      if (arrowDir === "left") { ax = lerp(VR + 30, VL - 80, arrowProg); ang = 0; }
+      else { ax = lerp(VL - 30, VR + 80, arrowProg); ang = 180; }
+    } else {
+      rect(VL - 20, VT - 20, 100 - (VL - 20), VH + 40);
+      rect(300, VT - 20, VR - 300 + 20, VH + 40);
+      ax = 200;
+      if (arrowDir === "up") { ay = lerp(VB + 30, VT - 80, arrowProg); ang = 90; }
+      else { ay = lerp(VT - 30, VB + 80, arrowProg); ang = 270; }
+    }
+    pushMatrix(); translate(ax, ay); rotate(ang); arrow(0, 0, 100); popMatrix();
+
+    if (arrowX === wumpusLocX && arrowY === wumpusLocY) wumpusShot = true;
+    if (!wumpusShot && arrowProg >= 1) inWumpus = true;
+    if (wumpusShot && arrowProg >= 1) { wumpusDead = true; scene = "gameWin"; }
+  }
+
+  if (inWumpus) {
+    canShoot = false;
+    translate(round(random(-5, 5)), round(random(-5, 5)));
+    inWumpusFrames += F;
+    deathCause = "wumpus";
+    background(255, 100, 0);
+    wumpusFace(200, 200, jawY);
+    if (jawY < 130) jawY = Math.min(130, jawY + 6 * F);
+    textSize(20);
+    if (inWumpusFrames > 40) {
+      // black bars close in from top and bottom
+      const k = clamp((inWumpusFrames - 71.4) / 28.6, 0, 1);
+      fill(8, 8, 8);
+      rectMode(LEFT);
+      const topEdge = lerp(VT - 20, 200, k), botEdge = lerp(VB + 20, 200, k);
+      rect(VL - 30, VT - 40, VW + 60, topEdge - (VT - 40));
+      rect(VL - 30, botEdge, VW + 60, VB + 40 - botEdge);
+    }
+    if (inWumpusFrames > 100) scene = "gameOver";
+  }
+
+  if (inPit) {
+    canShoot = false;
+    deathCause = "pit";
+    background(0, 200, 0);
+    player(200, playerAnimY - 200, 50);
+    pitScene();
+    playerAnimY += (2 + animAccel) * F;
+    animAccel += 0.1 * F;
+    fill(255, 255, 255, (playerAnimY / 1.7) - 100);
+    rectMode(LEFT);
+    rect(VL - 50, VT - 50, VW + 100, VH + 100);
+    if (playerAnimY >= 600) scene = "gameOver";
+  }
+
+  if (keys[KEY_Q] && !batAnim) aimIs = true;
+
+  bowPop = approach(bowPop, (aimIs && !arrowShot && canShoot) ? 1 : 0, 18);
+  if (aimIs && !arrowShot) {
+    if (canShoot && bowPop > 0.01) {
+      pushMatrix();
+      translate(pvx * 65 - 20, pvy * 65 - 30);
+      scale(0.4 + 0.6 * bowPop);
+      setAlpha(bowPop);
+      bow(0, 0, 30);
+      setAlpha(1);
+      popMatrix();
+    }
+    const fire = function (dir, ax, ay) { arrowDir = dir; arrowX = ax; arrowY = ay; arrowProg = 0; arrowShot = true; };
+    if (keys[UP]) fire("up", playerLocX, playerLocY - 1);
+    else if (keys[DOWN]) fire("down", playerLocX, playerLocY + 1);
+    else if (keys[LEFT]) fire("left", playerLocX - 1, playerLocY);
+    else if (keys[RIGHT]) fire("right", playerLocX + 1, playerLocY);
+  }
+
+  haveStepped = false;
+}
+
+function sceneGameOver() {
+  if (deathAnimationFrames > 20 && deathAnimationFrames < 100) {
+    if (shakeIntensity > 1) translate(random(-shakeIntensity, shakeIntensity), random(-shakeIntensity, shakeIntensity));
+    shakeIntensity -= 0.6 * F;
+  }
+  if (deathAnimationFrames > 5) background(0);
+
+  drawFaded(skullTrans, function () { drawDeadFigure(200, 200, skullSize, 255); });
+
+  fill(0, 255, 191, gameOverTextTransparency);
+  textSize(45);
+  textAlign(CENTER, CENTER);
+  text("You Died", 200, 180);
+  textSize(30);
+  fill(5, 168, 119, gameOverTextTransparency - 255);
+  if (deathCause === "wumpus") {
+    if (arrowShot === true) { textSize(20); text("- Hunted BY the Wumpus -\n(You missed)", 200, 220); }
+    else text("- Eaten by Wumpus -", 200, 220);
+  } else if (deathCause === "pit") {
+    text("- Fell into Pit -", 200, 220);
+  } else {
+    text("- Dropped Dead -", 200, 213);
+  }
+  textSize(15);
+  fill(41, 230, 224, gameOverTextTransparency - 510);
+  text("Better Luck Next Time!", 200, 250);
+  fill(214, 7, 7, gameOverTextTransparency - 765);
+  textSize(25);
+  text(touchMode ? "- Tap to Continue -" : "- Click to Continue -", 200, 360);
+
+  if (deathAnimationFrames < 100 && skullTrans < 255) skullTrans = Math.min(255, skullTrans + 10 * F);
+  if (deathAnimationFrames < 100 && skullSize > 200) skullSize = Math.max(178, skullSize / Math.pow(1.3, F));
+  if (deathAnimationFrames > 120) {
+    skullSize += 15 * F;
+    skullTrans -= 10 * F;
+    gameOverTextTransparency += 5 * F;
+  }
+  deathAnimationFrames += F;
+
+  if (deathAnimationFrames > 140) {
+    wantPointer = true;
+    if (click && !transitionIs) { click = null; transitionIs = true; tScene = "title"; winStreak = 0; }
+  }
+}
+
+function sceneGameWin() {
+  background(255);
+
+  pushMatrix();
+  if (deadWumpY <= -272 && shakeFrames <= 30) {
+    translate(random(-5, 5), random(-5, 5));
+    shakeFrames += F;
+  }
+  fill(100, 0, 0);
+  noStroke();
+  rectMode(LEFT);
+  rect(VL - 50, 272, VW + 100, VB - 272 + 50);
+  pushMatrix();
+  rotate(180);
+  wumpus(-210, deadWumpY, 70, 0, "dead");
+  popMatrix();
+  popMatrix();
+
+  fill(255, 255, 255, winFade);
+  rectMode(LEFT);
+  rect(VL - 50, VT - 50, VW + 100, VH + 100);
+
+  if (shakeFrames > 30 && winFade < 150) winFade = Math.min(150, winFade + 2 * F);
+  if (shakeFrames > 30 && winPlayerY > 0) winPlayerY = Math.max(0, winPlayerY - 3 * F);
+
+  fill(0, 200, 0);
+  rect(VL - 50, 310 + winPlayerY, VW + 100, Math.max(100, VB - 310 + 50));
+
+  player(90, 160 + winPlayerY + playerJumpY, 150);
+  bow(140, 220 + winPlayerY + playerJumpY, 100);
+
+  if (winPlayerY <= 0) {
+    if (winTxtFade < 955) winTxtFade = Math.min(955, winTxtFade + 5 * F);
+
+    textSize(45);
+    fill(255, 200, 0, winTxtFade);
+    textAlign(CENTER, CENTER);
+    text("You Won!", 280, 100);
+    textSize(30);
+    fill(0, 0, 0, winTxtFade - 300);
+    text("Great job!\nThe Wumpus\nis dead.", 280, 180);
+
+    fill(255, 0, 0);
+    textSize(25);
+    if (blindfoldMode === true) text("Completed in BLINDFOLD Mode!", 200, 30);
+
+    textSize(25);
+    fill(50, 50, 50, winTxtFade - 700);
+    text(touchMode ? "- Tap to Continue -" : "- Click to Continue -", 200, 360);
+
+    if (winJump === true) {
+      playerJumpY -= jumpAccel * F;
+      jumpAccel -= gravity * F;
+    }
+    if (playerJumpY >= 40) { playerJumpY = 40; winJump = true; jumpAccel = 6.5; }
+    if (abs(playerJumpY) > 100) jumpAccel -= gravity * 10 * F;
+
+    if (winTxtFade - 700 >= 255) {
+      wantPointer = true;
+      if (click && !transitionIs) {
+        click = null;
+        transitionIs = true;
+        tScene = "title";
+        winStreak++;
+        if (blindfoldMode) winStreak++;
+      }
+    }
+  }
+
+  if (deadWumpY > -272) {
+    deadWumpY = Math.max(-272, deadWumpY - (5 + fallAccel) * F);
+    fallAccel += 0.2 * F;
+  }
+}
+
+function sceneInstruction() {
+  // Scrolling: arrow keys, mouse wheel, or drag (mouse or finger) with momentum
+  if (keys[UP]) scrollTarget += 6 * F;
+  if (keys[DOWN]) scrollTarget -= 6 * F;
+  if (dragActive) {
+    scrollY = scrollTarget;
+  } else {
+    if (scrollVel !== 0) {
+      scrollTarget += scrollVel * dt;
+      scrollVel *= Math.exp(-4.5 * dt);
+      if (Math.abs(scrollVel) < 8) scrollVel = 0;
+    }
+    const c = clamp(scrollTarget, SCROLL_MIN, SCROLL_MAX);
+    if (c !== scrollTarget) { scrollTarget = c; scrollVel = 0; }
+    scrollY = approach(scrollY, scrollTarget, 16);
+  }
+
+  background(255);
+
+  textSize(40);
+  textAlign(CENTER);
+  fill(0, 100, 0);
+  text("HOW  TO  PLAY", 200, 160 + scrollY);
+  textSize(15);
+  fill(0);
+  text(touchMode ? "Swipe to scroll" : "Scroll, drag, or use the arrow keys", 200, 185 + scrollY);
+
+  selectButton(200, 290 + scrollY, "BACK", 170, 55, "BACK_TOP");
+
+  // background grid
+  for (let i = 1; i <= 6; i++) {
+    for (let j = 1; j <= 6; j++) {
+      const x = i * 65 - 30, y = j * 65 - 30;
+      strokeWeight(5);
+      stroke(0, 100, 255, 30);
+      if (rooms[i][j].type === "red") { stroke(255, 50, 0, 30); noFill(); }
+      else if (rooms[i][j].type === "green") { fill(0, 255, 0, 30); }
+      else if (rooms[i][j].type === "combo") { fill(0, 255, 0, 30); stroke(255, 50, 0, 30); }
+      else { noFill(); }
+      ellipse(x, y, 50, 50);
+    }
+  }
+
+  rectMode(LEFT);
+  fill(255);
+  noStroke();
+  rect(VL - 20, 400 + scrollY, VW + 40, Math.max(1100, VB - (400 + scrollY) + 20));
+
+  textSize(17);
+  fill(0);
+  textAlign(CENTER);
+  text("You are an adventurer trying to\nhunt the                  ", moveX[0], 450 + scrollY);
+  fill(255, 100, 0);
+  text("WUMPUS", moveX[0] + 30, 470 + scrollY);
+  wumpus(100, scrollY + 500, 100);
+
+  fill(0);
+  textSize(17);
+  text("You are traveling through a bunch of rooms. There are Bats, Pitfalls, and the Wumpus.", 225, scrollY + 530, 150, 1000);
+  bat(260, scrollY + 720, 80);
+
+  fill(0);
+  textSize(17);
+  text("If you land on a Bat, it will bring you to a random spot on the map. Yes, they can bring you straight to the Wumpus!", 30, scrollY + 670, 150, 1000);
+
+  text("Pitfalls are an obstacle that can kill you if you fall in. Green tiles indicate you are one space from a pitfall.", 230, scrollY + 820, 150, 1000);
+
+  noFill();
+  strokeWeight(8);
+  stroke(37, 14, 245, 150);
+  ellipse(50, scrollY + 850, 50, 50);
+  ellipse(130, scrollY + 850, 50, 50);
+  fill(85, 255, 0, 150);
+  ellipse(195, scrollY + 890, 50, 50);
+  stroke(255, 77, 0, 150);
+  ellipse(130, scrollY + 930, 50, 50);
+  noFill();
+  ellipse(50, scrollY + 930, 50, 50);
+
+  bat(117.5, scrollY + 850, 30);
+
+  fill(0);
+  textSize(10);
+  text("Normal Bat\nSpace", 130, scrollY + 887);
+  text("Normal\nSpace", 50, scrollY + 887);
+  text("Normal Pitfall\nSpace", 195, scrollY + 928);
+  text("Wumpus\nSpace", 50, scrollY + 967);
+  text("Wumpus Pitfall\nSpace", 130, scrollY + 967);
+
+  textSize(17);
+  text("The Wumpus is the guy you're trying to hunt. Tiles with a red outline mean you are two (or less) tiles away from him.", 10, scrollY + 985, 190, 1000);
+
+  wumpus(280, scrollY + 995, 90);
+
+  fill(0);
+  textSize(17);
+  text(touchMode
+    ? "Use the arrow buttons to move and the bow button to activate your bow. Once your bow is activated, tap the arrow for the direction you want to shoot."
+    : "Use the arrow keys to move and Q to activate your bow. Once your bow is activated, press the arrow key in the direction you want to shoot.",
+    215, scrollY + 1150, 150, 1000);
+
+  bow(80, scrollY + 1180, 110);
+  arrow(120, scrollY + 1280, 80);
+
+  fill(0);
+  text("You only get one shot, so make it count!", 45, scrollY + 1350, 300, 1000);
+  text("Hitting the Wumpus will result in a victory!", 45, scrollY + 1400, 150, 1000);
+
+  player(280, scrollY + 1400, 70);
+
+  selectButton(200, 1580 + scrollY, "BACK", 170, 55, "BACK_BOTTOM");
+
+  if (scrollY <= -160 && moveX[0] < 200) moveX[0] = Math.min(200, moveX[0] + 10 * F);
+}
+
+function updateTransition() {
+  tProg = Math.min(1, tProg + dt / 1.5);
+  // fast in/out, lingers a little while covering the screen
+  const e = tProg + 0.1 * Math.sin(2 * Math.PI * tProg);
+  const sz = Math.max(VW, VH) + 120;
+  const k = 1 - 2 * e;   // 1 (top-right, off screen) -> -1 (bottom-left, off screen)
+  const cx = (VL + VR) / 2 + k * sz, cy = (VT + VB) / 2 - k * sz;
+  transition(cx - sz / 2, cy - sz / 2, sz);
+
+  if (!tSwapped && tProg >= 0.5) {
+    tSwapped = true;
+    resetRoundState();
+    scene = tScene;
+    newRound();
+  }
+  if (tProg >= 1) { transitionIs = false; tProg = 0; tSwapped = false; }
+}
+
+// ============================================================
+//  Touch controls (drawn in screen pixels)
+// ============================================================
+function drawTouchUI() {
+  const show = touchMode && scene === "game" && !inPit && !inWumpus && !arrowShot;
+  touchAlpha = approach(touchAlpha, show ? 1 : 0, 12);
+  if (touchAlpha < 0.01) return;
+  ctx.save();
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  for (const b of tBtns) {
+    b.press = approach(b.press, b.held ? 1 : 0, 28);
+    const r = b.r * (1 - 0.1 * b.press);
+    const isBow = b.id === "bow";
+    const aimingDir = !isBow && aimIs;            // direction buttons fire arrows while aiming
+    const lit = isBow ? aimIs : false;
+    ctx.globalAlpha = touchAlpha * (0.85 + 0.15 * b.press);
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = lit ? "rgba(180,0,0,0.9)" : aimingDir ? "rgba(150,0,0,0.75)" : "rgba(0,0,0,0.6)";
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(255,255,255,0.7)";
+    ctx.stroke();
+
+    ctx.globalAlpha = touchAlpha;
+    ctx.fillStyle = "#fff";
+    ctx.strokeStyle = "#fff";
+    if (!isBow) {
+      const ang = Math.atan2(b.dy, b.dx), s = r * 0.42;
+      ctx.beginPath();
+      ctx.moveTo(b.x + Math.cos(ang) * s, b.y + Math.sin(ang) * s);
+      ctx.lineTo(b.x + Math.cos(ang + 2.3) * s, b.y + Math.sin(ang + 2.3) * s);
+      ctx.lineTo(b.x + Math.cos(ang - 2.3) * s, b.y + Math.sin(ang - 2.3) * s);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      const s = r * 0.95;
+      ctx.lineCap = "round";
+      ctx.lineWidth = Math.max(2, s * 0.09);
+      ctx.beginPath();
+      ctx.ellipse(b.x - s * 0.08, b.y, s * 0.28, s * 0.5, 0, -Math.PI / 2, Math.PI / 2);
+      ctx.stroke();
+      ctx.lineWidth = Math.max(1, s * 0.035);
+      ctx.beginPath(); ctx.moveTo(b.x - s * 0.08, b.y - s * 0.5); ctx.lineTo(b.x - s * 0.08, b.y + s * 0.5); ctx.stroke();
+      ctx.lineWidth = Math.max(1.5, s * 0.05);
+      ctx.beginPath(); ctx.moveTo(b.x - s * 0.42, b.y); ctx.lineTo(b.x + s * 0.38, b.y); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(b.x + s * 0.46, b.y); ctx.lineTo(b.x + s * 0.32, b.y - s * 0.09); ctx.lineTo(b.x + s * 0.32, b.y + s * 0.09);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+
+// ============================================================
+//  Logo intro (DIGITSOFPI & KINETO) - ported from KA, now delta-time based.
+//  Drawn in the original 600x600 space (scaled to the 400 play area).
+// ============================================================
+var drawText = function(txt, x, y, s, maxWidth) {
+    // Function to get the letter map for a given character
+    var getLetterMap = function(c) {
+        var letterMap = [];
+        switch (c) {
+                // Upcase [
+        case 'A':
+            letterMap = [
+                '  mmm  ',
+                ' mm mm ',
+                'mm   mm',
+                'mm   mm',
+                'mmmmmmm',
+                'mm   mm',
+                'mm   mm',
+                '      '
+            ];
+            break;
+
+        case 'D':
+            letterMap = [
+                'mmmmm  ',
+                'mm  mm  ',
+                'mm   mm ',
+                'mm   mm ',
+                'mm   mm ',
+                'mm  mm  ',
+                'mmmmm  ',
+                '      '
+            ];
+            break;
+        case 'E':
+            letterMap = [
+                'mmmmmmm',
+                'mm     ',
+                'mm     ',
+                'mmmmmm ',
+                'mm     ',
+                'mm     ',
+                'mmmmmmm',
+                '      '
+            ];
+            break;
+        case 'F':
+            letterMap = [
+                'mmmmmmm',
+                'mm     ',
+                'mm     ',
+                'mmmmmm ',
+                'mm     ',
+                'mm     ',
+                'mm     ',
+                '      '
+            ];
+            break;
+        case 'G':
+            letterMap = [
+                '  mmmmm',
+                ' mm    ',
+                'mm     ',
+                'mm mmmm',
+                'mm   mm',
+                ' mm  mm',
+                '  mmmmm',
+                '      '
+            ];
+            break;
+        case 'I':
+            letterMap = [
+                'mmmmmm ',
+                '  mm  ',
+                '  mm  ',
+                '  mm  ',
+                '  mm  ',
+                '  mm  ',
+                'mmmmmm ',
+                '      '
+            ];
+            break;
+        case 'K':
+            letterMap = [
+                'mm   mm',
+                'mm  mm ',
+                'mm mm  ',
+                'mmmm  ',
+                'mmmmm ',
+                'mm mmm ',
+                'mm  mmm',
+                '      '
+            ];
+            break;
+
+        case 'N':
+            letterMap = [
+                'mm   mm',
+                'mmm  mm',
+                'mmmm mm',
+                'mm mmmm',
+                'mm  mmm',
+                'mm   mm',
+                'mm   mm',
+                '      '
+            ];
+            break;
+        case 'O':
+            letterMap = [
+                ' mmmmm ',
+                'mm   mm',
+                'mm   mm',
+                'mm   mm',
+                'mm   mm',
+                'mm   mm',
+                ' mmmmm',
+                '      '
+            ];
+            break;
+        case 'P':
+            letterMap = [
+                'mmmmmm ',
+                'mm   mm',
+                'mm   mm',
+                'mm   mm',
+                'mmmmmm',
+                'mm     ',
+                'mm     ',
+                '      '
+            ];
+            break;
+
+        case 'R':
+            letterMap = [
+                'mmmmmm ',
+                'mm   mm',
+                'mm   mm',
+                'mm  mmm',
+                'mmmmm  ',
+                'mm mmm ',
+                'mm  mmm',
+                '      '
+            ];
+            break;
+        case 'S':
+            letterMap = [
+                ' mmmmm ',
+                'mm   mm',
+                'mm     ',
+                ' mmmmm  ',
+                '     mm',
+                'mm   mm',
+                ' mmmmm ',
+                '      '
+            ];
+            break;
+        case 'T':
+            letterMap = [
+                'mmmmmm',
+                '  mm  ',
+                '  mm  ',
+                '  mm  ',
+                '  mm  ',
+                '  mm  ',
+                '  mm  ',
+                '      '
+            ];
+            break;
+        case 'U':
+            letterMap = [
+                'mm   mm',
+                'mm   mm',
+                'mm   mm',
+                'mm   mm',
+                'mm   mm',
+                'mm   mm',
+                ' mmmmm '
+            ];
+            break;
+            case 'Y':
+            letterMap = [
+                'mm  mm',
+                'mm  mm',
+                'mm  mm',
+                ' mmmm ',
+                '  mm  ',
+                '  mm  ',
+                '  mm  ',
+                '      '
+            ];
+            break;
+            //]
+            
+            // Special [
+            
+            case ".":
+            letterMap = [
+                '    ',
+                '    ',
+                '    ',
+                '     ',
+                '     ',
+                '  mm    ',
+                '  mm  ',
+                '    '
+                
+            ];
+            
+            break;
+            case "&":
+            letterMap = [
+                ' mmm ',
+                'mm mm',
+                'mm mm',
+                ' mmm ',
+                'mm mm m',
+                'mm  mm',
+                ' mmmmmm',
+                '    '
+                
+            ];
+            
+            break;
+            //]
+            
+            
+        }
+        return letterMap;
+    };
+// Drawing It [
+    // Function to draw a character at a specific position
+    var drawChar = function(c, x, y, s) {
+        var letterMap = getLetterMap(c);
+        for (var col = 0; col < letterMap.length; col++) {
+            for (var row = 0; row < letterMap[col].length; row++) {
+                if (letterMap[col][row] !== ' ') {
+                    noStroke();
+                    rect((row * s) + x, (col * s) + y, s, s);  // Draw the character pixel
+                }
+            }
+        }
+    };
+
+    // Function to draw a line of text
+    var drawLine = function(line, x, y, s) {
+        var space = 0; // Horizontal position of the character in the line
+        for (var i = 0; i < line.length; i++) {
+            var c = line[i];
+            if (c !== ' ') { // Draw the character if it's not a space
+                drawChar(c, space + x, y, s);
+                space += 7 * s + s; // Move to the next character position
+            } else {
+                space += 7 * s + s; // Move to the next position for spaces
+            }
+        }
+    };
+
+    var charWidth = 7 * s;  // Width of each character
+    var charHeight = 9 * s; // Height of each character
+    var charSpacing = s;    // Space between characters
+    var spaceWidth = charWidth + charSpacing; // Width of a space character
+
+    var lines = txt.split('\n'); // Split text into lines by newline
+    var lineDis = 0; // Vertical position of the current line
+
+    for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        var words = line.split(' '); // Split each line into words
+        var currentLine = '';
+        var cursorX = 0; // Horizontal position for drawing characters
+
+        for (var j = 0; j < words.length; j++) {
+            var word = words[j];
+            var wordWidth = word.length * charWidth + (word.length - 1) * charSpacing; // Width of the word
+            // If adding this word would exceed the maxWidth, wrap to the next line
+            if (cursorX + wordWidth > maxWidth) {
+                // Draw the current line
+                drawLine(currentLine, x, y + lineDis, s);
+                // Move to the next line
+                lineDis += charHeight;
+                cursorX = 0;
+                currentLine = '';
+            }
+            // Add the word to the current line
+            currentLine += (currentLine ? ' ' : '') + word;
+            cursorX += wordWidth + spaceWidth; // Move cursor to the right for next word
+        }
+        // Draw any remaining text in the last line
+        if (currentLine) {
+            drawLine(currentLine, x, y + lineDis, s);
+        }
+        // Move to the next line for the next piece of text
+        lineDis += charHeight;
+    }
+    //]
+};
+var logoBridge = function(x, y){
+    
+    fill(240, 0, 60);
+    rect(x, y, 130, 10);
+    rect(x, y+40, 130, 10);
+    rect(x, y+30, 10, 10);
+    rect(x+10, y+20, 10, 10);
+    rect(x+20, y+10, 10, 10);
+    rect(x+30, y+20, 10, 10);
+    rect(x+40, y+30, 10, 10);
+    rect(x+50, y+20, 10, 10);
+    rect(x+60, y+10, 10, 10);
+    rect(x+70, y+20, 10, 10);
+    rect(x+80, y+30, 10, 10);
+    rect(x+90, y+20, 10, 10);
+    rect(x+100, y+10, 10, 10);
+    rect(x+110, y+20, 10, 10);
+    rect(x+120, y+30, 10, 10);
+    
+};
+var logoLadder = function(x, y, h){
+    
+    fill(0, 255, 255);
+    
+    //Poles
+    rect(x, y, 10, h*43);
+    rect(x+50, y, 10, h*43);
+    
+    for(var i = 0; i<h; i++){
+        
+        rect(x+10, y+20+i*40, 40, 10);
+        
+    }
+    
+};
+var logoBackground = function(){
+    
+    
+    background(0);
+    logoLadder(-40, 151, 3);
+    logoLadder(520, 160, 5.6);
+    
+    logoBridge(0, 101);
+    logoBridge(520, 110);
+    logoBridge(400, 110);
+    logoBridge(50, 330);
+    logoBridge(-80, 280);
+    logoBridge(330, 370);
+    logoBridge(500, 400);
+    logoBridge(20, 470);
+    
+    fill(255, 255, 255, 50);
+    //rect(0, 0, 600, 600);
+    
+    //fill(255, 255, 255);
+    rect(VL * 1.5 - 20, VT * 1.5 - 20, VW * 1.5 + 40, VH * 1.5 + 40);
+    
+};
+var logoTxt = function(x, y, s){
+    
+    //Presents
+    textAlign(LEFT);
+    fill(200, 200, 200);
+    drawText("PRESENT TO YOU" + logoDots, x-150, y+440, s/1.8);
+    
+};
+let logoIs = true;
+let logoClock = 0, logoFrames = 0, logoDotClock = 0, logoDots = "";
+let barrelX = 150, barrelY = -1000, barrelYac = 125, barrelSize = 26;
+let digitsofpiTextX = 1060, digitsofpiTextXac = 100;
+let kinetoTextX = -850, kinetoTextXac = 100;
+let andTextY = -900, andTextYac = 100;
+let presentsTextX = -800, presentsTextXac = 100;
+let slideOut = 0, slideOutac = 1;
+
+function sceneLogo() {
+  const d9 = Math.pow(0.9, F);
+  logoClock += F;
+  if (logoClock > 50) logoFrames += F;
+  logoDotClock += F;
+  if (logoDotClock >= 20) { logoDotClock -= 20; logoDots += "."; }
+  if (logoDots === "....") logoDots = "";
+
+  pushMatrix();
+  scale(400 / 600);
+  translate(0, slideOut);
+  rectMode(CORNER);
+  logoBackground();
+
+  if (barrelYac > 0.01 && logoFrames >= 1) {
+    barrelY += barrelYac * F;
+    barrelSize -= barrelYac / 70 * F;
+    barrelX += barrelYac / 35 * F;
+    barrelYac *= d9;
+  }
+  drawBarrel(barrelX, barrelY, barrelSize);
+
+  fill(255, 255, 255);
+  drawText("&", 276, andTextY, 7);
+  logoTxt(presentsTextX, 100, 7);
+
+  if (logoFrames > 20) {
+    andTextY += andTextYac * F; andTextYac *= d9;
+    kinetoTextX += kinetoTextXac * F; kinetoTextXac *= d9;
+    digitsofpiTextX -= digitsofpiTextXac * F; digitsofpiTextXac *= d9;
+  }
+  if (logoFrames > 40) { presentsTextX += presentsTextXac * F; presentsTextXac *= d9; }
+
+  fill(0, 200, 255);
+  drawText("KINETO", kinetoTextX, 172, 6);
+  fill(255, 0, 0);
+  drawText("DIGITSOFPI", digitsofpiTextX, 42, 6);
+
+  if (logoFrames > 140 && slideOut < 300) { slideOut -= slideOutac * F; slideOutac *= Math.pow(1.1, F); }
+  if (slideOut < -1000) logoIs = false;
+  popMatrix();
+}
+
+// ============================================================
+//  Main loop
+// ============================================================
+function drawGame() {
+  pushMatrix();
+  if (logoIs) { sceneLogo(); popMatrix(); return; }
+  if (scene === "title") sceneTitle();
+  if (scene === "game") sceneGame();
+  if (scene === "gameOver") sceneGameOver();
+  if (scene === "gameWin") sceneGameWin();
+  if (scene === "instruction") sceneInstruction();
+  if (transitionIs) updateTransition();
+
+  // Opening curtain (black, slides up off the screen)
+  if (curtain > 0) {
+    curtainV *= Math.pow(1.1, F);
+    curtain -= curtainV * F;
+    if (curtain > 0) {
+      fill(0); noStroke(); rectMode(CORNER);
+      const bottom = VT + (VH + 20) * Math.min(1, (curtain / 2) / 400);
+      rect(VL - 20, VT - 20, VW + 40, bottom - VT + 20);
+    }
+  }
+  popMatrix();
+}
+
+let lastT = performance.now();
+let lastCursor = "";
+function frame(now) {
+  dt = (now - lastT) / 1000;
+  lastT = now;
+  if (!(dt > 0)) dt = 0;
+  if (dt > 0.1) dt = 0.1;     // tab switches / hiccups don't jump the game forward
+  F = dt * 60;
+
+  layout();
+  click = pendingClick; pendingClick = null;
+  wantPointer = false;
+
+  ctx.setTransform(DPR * S, 0, 0, DPR * S, DPR * OX, DPR * OY);
+  ctx.globalAlpha = 1;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "miter";
+  drawGame();
+  drawTouchUI();
+
+  const cur = wantPointer ? "pointer" : "default";
+  if (cur !== lastCursor) { cv.style.cursor = cur; lastCursor = cur; }
+  click = null;
+  requestAnimationFrame(frame);
+}
+document.addEventListener("visibilitychange", function () { lastT = performance.now(); });
+layout();
+requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>
