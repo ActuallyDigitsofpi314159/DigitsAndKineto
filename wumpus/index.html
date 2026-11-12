@@ -411,6 +411,7 @@ let batAnim = false;
 let batFrames = 0;
 
 // Win screen
+let winInit = false, winRiseFrom = 400;
 let deadWumpY = 10, fallAccel = 0, shakeFrames = 0, winPlayerY = 400, winFade = 0, winTxtFade = 0;
 let winJump = true, playerJumpY = 0, jumpAccel = 7;
 const gravity = 0.2;
@@ -441,7 +442,7 @@ function saveUnlocks() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(unl
 
 // Player
 let winStreak = 0;
-let playerAnimY = 0, animAccel = 0;
+let playerAnimY = 0, animAccel = 0, pitInit = false;
 let playerLocX = round(random(1, 6));
 let playerLocY = round(random(1, 6));
 let pvx = playerLocX, pvy = playerLocY;   // smoothed (drawn) position
@@ -452,6 +453,7 @@ let scrollY = 0, scrollTarget = 0, scrollVel = 0;
 let SCROLL_MIN = -1555; const SCROLL_MAX = 0;
 let howtoBackY = 1880;
 const moveX = [-200];
+let moveStarted = false;
 
 // Rooms
 let rooms = [];
@@ -980,6 +982,7 @@ function resetRoundState() {
   skullSize = 20000; skullTrans = 0; deathAnimationFrames = 0; shakeIntensity = 25; gameOverTextTransparency = 1;
   playerAnimY = 0; animAccel = 0;
   deadWumpY = 10; fallAccel = 0; shakeFrames = 0; winPlayerY = 400; winFade = 0; winTxtFade = 0;
+  winInit = false; pitInit = false;
   wumpusShot = false; wumpusDead = false; arrowProg = 0; arrowResolved = false; unlockMsg = "";
   batAnim = false; batFrames = 0; batCol = 0; bowPop = 0; haveStepped = false;
 }
@@ -1278,6 +1281,7 @@ function sceneGame() {
   if (inPit) {
     canShoot = false;
     deathCause = "pit";
+    if (!pitInit) { pitInit = true; playerAnimY = Math.min(0, VT + 150 - 10); }
     background(0, 200, 0);
     player(200, playerAnimY - 200, 50);
     pitScene();
@@ -1365,6 +1369,13 @@ function sceneGameOver() {
 }
 
 function sceneGameWin() {
+  if (!winInit) {
+    winInit = true;
+    // player + ground start fully below the screen; the dead wumpus starts fully above it
+    winRiseFrom = Math.max(400, VB - 123 + 10);
+    winPlayerY = winRiseFrom;
+    deadWumpY = Math.max(10, 7 - VT + 10);
+  }
   background(255);
 
   pushMatrix();
@@ -1387,7 +1398,7 @@ function sceneGameWin() {
   rect(VL - 50, VT - 50, VW + 100, VH + 100);
 
   if (shakeFrames > 30 && winFade < 150) winFade = Math.min(150, winFade + 2 * F);
-  if (shakeFrames > 30 && winPlayerY > 0) winPlayerY = Math.max(0, winPlayerY - 3 * F);
+  if (shakeFrames > 30 && winPlayerY > 0) winPlayerY = Math.max(0, winPlayerY - 3 * F * (winRiseFrom / 400));
 
   fill(0, 200, 0);
   rect(VL - 50, 310 + winPlayerY, VW + 100, Math.max(100, VB - 310 + 50));
@@ -1582,7 +1593,12 @@ function sceneInstruction() {
 
   selectButton(200, howtoBackY + scrollY, "BACK", 170, 55, "BACK_BOTTOM", function () { tScene = "title"; });
 
-  if (scrollY <= -160 && moveX[0] < 200) moveX[0] = Math.min(200, moveX[0] + 10 * F);
+  if (!moveStarted) {
+    moveX[0] = Math.min(-200, VL - 180);           // parked just past the left edge
+    if (scrollY <= -160) moveStarted = true;
+  } else if (moveX[0] < 200) {
+    moveX[0] = Math.min(200, moveX[0] + 10 * F * Math.max(1, (200 - Math.min(-200, VL - 180)) / 400));
+  }
 }
 
 function updateTransition() {
@@ -2044,24 +2060,27 @@ function sceneLogo() {
   rectMode(CORNER);
   logoBackground();
 
-  if (barrelYac > 0.01 && logoFrames >= 1) {
-    barrelY += barrelYac * F;
-    barrelSize -= barrelYac / 70 * F;
-    barrelX += barrelYac / 35 * F;
-    barrelYac *= d9;
-  }
+  // Each piece eases from off-screen to its resting spot: pos = end - distance * 0.9^frames.
+  // Start points are pushed past the real screen edges (in this 600-unit space), so on
+  // wide or tall screens nothing is visible before it slides in.
+  const eL = VL * 1.5 - 10, eR = VR * 1.5 + 10, eT = VT * 1.5 - 10;
+  const kB = Math.pow(0.9, Math.max(0, logoFrames));
+  const kT = Math.pow(0.9, Math.max(0, logoFrames - 20));
+  const kP = Math.pow(0.9, Math.max(0, logoFrames - 40));
+  const barrelExtra = Math.max(0, (-1000 + 28 * 26) - eT);
+  barrelY = 250 - (1250 + barrelExtra) * kB;
+  barrelSize = 26 - (1250 / 70) * (1 - kB);
+  barrelX = 150 + (1250 / 35) * (1 - kB);
+  andTextY = 100 - (1000 + Math.max(0, (-900 + 56) - eT)) * kT;
+  kinetoTextX = 150 - (1000 + Math.max(0, (-850 + 288) - eL)) * kT;
+  digitsofpiTextX = 60 + (1000 + Math.max(0, eR - 1060)) * kT;
+  presentsTextX = 200 - (1000 + Math.max(0, (-950 + 529) - eL)) * kP;
+
   drawBarrel(barrelX, barrelY, barrelSize);
 
   fill(255, 255, 255);
   drawText("&", 276, andTextY, 7);
   logoTxt(presentsTextX, 100, 7);
-
-  if (logoFrames > 20) {
-    andTextY += andTextYac * F; andTextYac *= d9;
-    kinetoTextX += kinetoTextXac * F; kinetoTextXac *= d9;
-    digitsofpiTextX -= digitsofpiTextXac * F; digitsofpiTextXac *= d9;
-  }
-  if (logoFrames > 40) { presentsTextX += presentsTextXac * F; presentsTextXac *= d9; }
 
   fill(0, 200, 255);
   drawText("KINETO", kinetoTextX, 172, 6);
