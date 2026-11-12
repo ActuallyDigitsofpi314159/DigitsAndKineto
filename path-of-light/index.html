@@ -6,7 +6,7 @@ I took the original game just made it into p5.js. Antialas and faster.
 -->
   <head>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Path of Light pi edition</title>
+  <title>Path of Light</title>
   <style>
     body{
         margin:0;
@@ -68,9 +68,10 @@ var touchLookSensitivity = 0.005;
 function joyRadius()  { return constrain(min(width, height) * 0.16, 50, 80); }
 function jumpRadius() { return constrain(min(width, height) * 0.11, 38, 56); }
 // in portrait, lift the controls so mobile browser bars don't cover them
-function bottomPad()  { return height > width ? Math.max(70, height * 0.1) : 0; }
-function joyCenter()  { var r = joyRadius();  return { x: r + 28,         y: height - r - 28 - bottomPad() }; }
-function jumpCenter() { var r = jumpRadius(); return { x: width - r - 32, y: height - r - 44 - bottomPad() }; }
+function bottomPad()  { return height > width ? Math.max(90, height * 0.12) : Math.max(40, height * 0.08); }
+function sidePad()    { return width > height ? 24 : 0; }  // keep clear of notches/edge gestures
+function joyCenter()  { var r = joyRadius();  return { x: r + 28 + sidePad(), y: height - r - 28 - bottomPad() }; }
+function jumpCenter() { var r = jumpRadius(); return { x: width - r - 32 - sidePad(), y: height - r - 44 - bottomPad() }; }
 
 function updateJoy(x, y) {
   var c = joyCenter(), r = joyRadius();
