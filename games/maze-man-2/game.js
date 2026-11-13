@@ -4,8 +4,8 @@
    ========================================================================== */
 DKGames.register({
     title: 'Maze Man 2',
-    shortDescription: 'A Classic Monster Hunt',
-    description: 'Inspired by the TI-99 \"Hunt the Wumpus,\" this game is a fun puzzle strategy game with newly imagined graphics! Find your way through a maze, dodging pitfalls and- yes, hunting the Wumpus. Complete with multiple fun modes!',
+    shortDescription: 'Endless Twists and Turns',
+    description: 'Run through endless mazes, but BEWARE! You are not alone. Larry remembers where you were and won\'t stop until you are found. See how far you can make it...',
     color: 'rgba(68, 20, 164, 1)',      // main color: play button, accents
     cover: 'cover.png',           // square cover art (homepage buttons)
     banner: 'banner.jpg',         // wide image across the top of the game page

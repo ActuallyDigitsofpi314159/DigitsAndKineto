@@ -72,6 +72,7 @@ About [
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;800&display=swap" rel="stylesheet">
 
 <!--Get cannon & three for the title screen-->
+<script src="../assets/touch-controls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"></script>
 
@@ -436,28 +437,6 @@ button.addEventListener('click', () => {
         body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
         /* ---- Touch controls (only built on touch devices) ---- */
         #touch-ui { position: fixed; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 40; }
-        #joy-base {
-            position: absolute; left: 28px; bottom: 28px; width: 130px; height: 130px;
-            border-radius: 50%; background: rgba(255,255,255,0.18);
-            border: 2px solid rgba(255,255,255,0.45); pointer-events: auto; touch-action: none;
-        }
-        #joy-knob {
-            position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px;
-            border-radius: 50%; background: rgba(255,255,255,0.65); pointer-events: none;
-        }
-        #jump-btn {
-            position: absolute; right: 28px; bottom: 44px; width: 110px; height: 110px;
-            border-radius: 50%; background: rgba(34,187,51,0.55); border: 2px solid rgba(255,255,255,0.6);
-            color: #fff; font: bold 16px sans-serif; display: flex; align-items: center; justify-content: center;
-            pointer-events: auto; touch-action: none;
-        }
-        @media (orientation: portrait) {
-            /* lift controls clear of mobile browser bars */
-            #joy-base { bottom: calc(80px + env(safe-area-inset-bottom)); }
-            #jump-btn { bottom: calc(96px + env(safe-area-inset-bottom)); }
-        }
-        #joy-base.active { background: rgba(255,255,255,0.26); }
-        #jump-btn.down { background: rgba(34,187,51,0.9); }
         .touch-small {
             position: absolute; top: 12px; width: 46px; height: 46px; border-radius: 50%;
             background: rgba(0,0,0,0.45); border: 2px solid rgba(255,255,255,0.5); color: #fff;
@@ -1349,100 +1328,29 @@ window.addEventListener('keyup', function(e){
     keys[e.code] = false;
 });
 
-// ===== Touch controls: joystick (move), jump button, drag screen to look =====
-// Touches are sorted by where they land on screen (not by event target), and the
-// joystick floats: it appears wherever you press on the left side of the screen.
+// ===== Touch controls: shared DKTouch module (joystick, jump arrow, drag to look) =====
 var IS_TOUCH = window.matchMedia ? window.matchMedia('(pointer: coarse)').matches : ('ontouchstart' in window);
-var touchMove = { x: 0, y: 0 };   // joystick output, -1..1 (y>0 = backward)
-var jumpBufferUntil = 0;          // a tap on JUMP stays valid for a moment, so quick taps never get missed
+var touchMove = DKTouch.move;     // joystick output, -1..1 (y>0 = backward)
 if(IS_TOUCH){
     (function(){
         var ui = document.createElement('div'); ui.id = 'touch-ui';
-        var base = document.createElement('div'); base.id = 'joy-base';
-        var knob = document.createElement('div'); knob.id = 'joy-knob';
-        base.appendChild(knob);
-        var jump = document.createElement('div'); jump.id = 'jump-btn'; jump.textContent = 'JUMP';
-        var pauseB = document.createElement('div'); pauseB.className = 'touch-small'; pauseB.style.left = '12px'; pauseB.textContent = '⏸';
-        var resetB = document.createElement('div'); resetB.className = 'touch-small'; resetB.style.left = '66px'; resetB.textContent = '⟲';
-        ui.appendChild(base); ui.appendChild(jump); ui.appendChild(pauseB); ui.appendChild(resetB);
+        var pauseB = document.createElement('div'); pauseB.className = 'touch-small'; pauseB.style.left = '12px'; pauseB.textContent = '\u23F8';
+        var resetB = document.createElement('div'); resetB.className = 'touch-small'; resetB.style.left = '66px'; resetB.textContent = '\u27F2';
+        ui.appendChild(pauseB); ui.appendChild(resetB);
         document.body.appendChild(ui);
-
-        var joyId = null, jumpId = null, lookId = null;
-        var joyOX = 0, joyOY = 0, lastX = 0, lastY = 0;
-        var LOOK_SENS = 0.006;
-        var JOY_RADIUS = 65;
-
-        function hitCircle(el, x, y, grow){
-            var r = el.getBoundingClientRect();
-            var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-            var dx = x - cx, dy = y - cy, rad = r.width / 2 * grow;
-            return dx * dx + dy * dy <= rad * rad;
-        }
-        function setJoy(x, y){
-            var dx = x - joyOX, dy = y - joyOY;
-            var len = Math.sqrt(dx*dx + dy*dy);
-            if(len > JOY_RADIUS){ dx = dx / len * JOY_RADIUS; dy = dy / len * JOY_RADIUS; len = JOY_RADIUS; }
-            knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
-            if(len / JOY_RADIUS < 0.12){ touchMove.x = 0; touchMove.y = 0; }
-            else { touchMove.x = dx / JOY_RADIUS; touchMove.y = dy / JOY_RADIUS; }
-        }
-        function startJoy(id, x, y){
-            joyId = id; joyOX = x; joyOY = y;
-            base.style.left = (x - 65) + 'px'; base.style.top = (y - 65) + 'px'; base.style.bottom = 'auto';
-            base.classList.add('active');
-            setJoy(x, y);
-        }
-        function releaseJoy(){
-            joyId = null; touchMove.x = 0; touchMove.y = 0; knob.style.transform = '';
-            base.style.left = ''; base.style.top = ''; base.style.bottom = '';
-            base.classList.remove('active');
-        }
-        function releaseJump(){ jumpId = null; keys["Space"] = false; jump.classList.remove('down'); }
-
-        document.addEventListener('touchstart', function(e){
-            for(var i = 0; i < e.changedTouches.length; i++){
-                var t = e.changedTouches[i], x = t.clientX, y = t.clientY, el = t.target;
-                // let menu buttons (pause / win / level select) work normally
-                if(el && el.closest && el.closest('.win-screen, .pause-screen, .level-select')) continue;
-                if(hitCircle(pauseB, x, y, 1.3)){ togglePause(); }
-                else if(hitCircle(resetB, x, y, 1.3)){ player.position.set(0, 5, 0); velocityY = 0; levelStartTime = performance.now(); }
-                else if(jumpId === null && hitCircle(jump, x, y, 1.4)){
-                    jumpId = t.identifier; keys["Space"] = true; jumpBufferUntil = performance.now() + 150;
-                    jump.classList.add('down');
-                }
-                else if(joyId === null && x < window.innerWidth * 0.45){ startJoy(t.identifier, x, y); }
-                else if(lookId === null){ lookId = t.identifier; lastX = x; lastY = y; }
-                e.preventDefault();
+        pauseB.addEventListener('touchstart', function(e){ togglePause(); e.preventDefault(); }, { passive: false });
+        resetB.addEventListener('touchstart', function(e){ player.position.set(0, 5, 0); velocityY = 0; levelStartTime = performance.now(); e.preventDefault(); }, { passive: false });
+        DKTouch.init({
+            active: function(){ return !gamePaused; },
+            ignore: function(el){ return !!(el && el.closest && el.closest('.win-screen, .pause-screen, .level-select, .touch-small')); },
+            onJump: function(down){ keys["Space"] = down; },
+            onLook: function(dx, dy){
+                alpha -= dx * 0.006;
+                beta  += dy * 0.006;
+                if(beta < -maxBeta) beta = -maxBeta;
+                if(beta >  maxBeta) beta =  maxBeta;
             }
-        }, { passive: false });
-        document.addEventListener('touchmove', function(e){
-            for(var i = 0; i < e.changedTouches.length; i++){
-                var t = e.changedTouches[i];
-                if(t.identifier === joyId){ setJoy(t.clientX, t.clientY); }
-                else if(t.identifier === lookId){
-                    if(!gamePaused){
-                        alpha -= (t.clientX - lastX) * LOOK_SENS;
-                        beta  += (t.clientY - lastY) * LOOK_SENS;
-                        if(beta < -maxBeta) beta = -maxBeta;
-                        if(beta >  maxBeta) beta =  maxBeta;
-                    }
-                    lastX = t.clientX; lastY = t.clientY;
-                }
-            }
-            e.preventDefault();
-        }, { passive: false });
-        function endTouch(e){
-            for(var i = 0; i < e.changedTouches.length; i++){
-                var id = e.changedTouches[i].identifier;
-                if(id === joyId) releaseJoy();
-                if(id === jumpId) releaseJump();
-                if(id === lookId) lookId = null;
-            }
-        }
-        document.addEventListener('touchend', endTouch);
-        document.addEventListener('touchcancel', endTouch);
-        // if the page loses focus mid-touch, let go of everything
-        window.addEventListener('blur', function(){ releaseJoy(); releaseJump(); lookId = null; });
+        });
     })();
 }
 
@@ -2043,9 +1951,9 @@ function animate(){
         }
         
         // Jump only if not just boosted by trampoline
-        if((keys["Space"] || performance.now() < jumpBufferUntil) && grounded && !trampolineHit){
+        if((keys["Space"] || DKTouch.jumpBuffered()) && grounded && !trampolineHit){
             velocityY = JUMP_SPEED;
-            jumpBufferUntil = 0;
+            DKTouch.consumeJump();
         }
         
         // Respawn if fallen too deep

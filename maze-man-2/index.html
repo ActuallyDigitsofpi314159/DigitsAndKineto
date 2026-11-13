@@ -57,6 +57,7 @@
 </head>
 <body>
 <canvas id="game" tabindex="0"></canvas>
+<script src="../assets/touch-controls.js"></script>
 <script>
 (function () {
 'use strict';
@@ -1226,8 +1227,6 @@ function drawWhite(a, col) { if (a <= 0.002) return; scr(); ctx.fillStyle = col 
 var keys = {};
 var pointer = { x: -1, y: -1, inside: false, down: false };
 var locked = false, lockFailed = false, wantLock = false;
-var joy = { id: null, ox: 0, oy: 0, x: 0, y: 0, vx: 0, vy: 0 };
-var look = { id: null, lx: 0, ly: 0 };
 var drag = { id: null, sx: 0, sy: 0, lx: 0, ly: 0, moved: false };
 
 function requestLock() {
@@ -1261,12 +1260,12 @@ cv.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
 cv.addEventListener('pointerdown', function (e) {
   isTouch = e.pointerType === 'touch';
+  if (isTouch) DKTouch.enable();
   pointer.x = e.clientX; pointer.y = e.clientY; pointer.inside = true; pointer.down = true;
   try { cv.focus({ preventScroll: true }); } catch (er) {}
   if (isTouch && scene === 'game' && !game.paused && game.controls()) {
     if (!pauseBtnHit(e.clientX, e.clientY)) {
-      if (e.clientX < W * 0.45 && joy.id === null) { joy.id = e.pointerId; joy.ox = e.clientX; joy.oy = e.clientY; joy.x = 0; joy.y = 0; return; }
-      if (e.clientX >= W * 0.45 && look.id === null) { look.id = e.pointerId; look.lx = e.clientX; look.ly = e.clientY; return; }
+      return; // DKTouch owns joystick + look touches during gameplay
     }
   }
   if (!isTouch && scene === 'game' && !game.paused && !locked) { drag.id = e.pointerId; drag.lx = e.clientX; drag.ly = e.clientY; }
@@ -1275,22 +1274,13 @@ cv.addEventListener('pointerdown', function (e) {
 });
 cv.addEventListener('pointermove', function (e) {
   if (e.pointerType !== 'touch') { pointer.x = e.clientX; pointer.y = e.clientY; pointer.inside = true; }
-  if (e.pointerId === joy.id) {
-    var R = 56, dx = e.clientX - joy.ox, dy = e.clientY - joy.oy, d = Math.sqrt(dx * dx + dy * dy);
-    if (d > R) { joy.ox += dx / d * (d - R); joy.oy += dy / d * (d - R); dx = e.clientX - joy.ox; dy = e.clientY - joy.oy; }
-    joy.x = dx / R; joy.y = dy / R;
-  } else if (e.pointerId === look.id) {
-    if (scene === 'game' && !game.paused) lookBy(e.clientX - look.lx, e.clientY - look.ly, CFG.touchLookSens / CFG.mouseSens);
-    look.lx = e.clientX; look.ly = e.clientY;
-  } else if (e.pointerId === drag.id && !locked && scene === 'game' && pointer.down) {
+  if (e.pointerId === drag.id && !locked && scene === 'game' && pointer.down) {
     lookBy(e.clientX - drag.lx, e.clientY - drag.ly, 1.6); drag.lx = e.clientX; drag.ly = e.clientY;
   }
   if (pointer.down && Math.abs(e.clientX - drag.sx) > 12) drag.moved = true;
   if (scene === 'howto' && pointer.down) howto.dragTo(e.clientX - drag.sx);
 });
 function endPointer(e) {
-  if (e.pointerId === joy.id) { joy.id = null; joy.x = joy.y = 0; }
-  if (e.pointerId === look.id) look.id = null;
   if (e.pointerId === drag.id) drag.id = null;
   pointer.down = false;
   if (scene === 'howto') howto.release(e.clientX - drag.sx);
@@ -1299,6 +1289,12 @@ cv.addEventListener('pointerup', endPointer);
 cv.addEventListener('pointercancel', endPointer);
 cv.addEventListener('pointerleave', function (e) { if (e.pointerType !== 'touch') pointer.inside = false; });
 
+DKTouch.init({
+  jump: false,
+  active: function () { return isTouch && scene === 'game' && !game.paused && game.controls(); },
+  ignore: function (el, x, y) { return pauseBtnHit(x, y); },
+  onLook: function (dx, dy) { lookBy(dx, dy, CFG.touchLookSens / CFG.mouseSens); }
+});
 function lookBy(mx, my, mult) {
   P.a += mx * CFG.mouseSens * mult;
   P.pitch = clamp(P.pitch - my * CFG.pitchSens * mult, -CFG.maxPitch, CFG.maxPitch);
@@ -1404,6 +1400,13 @@ function drawTitle() {
 
 /* ------------------- INTRO (Play -> camera pan -> wake) ------------------- */
 var INTRO_PATH = [[1.5, 6.5], [1.5, 4.3], [1.7, 4.5], [3.35, 4.5]];
+// second leg: keeps the camera gliding through open corridors (down col 3, then east along the bottom row)
+// so it never stops against the wall while the screen fades to white
+var INTRO_PATH2 = [[3.35, 4.5], [3.45, 5.6], [3.9, 6.5], [6.2, 6.5]];
+function introPos(x) {  // x: 0..1 over the whole intro move; eases in, then holds speed (no slow-down at the end)
+  var g = (x < 0.3 ? x * x / 0.6 : x - 0.15) / 0.85, p = g * 2;
+  return p < 1 ? bez(INTRO_PATH, p) : bez(INTRO_PATH2, Math.min(p - 1, 1));
+}
 function bez(p, t) {
   var u = 1 - t;
   return [u * u * u * p[0][0] + 3 * u * u * t * p[1][0] + 3 * u * t * t * p[2][0] + t * t * t * p[3][0],
@@ -1412,7 +1415,7 @@ function bez(p, t) {
 function startIntro() { setScene('intro'); requestLock(); }
 function drawIntro(dt) {
   titleLarryAnim(dt);
-  var t = st, u = easeInOutCubic((t - 0.2) / 1.85), pos = bez(INTRO_PATH, u);
+  var t = st, pos = introPos(clamp((t - 0.2) / 2.55, 0, 1));
   var k = sstep(0.6, 2.3, t);
   var view = {
     x: pos[0], y: pos[1],
@@ -1457,7 +1460,7 @@ function startGame(fromIntro) {
   game.wake = 0; game.wakeWhite = true; game.freeze = 3.0; game.paused = false; game.toast = 0; game.freezeInput = 0;
   if (!isTouch && !locked && !lockFailed) pauseGame();
 }
-function pauseGame() { game.paused = true; joy.id = look.id = null; joy.x = joy.y = 0; keys = {}; }
+function pauseGame() { game.paused = true; if (window.DKTouch) DKTouch.reset(); keys = {}; }
 function resumeGame() {
   if (isTouch || lockFailed || locked) { game.paused = false; return; }
   requestLock();   // unpauses in the pointerlockchange handler once the mouse is locked
@@ -1486,7 +1489,7 @@ function updateGame(dt) {
     if (keys.KeyD) str += 1;
     if (keys.ArrowLeft) turn -= 1;
     if (keys.ArrowRight) turn += 1;
-    if (joy.id !== null) { fwd -= joy.y; str += joy.x; }
+    if (isTouch) { fwd -= DKTouch.move.y; str += DKTouch.move.x; }
   }
   P.a += turn * CFG.turnSpeed * dt;
   var ca = Math.cos(P.a), sa = Math.sin(P.a);
@@ -1562,10 +1565,7 @@ function drawHud() {
     var pr = pauseBtnRect();
     ctx.fillStyle = 'rgba(0,0,0,0.35)'; rrect(ctx, pr.x, pr.y, pr.w, pr.h, 10); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(pr.x + 15, pr.y + 13, 5, 20); ctx.fillRect(pr.x + 26, pr.y + 13, 5, 20);
-    if (joy.id !== null) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(joy.ox, joy.oy, 56, 0, TAU); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,80,80,0.55)'; ctx.beginPath(); ctx.arc(joy.ox + joy.x * 56, joy.oy + joy.y * 56, 24, 0, TAU); ctx.fill();
+    if (DKTouch.move.x || DKTouch.move.y) {
     } else if (game.wake < 12) {
       ctx.globalAlpha = a * 0.5 * (1 - sstep(8, 12, game.wake));
       txt('drag to move', W * 0.2, H - 40, 13, '#fff'); txt('drag to look', W * 0.75, H - 40, 13, '#fff');

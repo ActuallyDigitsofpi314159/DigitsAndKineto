@@ -19,6 +19,7 @@ I took the original game just made it into p5.js. Antialas and faster.
     }
     canvas{ display:block; }
   </style>
+    <script src="../assets/touch-controls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/p5@1.7.0/lib/p5.js"></script>
     <script type>
 /*
@@ -60,27 +61,13 @@ function toUI(px, py) { return { x: (px - UX) / US, y: (py - UY) / US }; }
 // phones/tablets: on-screen joystick + jump button, drag anywhere else to look
 var IS_TOUCH = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
                (!window.matchMedia && 'ontouchstart' in window);
-var touchMoveX = 0, touchMoveY = 0, touchJump = false;  // stick: -1..1, up = -y
-var joyId = null, jumpId = null, lookId = null;
-var lookLastX = 0, lookLastY = 0, joyKnobX = 0, joyKnobY = 0;
 var touchLookSensitivity = 0.005;
-
-function joyRadius()  { return constrain(min(width, height) * 0.16, 50, 80); }
-function jumpRadius() { return constrain(min(width, height) * 0.11, 38, 56); }
-// in portrait, lift the controls so mobile browser bars don't cover them
-function bottomPad()  { return height > width ? Math.max(90, height * 0.12) : Math.max(40, height * 0.08); }
-function sidePad()    { return width > height ? 24 : 0; }  // keep clear of notches/edge gestures
-function joyCenter()  { var r = joyRadius();  return { x: r + 28 + sidePad(), y: height - r - 28 - bottomPad() }; }
-function jumpCenter() { var r = jumpRadius(); return { x: width - r - 32 - sidePad(), y: height - r - 44 - bottomPad() }; }
-
-function updateJoy(x, y) {
-  var c = joyCenter(), r = joyRadius();
-  var dx = x - c.x, dy = y - c.y, len = sqrt(dx * dx + dy * dy);
-  if (len > r) { dx = dx / len * r; dy = dy / len * r; len = r; }
-  joyKnobX = dx; joyKnobY = dy;
-  if (len / r < 0.15) { touchMoveX = 0; touchMoveY = 0; }   // dead zone
-  else { touchMoveX = dx / r; touchMoveY = dy / r; }
+function touchLook(dx, dy) {
+  camAngleY -= dx * touchLookSensitivity;
+  camAngleX = constrain(camAngleX - dy * touchLookSensitivity, radians(-89), radians(89));
 }
+// shared joystick / jump arrow / drag-to-look (assets/touch-controls.js); only live during gameplay
+if (IS_TOUCH) DKTouch.init({ active: function () { return scene === "game" && !dead; }, onLook: touchLook, force: true });
 
 // tap on a menu button (title / how to play), in real canvas pixels
 function menuTap(x, y) {
@@ -94,54 +81,12 @@ function menuTap(x, y) {
   }
 }
 
+// menus only: gameplay touches are handled by DKTouch
 function onTouchStart(e) {
-  for (var i = 0; i < e.changedTouches.length; i++) {
-    var t = e.changedTouches[i], x = t.clientX, y = t.clientY;
-    if (scene === "title" || scene === "howToPlay") { menuTap(x, y); continue; }
-    if (scene !== "game") continue;
-    if (dead) { if (deathAnimationFrames > 120) resetDeath(); continue; }
-    var jc = joyCenter(), kc = jumpCenter();
-    if (joyId === null && dist(x, y, jc.x, jc.y) < joyRadius() * 1.4) {
-      joyId = t.identifier; updateJoy(x, y);
-    } else if (jumpId === null && dist(x, y, kc.x, kc.y) < jumpRadius() * 1.3) {
-      jumpId = t.identifier; touchJump = true;
-    } else if (lookId === null) {
-      lookId = t.identifier; lookLastX = x; lookLastY = y;
-    }
-  }
+  if (scene === "game" && dead) { if (deathAnimationFrames > 120) resetDeath(); e.preventDefault(); return; }
+  if (scene !== "title" && scene !== "howToPlay") return;
+  for (var i = 0; i < e.changedTouches.length; i++) menuTap(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
   e.preventDefault();
-}
-function onTouchMove(e) {
-  for (var i = 0; i < e.changedTouches.length; i++) {
-    var t = e.changedTouches[i];
-    if (t.identifier === joyId) updateJoy(t.clientX, t.clientY);
-    else if (t.identifier === lookId) {
-      camAngleY -= (t.clientX - lookLastX) * touchLookSensitivity;
-      camAngleX = constrain(camAngleX - (t.clientY - lookLastY) * touchLookSensitivity, radians(-89), radians(89));
-      lookLastX = t.clientX; lookLastY = t.clientY;
-    }
-  }
-  e.preventDefault();
-}
-function onTouchEnd(e) {
-  for (var i = 0; i < e.changedTouches.length; i++) {
-    var id = e.changedTouches[i].identifier;
-    if (id === joyId)  { joyId = null; touchMoveX = 0; touchMoveY = 0; joyKnobX = 0; joyKnobY = 0; }
-    if (id === jumpId) { jumpId = null; touchJump = false; }
-    if (id === lookId) { lookId = null; }
-  }
-}
-
-function drawTouchControls() {
-  var jc = joyCenter(), jr = joyRadius(), kc = jumpCenter(), kr = jumpRadius();
-  strokeWeight(2); stroke(255, 110); fill(255, 38);
-  ellipse(jc.x, jc.y, jr * 2, jr * 2);
-  noStroke(); fill(255, 150);
-  ellipse(jc.x + joyKnobX, jc.y + joyKnobY, jr * 0.9, jr * 0.9);
-  strokeWeight(2); stroke(255, 130); fill(touchJump ? color(0, 255, 120, 170) : color(0, 200, 90, 90));
-  ellipse(kc.x, kc.y, kr * 2, kr * 2);
-  noStroke(); fill(255, 220); textAlign(CENTER, CENTER); textSize(kr * 0.36);
-  text("JUMP", kc.x, kc.y);
 }
 
  
@@ -727,9 +672,6 @@ function setup() {
   // touch devices: joystick / jump / drag-to-look
   if (IS_TOUCH) {
     document.addEventListener('touchstart',  onTouchStart,  { passive: false });
-    document.addEventListener('touchmove',   onTouchMove,   { passive: false });
-    document.addEventListener('touchend',    onTouchEnd);
-    document.addEventListener('touchcancel', onTouchEnd);
   }
  
   selectRandomDeathMessage();
@@ -795,9 +737,9 @@ function draw() {
     if (keys[65]) { desVX -= fDZ; desVZ += fDX; hasInput = true; } // A
     if (keys[68]) { desVX += fDZ; desVZ -= fDX; hasInput = true; } // D
     // touch joystick (up = forward, same directions as W/A/S/D)
-    if (touchMoveX !== 0 || touchMoveY !== 0) {
-      desVX += fDX * touchMoveY + fDZ * touchMoveX;
-      desVZ += fDZ * touchMoveY - fDX * touchMoveX;
+    if (DKTouch.move.x !== 0 || DKTouch.move.y !== 0) {
+      desVX += fDX * DKTouch.move.y + fDZ * DKTouch.move.x;
+      desVZ += fDZ * DKTouch.move.y - fDX * DKTouch.move.x;
       hasInput = true;
     }
  
@@ -863,7 +805,7 @@ function draw() {
     }
     onGround = onSurface;
  
-    if ((keys[32] || touchJump) && onGround) { isJumping = true; onGround = false; jumpSpeed = -8; } // jump
+    if ((keys[32] || DKTouch.jumpHeld) && onGround) { isJumping = true; onGround = false; jumpSpeed = -8; } // jump
     if (playerY > fallResetY)  dead = true; // fell into the void
  
     // did we reach the goal?
@@ -943,7 +885,6 @@ function draw() {
     if (digitTimer >= 3) { digitTimer -= 3; currentDigitPosition++; }
   }
  
-  if (IS_TOUCH && !dead) drawTouchControls();
 
   // --- death screen ---
   if (dead) {
