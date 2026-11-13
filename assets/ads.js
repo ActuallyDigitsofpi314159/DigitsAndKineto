@@ -20,8 +20,8 @@
     'use strict';
 
     var CONFIG = {
-        provider: '',           // '' = ads off  ·  'adsense' = Google AdSense
-        adsenseClient: '',      // your publisher ID, e.g. 'ca-pub-1234567890123456'
+        provider: 'adsense',    // '' = ads off  ·  'adsense' = Google AdSense
+        adsenseClient: 'ca-pub-5106059135854508',
         slots: {
             converter: ''       // ad unit ID for the converter box, e.g. '1234567890'
         },
