@@ -24,6 +24,7 @@ The site is plain HTML, CSS and JavaScript with no build step: every page is a s
   - `home.css` / `home.js`: homepage
   - `game-registry.js`, `game-page.css`, `game-page.js`: game pages
   - `about.css`: About page · `updates.css` / `updates.js`: Updates page
+  - `ads.js` + `ads.css`: the ad spots (see "Ads" below)
   - `img/`: images used by pages
 - `games/`: one folder per game, plus `games.js` (the homepage game list)
 - `updates/`: `posts.js` (all posts) and `images/` (post pictures)
@@ -54,6 +55,12 @@ The site is plain HTML, CSS and JavaScript with no build step: every page is a s
 ### Editing the About page
 - The text is in about/index.html. Each part of the story is one `<li class="chapter">` block with a year, a heading and a paragraph; copy a block to add a new chapter.
 - The quick facts under the intro are the `<ul class="about-stats">` list.
+
+### Ads
+- There are two ad spots: a full-screen video ad after Play is pressed on a game page (before the game opens), and a banner/video box on DK Converter's loading screen.
+- Ads are off until the settings at the top of assets/ads.js are filled in: set `provider` to `'adsense'`, `adsenseClient` to the publisher ID (`ca-pub-...`), and `slots.converter` to the ad unit ID for the converter box.
+- To see where the ads go without an ad service, add `?ads=preview` to a game page or converter address, e.g. /games/dash-parkour/?ads=preview
+- A new game gets the pre-roll automatically (it is part of the copied index.html).
 
 ### Top navigation
 - The nav buttons are listed in `NAV` at the top of assets/site.js. A button with an empty `href` shows as locked ("Soon…"), like the current `???` button.

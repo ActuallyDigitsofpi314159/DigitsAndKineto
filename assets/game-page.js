@@ -91,7 +91,12 @@
         playsN.textContent = window.DKGames.addPlay(game.slug).toLocaleString();
         playsEl.classList.remove('bump'); void playsEl.offsetWidth; playsEl.classList.add('bump');
         playBtn.classList.add('is-launching');
-        setTimeout(function () { window.DK.fadeTo(playBtn.href); }, 260);
+        setTimeout(function () {
+            // Video ad first (if ads are on), then open the game.
+            var launch = function () { window.DK.fadeTo(playBtn.href); };
+            if (window.DKAds) window.DKAds.preroll().then(launch);
+            else launch();
+        }, 260);
     });
 
     // ---- Share ----

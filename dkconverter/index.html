@@ -17,6 +17,7 @@
     <script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.js"></script>
     <link rel="stylesheet" href="../assets/site.css">
     <link rel="stylesheet" href="converter.css?v=20261107">
+    <link rel="stylesheet" href="../assets/ads.css">
 </head>
 <body>
     <header data-site-header data-site-root="../" data-current="converter"></header>
@@ -2009,6 +2010,8 @@ function drawHugePixelArt(
         <div class="loading-spinner-wrap">
             <div id="spinner" aria-hidden="true"></div>
         </div>
+        <!-- Ad spot: shown while a file is loading/converting (see assets/ads.js) -->
+        <div data-dk-ad="converter"></div>
     </div>
 
     <!-- UI Enhancement Controller -->
@@ -2136,5 +2139,6 @@ function drawHugePixelArt(
     <script src="vendor/zstd_wasm.umd.js" defer></script>
     <script src="jpeg-decoder.js?v=20261107-2" defer></script>
     <script src="converter.js?v=20261106-4" defer></script>
+    <script src="../assets/ads.js" defer></script>
 </body>
 </html>
