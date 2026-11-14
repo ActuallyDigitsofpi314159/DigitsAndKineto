@@ -5,8 +5,11 @@ Bluebird for p5.js in KA
 I took the original game just made it into p5.js. Antialas and faster.
 -->
   <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Path of Light</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon-path-of-light.svg">
+  <script src="../assets/no-zoom.js"></script>
   <style>
     body{
         margin:0;
@@ -17,11 +20,15 @@ I took the original game just made it into p5.js. Antialas and faster.
         user-select:none;
         -webkit-touch-callout:none;
     }
-    canvas{ display:block; }
+    /* the 3D canvas sits underneath; the 2D canvas (menus + HUD) is see-through on top of it */
+    canvas{ display:block; position:fixed; left:0; top:0; }
   </style>
     <script src="../assets/touch-controls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/p5@1.7.0/lib/p5.js"></script>
-    <script type>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.7.0/lib/p5.min.js"></script>
+    <script>
+// p5's "friendly errors" check every single drawing call; turning them off is a big speed-up
+p5.disableFriendlyErrors = true;
+
 /*
                       PROS AND KHANS
                     Round 3 Submission
@@ -665,6 +672,12 @@ function setup() {
   // off-screen WEBGL buffer for all the 3d stuff
   g = createGraphics(windowWidth, windowHeight, WEBGL);
   g.smooth();
+  // Show the 3D buffer directly, underneath the main canvas, instead of copying it onto the
+  // main canvas every frame (that copy was the slowest part of each frame on phones).
+  g.elt.style.display = 'block';
+  g.elt.style.zIndex = '0';
+  cnv.elt.style.zIndex = '1';
+  cnv.elt.style.touchAction = 'none';
  
   // one mousemove listener, handler checks lock state itself
   document.addEventListener('mousemove', handleMove);
@@ -682,6 +695,7 @@ function setup() {
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
   g.resizeCanvas(windowWidth, windowHeight);
+  g.elt.style.display = 'block';
 }
  
 function draw() {
@@ -832,8 +846,22 @@ function draw() {
   // --- draw the world ---
   // we gotta put g. before anything 3d. trust me it's annoying.
   // and python ppl think semicolons are bad
+  // Boxes that can't be on screen (behind the camera, off to the side, or past the far
+  // plane) are skipped. Each box is treated as a ball around its centre, so nothing that
+  // is even partly visible ever gets skipped.
+  var vfx = playerX - cX, vfy = playerY - cY, vfz = playerZ - cZ;
+  var vfl = Math.sqrt(vfx * vfx + vfy * vfy + vfz * vfz) || 1;
+  vfx /= vfl; vfy /= vfl; vfz /= vfl;
+  var tanMax = fovHalf * Math.sqrt(1 + (width / height) * (width / height));
+  var secMax = Math.sqrt(1 + tanMax * tanMax);
   for (var i = 0; i < colliders.length; i++) {
     var col = colliders[i];
+    var cdx = col.position.x - cX, cdy = col.position.y - cY, cdz = col.position.z - cZ;
+    var crad = 0.5 * Math.sqrt(col.size.width * col.size.width + col.size.height * col.size.height + col.size.length * col.size.length);
+    var cfwd = cdx * vfx + cdy * vfy + cdz * vfz;
+    if (cfwd < -crad || cfwd > 8000 + crad) continue;
+    var cside = Math.sqrt(Math.max(0, cdx * cdx + cdy * cdy + cdz * cdz - cfwd * cfwd));
+    if (cside > cfwd * tanMax + crad * secMax) continue;
     g.fill(col.color);
     g.push();
     g.translate(col.position.x, col.position.y, col.position.z);
@@ -865,8 +893,8 @@ function draw() {
   drawFace(0, 0, playerSize / 4);
   g.pop();
  
-  // blit the 3d buffer to the main canvas
-  image(g, 0, 0);
+  // the 3d canvas shows through the main canvas, so just wipe last frame's HUD off it
+  clear();
  
   // --- 2D HUD ---
   txtFade += 2 * dt;
@@ -962,51 +990,5 @@ function mouseClicked() {
   <body>
     <main>
     </main>
-    
-     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script type>
-        var r = 600; 
-        var s = document.documentElement.clientWidth;
-        console.log(window.parent,window.parent.parent)
-        window.parent.parent.html2canvas = e => {
-            try {
-                html2canvas(document.body, {
-                    width:   s,
-                    height:  s,
-                    useCORS: true,
-                    onclone: e => e.getAnimations().forEach(a=>{
-                        try {
-                            a.finish();
-                        } catch{}
-                    })
-                }).then(e => {
-                    var c = document.createElement("canvas");
-                    c.width  = r;
-                    c.height = r;
-                    c.getContext('2d').drawImage(e, 0, 0, e.width, e.height, 0, 0, r, r);
-                    console.log(c.toDataURL())
-                    window.top.postMessage(c.toDataURL(), "*");
-                }).catch(e => { 
-                    alert("Thumbnail Script Error: " + e);  
-                });
-            } catch {
-                window.top.postMessage(document.createElement("canvas").toDataURL(), "*"); 
-            }
-        }; 
-    </script> 
-    <!--This must be the last script in the document I think.
-    Basically, it replaces this html document with an iframe containg this same document. Deals with KA freezing the window object and simlar stuff.--> 
-<script type> 
-    console.log(Date.now()-sessionStorage.getItem("lastload")
-);                  
-    if(!sessionStorage.getItem("lastload") || Date.now() - sessionStorage.getItem("lastload") > 1500){
-        var fullHTML = `<!DOCTYPE html>${document.documentElement.outerHTML}`;
-        document.body.innerHTML=`<iframe src="${URL.createObjectURL(new Blob([fullHTML],{type:"text/html"}))}"style="width:100vw;height:100vh;position:absolute;top:0px;left:0px;border:none"></iframe>`;
-        sessionStorage.setItem("lastload",Date.now());
-    }
-    
-    </script>
-    <script>/*Extra Script tag for reload button.*/</script>
-    
   </body>
 </html>

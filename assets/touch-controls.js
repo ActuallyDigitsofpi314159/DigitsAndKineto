@@ -12,10 +12,10 @@
  *   Read every frame:  DKTouch.move.x / DKTouch.move.y   (-1..1, y > 0 = backward / down)
  *                      DKTouch.jumpHeld, DKTouch.jumpBuffered()  (true for 150 ms after a tap)
  *
- * Behaviour (best of each game's old stick):
- *   - floating stick: appears wherever you press on the left 45% of the screen, with a ghost
- *     stick at the resting spot so people know where to start
- *   - base follows your thumb when you drag past the edge, so you never "lose" the stick
+ * Behaviour:
+ *   - fixed stick: the base always stays in its bottom-left spot and never moves. Only the knob
+ *     follows your thumb, and it stops at the rim (dragging further keeps full speed)
+ *   - pressing on or near the stick grabs it (the grab area is bigger than the circle you see)
  *   - small dead zone, rescaled so movement ramps up smoothly from zero
  *   - responsive size, safe-area / portrait lift so browser bars never cover it
  *   - jump button: bottom-right, generous hit area, buffered taps, up-arrow icon
@@ -30,7 +30,7 @@
     consumeJump: function () { jumpUntil = 0; },
     reset: function () { releaseJoy(); releaseJump(); lookId = null; }
   };
-  var DEAD = 0.12, STICK_ZONE = 0.45;
+  var DEAD = 0.12, GRAB = 2.1;   // GRAB: how far from the stick's centre (in stick radii) a press still grabs it
   var root, base, knob, jbtn, built = false, shown = false;
   var joyId = null, jumpId = null, lookId = null;
   var joyOX = 0, joyOY = 0, lastX = 0, lastY = 0, jumpUntil = 0, radius = 64;
@@ -84,17 +84,22 @@
     base.style.width = base.style.height = radius * 2 + 'px';
     knob.style.width = knob.style.height = radius * 0.9 + 'px';
     knob.style.margin = (-radius * 0.45) + 'px 0 0 ' + (-radius * 0.45) + 'px';
-    if (joyId === null) restBase(lift, side, safeB);
+    restBase(lift, side, safeB);
     if (jbtn) {
       jbtn.style.width = jbtn.style.height = kr * 2 + 'px';
       jbtn.style.right = side + 4 + 'px'; jbtn.style.bottom = 'calc(' + (lift + 8) + 'px + ' + safeB + ')';
     }
-    base._rest = [lift, side, safeB];
   }
   function restBase(lift, side, safeB) {
     base.style.left = side + 'px'; base.style.top = 'auto';
     base.style.bottom = 'calc(' + lift + 'px + ' + safeB + ')';
-    base.className = 'idle';
+    if (joyId === null) base.className = 'idle';
+    var r = base.getBoundingClientRect();           // the stick's fixed centre, in screen pixels
+    joyOX = r.left + r.width / 2; joyOY = r.top + r.height / 2;
+  }
+  function hitJoy(x, y) {
+    var g = radius * GRAB;
+    return (x - joyOX) * (x - joyOX) + (y - joyOY) * (y - joyOY) <= g * g;
   }
   function hitJump(x, y) {
     if (!jbtn) return false;
@@ -103,11 +108,7 @@
   }
   function setJoy(x, y) {
     var dx = x - joyOX, dy = y - joyOY, d = Math.sqrt(dx * dx + dy * dy);
-    if (d > radius) { // drag the base along so the thumb never leaves it
-      var k = (d - radius) / d; joyOX += dx * k; joyOY += dy * k;
-      base.style.left = joyOX - radius + 'px'; base.style.top = joyOY - radius + 'px';
-      dx = x - joyOX; dy = y - joyOY; d = radius;
-    }
+    if (d > radius) { dx *= radius / d; dy *= radius / d; d = radius; }   // knob stops at the rim; the base never moves
     knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
     var m = d / radius;
     if (m < DEAD) { DK.move.x = 0; DK.move.y = 0; return; }
@@ -115,14 +116,12 @@
     DK.move.x = dx / radius * s; DK.move.y = dy / radius * s;
   }
   function startJoy(id, x, y) {
-    joyId = id; joyOX = x; joyOY = y;
-    base.style.left = x - radius + 'px'; base.style.top = y - radius + 'px'; base.style.bottom = 'auto';
-    base.className = 'active'; setJoy(x, y);
+    joyId = id; base.className = 'active'; setJoy(x, y);
   }
   function releaseJoy() {
     if (!built) return;
     joyId = null; DK.move.x = 0; DK.move.y = 0; knob.style.transform = '';
-    var r = base._rest; if (r) restBase(r[0], r[1], r[2]);
+    base.className = 'idle';
   }
   function pressJump() { DK.jumpHeld = true; jumpUntil = performance.now() + 150; if (jbtn) jbtn.classList.add('down'); if (cfg.onJump) cfg.onJump(true); }
   function releaseJump() {
@@ -138,7 +137,7 @@
       var t = e.changedTouches[i], x = t.clientX, y = t.clientY;
       if (cfg.ignore && cfg.ignore(t.target, x, y)) continue;
       if (jumpId === null && hitJump(x, y)) { jumpId = t.identifier; pressJump(); }
-      else if (joyId === null && x < window.innerWidth * STICK_ZONE) startJoy(t.identifier, x, y);
+      else if (joyId === null && hitJoy(x, y)) startJoy(t.identifier, x, y);
       else if (lookId === null) { lookId = t.identifier; lastX = x; lastY = y; }
       else continue;
       claimed = true;

@@ -50,6 +50,7 @@ var dashServerMode = window.dashServerMode || { on: "auto", url: "https://party.
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#000000">
 <title>DASH Parkour</title>
+<script src="../assets/no-zoom.js"></script>
 <link rel="icon" type="image/png" href="data:image/png;base64,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">
 <style>
 html, body {
@@ -23364,7 +23365,7 @@ function program() {
   }
 
   //Logo Variables
-  var logoIs = true;
+  var logoIs = false; // the barrel intro is retired: the game opens straight on the title screen
   var logoFrames = 0;
   var logoStart = null; // [FIX] starting values of the intro animation
   var logoDots = "";
@@ -36488,69 +36489,133 @@ function program() {
     __p.fill(219, 21, 166);
     __p.ellipse(x, y - h, w / 5, w / 5);
   }
-  // [v1.1] Larry: our own grainy blood-red face on a black tile (hollow eyes,
-  // a wide toothy grin and dripping wisps), built from pixels in code
-  function larryHash(x, y, k) {
-    var n = Math.sin(x * 12.9898 + y * 78.233 + k * 37.719) * 43758.5453;
-    return n - Math.floor(n);
+  // Scary Larry skin: the Larry from Maze Man 2 (same drawing code as maze-man-2/index.html,
+  // mouth slightly open). Drawn straight onto the canvas context, then baked into imgs.larry.
+  // A stand-alone copy of this drawing is saved in website-art/scary-larry/.
+  function larryHash(n) {
+    var x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+    return x - Math.floor(x);
   }
-  function larryCell(x, y) {
-    // 0 black, 1-3 reds, 4 teeth
-    var t = (x - 30) / 19;
-    var mid = 44.5 - 7 * t * t;
-    if (Math.abs(t) < 1.05) {
-      var top = mid - 3.2 + Math.abs(t) * 1.6,
-        bot = mid + 4.2 - Math.abs(t) * 2.6;
-      if (y >= top && y <= bot) {
-        // sharp teeth hanging from the top and poking up from the bottom
-        var len = (bot - top) * 0.55;
-        var up = 1 - Math.abs((x % 5) - 2.5) / 2.5,
-          dn = 1 - Math.abs(((x + 2.5) % 5) - 2.5) / 2.5;
-        return y - top < len * up || bot - y < len * dn ? 4 : 0;
-      }
-      if (y > top - 2 && y < bot + 2) {
-        return larryHash(x, y, 1) < 0.5 ? 1 : 0;
-      }
+  function larryHeadPath(c, cx, cy, R) {
+    var TAU = Math.PI * 2;
+    c.beginPath();
+    for (var i = 0; i <= 64; i++) {
+      var th = i / 64 * TAU, sn = Math.sin(th);
+      var r = R * (1 + 0.045 * Math.sin(3 * th + 0.7) + 0.03 * Math.sin(5 * th + 2.1) + 0.018 * Math.sin(9 * th + 1.3));
+      var x = Math.cos(th) * r * 0.93, y = sn * r * (sn > 0 ? 1.08 : 1.0);
+      if (sn > 0) x *= 1 - 0.3 * sn * sn; // narrow, crooked jaw
+      if (sn > 0) x += sn * sn * R * 0.04;
+      if (i === 0) c.moveTo(cx + x, cy + y); else c.lineTo(cx + x, cy + y);
     }
-    var dx = (x - 30) / 20,
-      dy = (y - 24) / 21;
-    var edge = 1 + (larryHash(x, y, 2) - 0.5) * 0.25;
-    if (dx * dx + dy * dy > edge) {
-      // wisps hanging off the sides and the chin
-      var col = Math.floor(x);
-      if (larryHash(col, 0, 3) < 0.22 && y > 30 && y < 36 + larryHash(col, 0, 4) * 12 && Math.abs(x - 30) > 14 && Math.abs(x - 30) < 25) {
-        return larryHash(x, y, 7) < 0.3 ? 0 : larryHash(x, y, 5) < 0.2 ? 2 : 1;
-      }
-      return 0;
-    }
-    var ex = Math.abs(x - 30) - 8.5,
-      ey = y - 22;
-    if ((ex * ex) / 30 + (ey * ey) / 46 < 1) {
-      return 0;
-    }
-    if (y > 29 && y < 35 && Math.abs(x - 30) < (y - 29) * 0.5 + 0.6) {
-      return 0;
-    }
-    var r = larryHash(x, y, 6);
-    if (r < 0.17) {
-      return 0;
-    }
-    return r < 0.5 ? 1 : r < 0.7 ? 2 : 3;
+    c.closePath();
   }
-  function draw2dLarry(x, y, size) {
-    var cols = [__p.color(0), __p.color(110, 0, 0), __p.color(145, 0, 10), __p.color(75, 0, 0), __p.color(255, 110, 125)];
-    __p.noStroke();
-    __p.fill(0);
-    __p.rect(x - size * 30, y - size * 30, size * 60, size * 60);
-    for (var cy = 0; cy < 60; cy++) {
-      for (var cx = 0; cx < 60; cx++) {
-        var c = larryCell(cx, cy);
-        if (c > 0) {
-          __p.fill(cols[c]);
-          __p.rect(x - size * 30 + cx * size, y - size * 30 + cy * size, size + 0.6, size + 0.6);
-        }
-      }
+  function draw2dLarry(c, cx, cy, R, m) {
+    var TAU = Math.PI * 2, hash = larryHash, i;
+    var lerp = function (a, b, t) { return a + (b - a) * t; };
+    var qpt = function (a, b, cc, t) { var u = 1 - t; return [u * u * a[0] + 2 * u * t * cc[0] + t * t * b[0], u * u * a[1] + 2 * u * t * cc[1] + t * t * b[1]]; };
+    var eL = { x: cx - 0.35 * R, y: cy - 0.16 * R }, eR = { x: cx + 0.33 * R, y: cy - 0.07 * R };
+    c.save();
+    // ---- head ----
+    larryHeadPath(c, cx, cy, R);
+    var sg = c.createRadialGradient(cx - 0.3 * R, cy - 0.45 * R, R * 0.05, cx, cy, R * 1.15);
+    sg.addColorStop(0, '#c9343f'); sg.addColorStop(0.45, '#8f0b14'); sg.addColorStop(1, '#330004');
+    c.fillStyle = sg; c.fill();
+    c.save(); larryHeadPath(c, cx, cy, R); c.clip();
+    // blotches
+    for (i = 0; i < 7; i++) {
+      c.fillStyle = 'rgba(55,0,6,' + (0.25 + hash(i) * 0.25) + ')';
+      c.beginPath();
+      c.ellipse(cx + (hash(i + 10) - 0.5) * 1.5 * R, cy + (hash(i + 20) - 0.75) * 1.3 * R, R * (0.06 + hash(i + 30) * 0.12), R * (0.04 + hash(i + 40) * 0.08), hash(i + 50) * 3, 0, TAU);
+      c.fill();
     }
+    // veins
+    c.strokeStyle = 'rgba(35,0,5,0.55)'; c.lineWidth = R * 0.014; c.lineCap = 'round';
+    for (i = 0; i < 6; i++) {
+      var va = hash(i + 60) * TAU, vx = cx + Math.cos(va) * R * 0.95, vy = cy + Math.sin(va) * R * 0.95;
+      c.beginPath(); c.moveTo(vx, vy);
+      c.quadraticCurveTo(lerp(vx, cx, 0.2) + (hash(i + 70) - 0.5) * R * 0.3, lerp(vy, cy, 0.2), lerp(vx, cx, 0.35), lerp(vy, cy, 0.35));
+      c.stroke();
+    }
+    // highlight
+    c.fillStyle = 'rgba(255,110,125,0.16)';
+    c.beginPath(); c.ellipse(cx - 0.22 * R, cy - 0.58 * R, 0.34 * R, 0.13 * R, -0.2, 0, TAU); c.fill();
+    // lower-face shadow
+    var shg = c.createLinearGradient(0, cy + 0.2 * R, 0, cy + 1.1 * R);
+    shg.addColorStop(0, 'rgba(0,0,0,0)'); shg.addColorStop(1, 'rgba(0,0,0,0.45)');
+    c.fillStyle = shg; c.fillRect(cx - R * 1.2, cy + 0.2 * R, R * 2.4, R);
+    c.restore();
+    larryHeadPath(c, cx, cy, R); c.strokeStyle = '#140002'; c.lineWidth = R * 0.045; c.stroke();
+
+    // ---- forehead stitches ----
+    var sp = [];
+    for (i = 0; i <= 12; i++) { var t = i / 12; sp.push([cx + lerp(-0.5, 0.4, t) * R, cy + (lerp(-0.56, -0.7, t) + Math.sin(t * 9) * 0.025) * R]); }
+    c.strokeStyle = '#2a0004'; c.lineWidth = R * 0.035; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(sp[0][0], sp[0][1]); for (i = 1; i < sp.length; i++) c.lineTo(sp[i][0], sp[i][1]); c.stroke();
+    c.strokeStyle = '#d8c8a0'; c.lineWidth = R * 0.02;
+    for (i = 1; i < 12; i += 2) {
+      c.beginPath(); c.moveTo(sp[i][0] - R * 0.025, sp[i][1] - R * 0.07); c.lineTo(sp[i][0] + R * 0.025, sp[i][1] + R * 0.07); c.stroke();
+    }
+    // ---- temple bolt ----
+    var bx = cx + 0.78 * R, by = cy - 0.3 * R;
+    var bg = c.createRadialGradient(bx - R * 0.02, by - R * 0.02, 1, bx, by, R * 0.075);
+    bg.addColorStop(0, '#d6d6d6'); bg.addColorStop(1, '#3b3b3b');
+    c.fillStyle = bg; c.beginPath(); c.arc(bx, by, R * 0.07, 0, TAU); c.fill();
+    c.strokeStyle = '#111'; c.lineWidth = R * 0.015; c.stroke();
+    c.beginPath(); c.moveTo(bx - R * 0.04, by); c.lineTo(bx + R * 0.04, by); c.stroke();
+
+    // ---- brows ----
+    c.fillStyle = 'rgba(25,0,3,0.55)';
+    c.beginPath(); c.ellipse(cx - 0.34 * R, cy - 0.34 * R, 0.31 * R, 0.09 * R, -0.22, 0, TAU); c.fill();
+    c.beginPath(); c.ellipse(cx + 0.32 * R, cy - 0.23 * R, 0.22 * R, 0.07 * R, 0.28, 0, TAU); c.fill();
+    // ---- sockets ----
+    var socket = function (x, y, rx, ry, rot) {
+      var g = c.createRadialGradient(x, y, 0, x, y, Math.max(rx, ry));
+      g.addColorStop(0, '#050000'); g.addColorStop(0.75, '#170002'); g.addColorStop(1, '#3a0006');
+      c.fillStyle = g; c.beginPath(); c.ellipse(x, y, rx, ry, rot, 0, TAU); c.fill();
+    };
+    socket(eL.x, eL.y, 0.26 * R, 0.21 * R, -0.15);
+    socket(eR.x, eR.y, 0.17 * R, 0.14 * R, 0.2);
+    // ---- glowing eyes ----
+    var iris = function (x, y, r, slit) {
+      var g = c.createRadialGradient(x, y, 0, x, y, r * 1.6);
+      g.addColorStop(0, '#fffbe0'); g.addColorStop(0.3, '#ffd23a'); g.addColorStop(0.55, '#ff7a00'); g.addColorStop(1, 'rgba(255,60,0,0)');
+      c.fillStyle = g; c.beginPath(); c.arc(x, y, r * 1.6, 0, TAU); c.fill();
+      c.fillStyle = '#000';
+      c.beginPath();
+      if (slit) c.ellipse(x, y, r * 0.18, r * 0.72, 0, 0, TAU); else c.arc(x, y, r * 0.26, 0, TAU);
+      c.fill();
+    };
+    iris(eL.x, eL.y, 0.12 * R, true);
+    iris(eR.x, eR.y, 0.07 * R, false);
+    // sagging lid
+    c.strokeStyle = '#4a0007'; c.lineWidth = R * 0.03;
+    c.beginPath(); c.ellipse(eL.x, eL.y + 0.04 * R, 0.25 * R, 0.2 * R, -0.15, 0.25 * Math.PI, 0.8 * Math.PI); c.stroke();
+    // ---- nose slits ----
+    c.fillStyle = '#160002';
+    c.beginPath(); c.ellipse(cx - 0.06 * R, cy + 0.13 * R, 0.022 * R, 0.065 * R, 0.45, 0, TAU); c.fill();
+    c.beginPath(); c.ellipse(cx + 0.07 * R, cy + 0.12 * R, 0.022 * R, 0.06 * R, -0.45, 0, TAU); c.fill();
+    // ---- crooked mouth with needle teeth ----
+    var mL = [cx - 0.48 * R, cy + 0.42 * R], mR = [cx + 0.45 * R, cy + 0.31 * R];
+    var cU = [cx - 0.02 * R, cy + 0.27 * R - 0.05 * R * m], cD = [cx + 0.02 * R, cy + 0.52 * R + 0.55 * R * m];
+    c.beginPath(); c.moveTo(mL[0], mL[1]); c.quadraticCurveTo(cU[0], cU[1], mR[0], mR[1]); c.quadraticCurveTo(cD[0], cD[1], mL[0], mL[1]); c.closePath();
+    var mg = c.createLinearGradient(0, cy + 0.3 * R, 0, cy + 0.8 * R);
+    mg.addColorStop(0, '#0a0000'); mg.addColorStop(1, '#4d0008');
+    c.fillStyle = mg; c.fill();
+    c.save(); c.clip();
+    c.fillStyle = '#efe6cc';
+    var tt, p, len, tw;
+    for (i = 0; i < 11; i++) { // top teeth
+      tt = 0.07 + i * 0.086; p = qpt(mL, mR, cU, tt); len = R * (0.07 + hash(i + 80) * 0.07) * (0.8 + m * 0.5); tw = R * 0.03;
+      c.beginPath(); c.moveTo(p[0] - tw, p[1] - 2); c.lineTo(p[0] + tw, p[1] - 2); c.lineTo(p[0] + (hash(i + 90) - 0.5) * tw, p[1] + len); c.closePath(); c.fill();
+    }
+    for (i = 0; i < 9; i++) { // bottom teeth
+      tt = 0.12 + i * 0.095; p = qpt(mL, mR, cD, tt); len = R * (0.06 + hash(i + 100) * 0.07) * (0.8 + m * 0.5); tw = R * 0.028;
+      c.beginPath(); c.moveTo(p[0] - tw, p[1] + 2); c.lineTo(p[0] + tw, p[1] + 2); c.lineTo(p[0] + (hash(i + 110) - 0.5) * tw, p[1] - len); c.closePath(); c.fill();
+    }
+    c.restore();
+    c.strokeStyle = '#2a0004'; c.lineWidth = R * 0.03;
+    c.beginPath(); c.moveTo(mL[0], mL[1]); c.quadraticCurveTo(cU[0], cU[1], mR[0], mR[1]); c.quadraticCurveTo(cD[0], cD[1], mL[0], mL[1]); c.stroke();
+    c.restore();
   }
   // [v1.1] the "Unstoppable" badge: Dash charging forward through a sunburst
   function drawUnstoppableIcon(x, y, s) {
@@ -42928,7 +42993,7 @@ function program() {
 
         //imageMode(CENTER);
 
-        draw2dLarry(300, 300, 10);
+        draw2dLarry(__p.externals.context, 300, 292, 262, 0.25);
       }
     },
     grassImage: {

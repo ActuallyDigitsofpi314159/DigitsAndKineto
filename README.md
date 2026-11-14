@@ -25,11 +25,15 @@ The site is plain HTML, CSS and JavaScript with no build step: every page is a s
   - `game-registry.js`, `game-page.css`, `game-page.js`: game pages
   - `about.css`: About page · `updates.css` / `updates.js`: Updates page
   - `ads.js` + `ads.css`: the ad spots (see "Ads" below)
+  - `touch-controls.js`: the on-screen joystick, jump button and drag-to-look shared by the 3D games (Path of Light, Maze Man 2, Generic Platformer). The stick stays fixed in the bottom-left corner.
+  - `no-zoom.js`: stops phones from zooming the page during a game; every playable game includes it
   - `img/`: images used by pages
 - `games/`: one folder per game, plus `games.js` (the homepage game list)
 - `updates/`: `posts.js` (all posts) and `images/` (post pictures)
 - `website-art/`: original art and design outlines (banner, logo, PDF outlines). Pages don't load these files.
+  - `scary-larry/`: the Maze Man 2 Larry (also DASH Parkour's Scary Larry skin) saved as stand-alone drawing code for later use
 - `logo.svg`: the DK logo (header, About page, browser tab icon)
+- Browser tab icons: every page uses `logo.svg` unless it sets its own. Wumpus Hunt and Maze Man 2 draw theirs from the game's own sprite code (the Wumpus, Larry), Generic Platformer and Path of Light use `assets/img/favicon-generic.svg` and `assets/img/favicon-path-of-light.svg`, and DASH Parkour has its icon built in.
 - `CNAME`: the custom domain, digitsandkineto.com
 
 ## Editing the site

@@ -273,6 +273,8 @@ input[type="number"], select {
     outline: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
+/* iOS zooms the whole page in when a text box with text under 16px is tapped */
+@media (pointer: coarse) { input[type="number"], select { font-size: 16px; } }
 input[type="number"]:focus, select:focus {
     border-color: rgba(255, 255, 255, 0.6);
     box-shadow: -3px 0 12px rgba(253, 58, 64, 0.25), 3px 0 12px rgba(44, 138, 255, 0.25);

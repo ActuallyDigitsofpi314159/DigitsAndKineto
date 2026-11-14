@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
 <title>Wumpus Hunt</title>
+<!-- DK logo until the game has drawn its own icon (the Wumpus sprite, see "Browser tab icon" below) -->
+<link rel="icon" id="tab-icon" type="image/svg+xml" href="../logo.svg">
+<script src="../assets/no-zoom.js"></script>
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; overscroll-behavior: none; }
   canvas {
@@ -47,7 +50,7 @@
     ]
 
     CONTROLS [
-    Arrow keys to move (up, down, left, right), and q to shoot your bow.
+    Arrow keys to move (up, down, left, right), and q to take out your bow (q again cancels).
     On touch screens: on-screen arrow buttons + bow button.
     ]
 
@@ -376,6 +379,7 @@ window.addEventListener("keydown", function (e) {
   const k = e.keyCode;
   if (k === 32 || (k >= 37 && k <= 40)) e.preventDefault();
   keys[k] = true;
+  if (k === KEY_Q && e.repeat) return;   // holding Q must not flick the bow on and off
   onKeyPressed(k);
 });
 window.addEventListener("keyup", function (e) { keys[e.keyCode] = false; });
@@ -679,58 +683,33 @@ function pitScene() {
   rect(350, VT - 20, VR - 350 + 20, VH + 40);
 }
 
-const barrelData = [
-  "----BBBBBBBBBBBBBBB----",
-  "---BgbbbbbbbbbbbbbgB---",
-  "---BgggggggggggggggB---",
-  "--BbbgggggggggggggbbB--",
-  "--BbbbbbbbbbbbbbbbbbB--",
-  "--BbbbbbbbbbbbbbbbbbB--",
-  "-BbbbbbbbbbbbbbbbbbbbB-",
-  "-BggbbbbbbbbbbbbbbbggB-",
-  "-BgggggggggggggggggggB-",
-  "-BbbgrrrgggggllgglgbbB-",
-  "BbbbbrrrrbbbbblbllbbbbB",
-  "BbbbbrrbrbbbbblblbbbbbB",
-  "BbbbbrrbrbbwbblllbbbbbB",
-  "BbbbbrrbrbwwwbllbbbbbbB",
-  "BbbbbrrbrbbwbblllbbbbbB",
-  "BbbbbrrbrbbbbblblbbbbbB",
-  "BgbbbrrrrbbbbblbllbbbgB",
-  "BgggbrrrbbbbbllbblbgggB",
-  "-BgggggggggggggggggggB-",
-  "-BbbgggggggggggggggbbB-",
-  "-BbbbbbbbbbbbbbbbbbbbB-",
-  "-BbbbbbbbbbbbbbbbbbbbB-",
-  "--BbbbbbbbbbbbbbbbbbB--",
-  "--BbbbbbbbbbbbbbbbbbB--",
-  "--BgbbbbbbbbbbbbbbbgB--",
-  "---BgggggggggggggggB---",
-  "---BgggggggggggggggB---",
-  "----BBBBBBBBBBBBBBB----"
-];
-const barrelColors = {
-  "b": color(143, 84, 17),
-  "d": color(125, 72, 16),
-  "r": color(255, 0, 0),
-  "g": color(59, 59, 59),
-  "l": color(0, 200, 255),
-  "w": color(255),
-  "B": color(0)
-};
-function drawBarrel(startX, startY, pixelSize) {
-  noStroke();
-  rectMode(CORNER);
-  for (let r = 0; r < barrelData.length; r++) {
-    const row = barrelData[r];
-    for (let c = 0; c < row.length; c++) {
-      const ch = row[c];
-      if (ch !== "-") {
-        fill(barrelColors[ch]);
-        rect(startX + c * pixelSize, startY + r * pixelSize, pixelSize + 0.5, pixelSize + 0.5);
-      }
-    }
-  }
+// The red and blue DK logo (same shapes as /logo.svg). (cx, cy) = centre, size = width.
+const dkLogoD = new Path2D("M135 459L187 459C232 459 289 403 289 361L289 234C289 215 266 140 182 140L135 140L135 200L184 200C209 200 226 226 226 243L226 354C226 371 198 400 178 400L135 400Z");
+function dkPoly(pts, col) {
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  for (let k = 0; k < pts.length; k += 2) { if (k) ctx.lineTo(pts[k], pts[k + 1]); else ctx.moveTo(pts[k], pts[k + 1]); }
+  ctx.closePath();
+  ctx.fill();
+}
+function drawDKLogo(cx, cy, size) {
+  ctx.save();
+  ctx.translate(cx - size / 2, cy - size / 2);
+  ctx.scale(size / 600, size / 600);
+  ctx.save();
+  ctx.beginPath();                       // rounded-square background
+  ctx.moveTo(60, 0); ctx.arcTo(600, 0, 600, 600, 60); ctx.arcTo(600, 600, 0, 600, 60);
+  ctx.arcTo(0, 600, 0, 0, 60); ctx.arcTo(0, 0, 600, 0, 60); ctx.closePath();
+  ctx.clip();
+  ctx.fillStyle = "rgb(253,58,64)"; ctx.fillRect(0, 0, 600, 600);
+  dkPoly([600, 0, 600, 600, 0, 600], "rgb(44,138,255)");
+  dkPoly([395, 600, 600, 395, 600, 600], "rgb(50,122,254)");
+  ctx.restore();
+  dkPoly([336, 140, 126, 352, 128, 431, 216, 393, 359, 248], "rgb(229,58,63)");
+  dkPoly([69, 459, 69, 140, 150, 140, 150, 200, 135, 200, 135, 400, 150, 400, 150, 459], "#fff");
+  ctx.fillStyle = "#fff"; ctx.fill(dkLogoD);
+  dkPoly([336, 140, 399, 140, 382, 282, 487, 140, 558, 140, 458, 282, 534, 459, 468, 459, 414, 337, 366, 402, 359, 459, 294, 459], "#fff");
+  ctx.restore();
 }
 
 function bow(x, y, s, op) {
@@ -828,13 +807,13 @@ function drawDeadFigure(x, y, s, a) {
   arc(hx, hy + P * 0.14, P * 0.14, P * 0.09, 195, 345);
 }
 
-// Black wipe with the barrel in the middle. (x, y) = top-left, sz = size
+// Black wipe with the DK logo in the middle. (x, y) = top-left, sz = size
 function transition(x, y, sz) {
   rectMode(CORNER);
   fill(0);
   noStroke();
   rect(x, y, sz, sz);
-  drawBarrel(x + sz / 2 - 138, y + sz / 2 - 168, 12);
+  drawDKLogo(x + sz / 2, y + sz / 2, 250);
 }
 
 // Menu button with smooth (lerped) hover + press.
@@ -1293,7 +1272,8 @@ function sceneGame() {
     if (playerAnimY >= 600) scene = "gameOver";
   }
 
-  if ((keys[KEY_Q] || qPressed) && !batAnim) aimIs = true;
+  // Q (or the bow button) takes the bow out; pressing it again puts it away
+  if (qPressed && !batAnim && !arrowShot) aimIs = !aimIs;
   qPressed = false;
 
   bowPop = approach(bowPop, (aimIs && !arrowShot && canShoot) ? 1 : 0, 18);
@@ -1553,8 +1533,8 @@ function sceneInstruction() {
   fill(0);
   textSize(17);
   text(touchMode
-    ? "Use the arrow buttons to move and the bow button to activate your bow. Once your bow is activated, tap the arrow for the direction you want to shoot."
-    : "Use the arrow keys to move and Q to activate your bow. Once your bow is activated, press the arrow key in the direction you want to shoot.",
+    ? "Use the arrow buttons to move and the bow button to activate your bow. Once your bow is activated, tap the arrow for the direction you want to shoot, or tap the bow button again to put it away."
+    : "Use the arrow keys to move and Q to activate your bow. Once your bow is activated, press the arrow key in the direction you want to shoot, or press Q again to put it away.",
     215, scrollY + 1150, 150, 1000);
 
   bow(80, scrollY + 1180, 110);
@@ -1675,429 +1655,10 @@ function drawTouchUI() {
 
 
 // ============================================================
-//  Logo intro (DIGITSOFPI & KINETO) - ported from KA, now delta-time based.
-//  Drawn in the original 600x600 space (scaled to the 400 play area).
-// ============================================================
-var drawText = function(txt, x, y, s, maxWidth) {
-    // Function to get the letter map for a given character
-    var getLetterMap = function(c) {
-        var letterMap = [];
-        switch (c) {
-                // Upcase [
-        case 'A':
-            letterMap = [
-                '  mmm  ',
-                ' mm mm ',
-                'mm   mm',
-                'mm   mm',
-                'mmmmmmm',
-                'mm   mm',
-                'mm   mm',
-                '      '
-            ];
-            break;
-
-        case 'D':
-            letterMap = [
-                'mmmmm  ',
-                'mm  mm  ',
-                'mm   mm ',
-                'mm   mm ',
-                'mm   mm ',
-                'mm  mm  ',
-                'mmmmm  ',
-                '      '
-            ];
-            break;
-        case 'E':
-            letterMap = [
-                'mmmmmmm',
-                'mm     ',
-                'mm     ',
-                'mmmmmm ',
-                'mm     ',
-                'mm     ',
-                'mmmmmmm',
-                '      '
-            ];
-            break;
-        case 'F':
-            letterMap = [
-                'mmmmmmm',
-                'mm     ',
-                'mm     ',
-                'mmmmmm ',
-                'mm     ',
-                'mm     ',
-                'mm     ',
-                '      '
-            ];
-            break;
-        case 'G':
-            letterMap = [
-                '  mmmmm',
-                ' mm    ',
-                'mm     ',
-                'mm mmmm',
-                'mm   mm',
-                ' mm  mm',
-                '  mmmmm',
-                '      '
-            ];
-            break;
-        case 'I':
-            letterMap = [
-                'mmmmmm ',
-                '  mm  ',
-                '  mm  ',
-                '  mm  ',
-                '  mm  ',
-                '  mm  ',
-                'mmmmmm ',
-                '      '
-            ];
-            break;
-        case 'K':
-            letterMap = [
-                'mm   mm',
-                'mm  mm ',
-                'mm mm  ',
-                'mmmm  ',
-                'mmmmm ',
-                'mm mmm ',
-                'mm  mmm',
-                '      '
-            ];
-            break;
-
-        case 'N':
-            letterMap = [
-                'mm   mm',
-                'mmm  mm',
-                'mmmm mm',
-                'mm mmmm',
-                'mm  mmm',
-                'mm   mm',
-                'mm   mm',
-                '      '
-            ];
-            break;
-        case 'O':
-            letterMap = [
-                ' mmmmm ',
-                'mm   mm',
-                'mm   mm',
-                'mm   mm',
-                'mm   mm',
-                'mm   mm',
-                ' mmmmm',
-                '      '
-            ];
-            break;
-        case 'P':
-            letterMap = [
-                'mmmmmm ',
-                'mm   mm',
-                'mm   mm',
-                'mm   mm',
-                'mmmmmm',
-                'mm     ',
-                'mm     ',
-                '      '
-            ];
-            break;
-
-        case 'R':
-            letterMap = [
-                'mmmmmm ',
-                'mm   mm',
-                'mm   mm',
-                'mm  mmm',
-                'mmmmm  ',
-                'mm mmm ',
-                'mm  mmm',
-                '      '
-            ];
-            break;
-        case 'S':
-            letterMap = [
-                ' mmmmm ',
-                'mm   mm',
-                'mm     ',
-                ' mmmmm  ',
-                '     mm',
-                'mm   mm',
-                ' mmmmm ',
-                '      '
-            ];
-            break;
-        case 'T':
-            letterMap = [
-                'mmmmmm',
-                '  mm  ',
-                '  mm  ',
-                '  mm  ',
-                '  mm  ',
-                '  mm  ',
-                '  mm  ',
-                '      '
-            ];
-            break;
-        case 'U':
-            letterMap = [
-                'mm   mm',
-                'mm   mm',
-                'mm   mm',
-                'mm   mm',
-                'mm   mm',
-                'mm   mm',
-                ' mmmmm '
-            ];
-            break;
-            case 'Y':
-            letterMap = [
-                'mm  mm',
-                'mm  mm',
-                'mm  mm',
-                ' mmmm ',
-                '  mm  ',
-                '  mm  ',
-                '  mm  ',
-                '      '
-            ];
-            break;
-            //]
-            
-            // Special [
-            
-            case ".":
-            letterMap = [
-                '    ',
-                '    ',
-                '    ',
-                '     ',
-                '     ',
-                '  mm    ',
-                '  mm  ',
-                '    '
-                
-            ];
-            
-            break;
-            case "&":
-            letterMap = [
-                ' mmm ',
-                'mm mm',
-                'mm mm',
-                ' mmm ',
-                'mm mm m',
-                'mm  mm',
-                ' mmmmmm',
-                '    '
-                
-            ];
-            
-            break;
-            //]
-            
-            
-        }
-        return letterMap;
-    };
-// Drawing It [
-    // Function to draw a character at a specific position
-    var drawChar = function(c, x, y, s) {
-        var letterMap = getLetterMap(c);
-        for (var col = 0; col < letterMap.length; col++) {
-            for (var row = 0; row < letterMap[col].length; row++) {
-                if (letterMap[col][row] !== ' ') {
-                    noStroke();
-                    rect((row * s) + x, (col * s) + y, s, s);  // Draw the character pixel
-                }
-            }
-        }
-    };
-
-    // Function to draw a line of text
-    var drawLine = function(line, x, y, s) {
-        var space = 0; // Horizontal position of the character in the line
-        for (var i = 0; i < line.length; i++) {
-            var c = line[i];
-            if (c !== ' ') { // Draw the character if it's not a space
-                drawChar(c, space + x, y, s);
-                space += 7 * s + s; // Move to the next character position
-            } else {
-                space += 7 * s + s; // Move to the next position for spaces
-            }
-        }
-    };
-
-    var charWidth = 7 * s;  // Width of each character
-    var charHeight = 9 * s; // Height of each character
-    var charSpacing = s;    // Space between characters
-    var spaceWidth = charWidth + charSpacing; // Width of a space character
-
-    var lines = txt.split('\n'); // Split text into lines by newline
-    var lineDis = 0; // Vertical position of the current line
-
-    for (var i = 0; i < lines.length; i++) {
-        var line = lines[i];
-        var words = line.split(' '); // Split each line into words
-        var currentLine = '';
-        var cursorX = 0; // Horizontal position for drawing characters
-
-        for (var j = 0; j < words.length; j++) {
-            var word = words[j];
-            var wordWidth = word.length * charWidth + (word.length - 1) * charSpacing; // Width of the word
-            // If adding this word would exceed the maxWidth, wrap to the next line
-            if (cursorX + wordWidth > maxWidth) {
-                // Draw the current line
-                drawLine(currentLine, x, y + lineDis, s);
-                // Move to the next line
-                lineDis += charHeight;
-                cursorX = 0;
-                currentLine = '';
-            }
-            // Add the word to the current line
-            currentLine += (currentLine ? ' ' : '') + word;
-            cursorX += wordWidth + spaceWidth; // Move cursor to the right for next word
-        }
-        // Draw any remaining text in the last line
-        if (currentLine) {
-            drawLine(currentLine, x, y + lineDis, s);
-        }
-        // Move to the next line for the next piece of text
-        lineDis += charHeight;
-    }
-    //]
-};
-var logoBridge = function(x, y){
-    
-    fill(240, 0, 60);
-    rect(x, y, 130, 10);
-    rect(x, y+40, 130, 10);
-    rect(x, y+30, 10, 10);
-    rect(x+10, y+20, 10, 10);
-    rect(x+20, y+10, 10, 10);
-    rect(x+30, y+20, 10, 10);
-    rect(x+40, y+30, 10, 10);
-    rect(x+50, y+20, 10, 10);
-    rect(x+60, y+10, 10, 10);
-    rect(x+70, y+20, 10, 10);
-    rect(x+80, y+30, 10, 10);
-    rect(x+90, y+20, 10, 10);
-    rect(x+100, y+10, 10, 10);
-    rect(x+110, y+20, 10, 10);
-    rect(x+120, y+30, 10, 10);
-    
-};
-var logoLadder = function(x, y, h){
-    
-    fill(0, 255, 255);
-    
-    //Poles
-    rect(x, y, 10, h*43);
-    rect(x+50, y, 10, h*43);
-    
-    for(var i = 0; i<h; i++){
-        
-        rect(x+10, y+20+i*40, 40, 10);
-        
-    }
-    
-};
-var logoBackground = function(){
-    
-    
-    background(0);
-    logoLadder(-40, 151, 3);
-    logoLadder(520, 160, 5.6);
-    
-    logoBridge(0, 101);
-    logoBridge(520, 110);
-    logoBridge(400, 110);
-    logoBridge(50, 330);
-    logoBridge(-80, 280);
-    logoBridge(330, 370);
-    logoBridge(500, 400);
-    logoBridge(20, 470);
-    
-    fill(255, 255, 255, 50);
-    //rect(0, 0, 600, 600);
-    
-    //fill(255, 255, 255);
-    rect(VL * 1.5 - 20, VT * 1.5 - 20, VW * 1.5 + 40, VH * 1.5 + 40);
-    
-};
-var logoTxt = function(x, y, s){
-    
-    //Presents
-    textAlign(LEFT);
-    fill(200, 200, 200);
-    drawText("PRESENT TO YOU" + logoDots, x-150, y+440, s/1.8);
-    
-};
-let logoIs = true;
-let logoClock = 0, logoFrames = 0, logoDotClock = 0, logoDots = "";
-let barrelX = 150, barrelY = -1000, barrelYac = 125, barrelSize = 26;
-let digitsofpiTextX = 1060, digitsofpiTextXac = 100;
-let kinetoTextX = -850, kinetoTextXac = 100;
-let andTextY = -900, andTextYac = 100;
-let presentsTextX = -800, presentsTextXac = 100;
-let slideOut = 0, slideOutac = 1;
-
-function sceneLogo() {
-  const d9 = Math.pow(0.9, F);
-  logoClock += F;
-  if (logoClock > 50) logoFrames += F;
-  logoDotClock += F;
-  if (logoDotClock >= 20) { logoDotClock -= 20; logoDots += "."; }
-  if (logoDots === "....") logoDots = "";
-
-  pushMatrix();
-  scale(400 / 600);
-  translate(0, slideOut);
-  rectMode(CORNER);
-  logoBackground();
-
-  // Each piece eases from off-screen to its resting spot: pos = end - distance * 0.9^frames.
-  // Start points are pushed past the real screen edges (in this 600-unit space), so on
-  // wide or tall screens nothing is visible before it slides in.
-  const eL = VL * 1.5 - 10, eR = VR * 1.5 + 10, eT = VT * 1.5 - 10;
-  const kB = Math.pow(0.9, Math.max(0, logoFrames));
-  const kT = Math.pow(0.9, Math.max(0, logoFrames - 20));
-  const kP = Math.pow(0.9, Math.max(0, logoFrames - 40));
-  const barrelExtra = Math.max(0, (-1000 + 28 * 26) - eT);
-  barrelY = 250 - (1250 + barrelExtra) * kB;
-  barrelSize = 26 - (1250 / 70) * (1 - kB);
-  barrelX = 150 + (1250 / 35) * (1 - kB);
-  andTextY = 100 - (1000 + Math.max(0, (-900 + 56) - eT)) * kT;
-  kinetoTextX = 150 - (1000 + Math.max(0, (-850 + 288) - eL)) * kT;
-  digitsofpiTextX = 60 + (1000 + Math.max(0, eR - 1060)) * kT;
-  presentsTextX = 200 - (1000 + Math.max(0, (-950 + 529) - eL)) * kP;
-
-  drawBarrel(barrelX, barrelY, barrelSize);
-
-  fill(255, 255, 255);
-  drawText("&", 276, andTextY, 7);
-  logoTxt(presentsTextX, 100, 7);
-
-  fill(0, 200, 255);
-  drawText("KINETO", kinetoTextX, 172, 6);
-  fill(255, 0, 0);
-  drawText("DIGITSOFPI", digitsofpiTextX, 42, 6);
-
-  if (logoFrames > 140 && slideOut < 300) { slideOut -= slideOutac * F; slideOutac *= Math.pow(1.1, F); }
-  if (slideOut < -1000) logoIs = false;
-  popMatrix();
-}
-
-// ============================================================
 //  Main loop
 // ============================================================
 function drawGame() {
   pushMatrix();
-  if (logoIs) { sceneLogo(); popMatrix(); return; }
   if (scene === "title") sceneTitle();
   if (scene === "game") sceneGame();
   if (scene === "gameOver") sceneGameOver();
@@ -2117,6 +1678,24 @@ function drawGame() {
   }
   popMatrix();
 }
+
+// ============================================================
+//  Browser tab icon: the Wumpus sprite, drawn with the same code as in the game
+// ============================================================
+(function () {
+  try {
+    const n = 128, c = document.createElement("canvas");
+    c.width = c.height = n;
+    const s = n / 1.92;                    // the Wumpus is 1.8 s wide and 1.55 s tall
+    ctx = c.getContext("2d");
+    ctx.lineJoin = "round";
+    wumpus(n / 2 - 0.1 * s, (n - 1.55 * s) / 2, s);
+    const link = document.getElementById("tab-icon");
+    link.type = "image/png";
+    link.href = c.toDataURL("image/png");
+  } catch (_) { /* keep the DK logo */ }
+  ctx = mainCtx;
+})();
 
 let lastT = performance.now();
 let lastCursor = "";

@@ -48,6 +48,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#000000">
 <title>Maze Man 2</title>
+<!-- DK logo until the game has drawn its own icon (Larry, see "Browser tab icon" below) -->
+<link rel="icon" id="tab-icon" type="image/svg+xml" href="../logo.svg">
+<script src="../assets/no-zoom.js"></script>
 <style>
   html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden;
     touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
@@ -709,6 +712,17 @@ function drawLarry(c, cx, cy, R, o) {
   }
   c.restore();
 }
+
+// Browser tab icon: Larry himself, drawn with the same code as in the game
+(function () {
+  try {
+    var n = 128, c = makeCanvas(n, n);
+    drawLarry(c.getContext('2d'), n / 2, n * 0.482, n * 0.445, { mouth: 0.25 });
+    var link = document.getElementById('tab-icon');
+    link.type = 'image/png';
+    link.href = c.toDataURL('image/png');
+  } catch (e) { /* keep the DK logo */ }
+})();
 
 // Bake Larry into 3 sprite frames (mouth closed / half / open) for the 3D renderer
 var LARRY_FRAMES = (function () {
