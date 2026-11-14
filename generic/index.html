@@ -312,6 +312,7 @@ button.addEventListener('click', () => {
     <title>Generic Platformer</title>
     <link rel="icon" type="image/svg+xml" href="../assets/img/favicon-generic.svg">
     <script src="../assets/no-zoom.js"><\/script>
+    <script src="../assets/game-audio.js"><\/script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"><\/script>
     <style>
     /* Styling canvas and buttons in UI ----- (im too lazy to comment everything) */
@@ -1366,6 +1367,11 @@ var TRAMPOLINE_BOOST = JUMP_SPEED * 1.6;
 
 var velocityY = 0;
 var grounded = false;
+var wasGrounded = false; // grounded last frame (for the landing sound)
+
+// Music and sound effects (assets/game-audio.js); on/off is in the pause menu
+DKAudio.init('generic-platformer');
+DKAudio.music('generic-main');
 var clock = new THREE.Clock();
 
 // ramp helpers
@@ -1398,12 +1404,14 @@ var pauseStartTime = null;
 function beginPause(){
     if(pauseStartTime === null) pauseStartTime = performance.now(); 
     gamePaused = true;
+    DKAudio.paused(true);
 }
 function endPause(){
     if(pauseStartTime !== null){ 
         levelStartTime += performance.now() - pauseStartTime; pauseStartTime = null;
         }
     gamePaused = false;
+    DKAudio.paused(false);
 }
 function loadSave(){
     // Load save data from localStorage
@@ -1521,6 +1529,7 @@ function loadLevel(index){
 
 // UI/menus  
 function showWinScreen(elapsedSeconds){
+    DKAudio.sfx('win');
     // win screen
     beginPause();
     try { 
@@ -1719,6 +1728,33 @@ function buildPauseScreen(){
     });
     gfxRow.appendChild(gfxLabel);
     el.appendChild(gfxRow);
+
+    // Sound toggles (saved in this browser)
+    function soundRow(name, isOn, setOn){
+        var row = document.createElement('div');
+        row.className = 'row';
+        var label = document.createElement('label');
+        label.style.fontSize = '1.4vw';
+        label.style.display = 'flex';
+        label.style.alignItems = 'center';
+        label.style.gap = '0.6em';
+        var box = document.createElement('input');
+        box.type = 'checkbox';
+        box.checked = isOn();
+        var words = document.createElement('span');
+        words.textContent = name + ': ' + (isOn() ? 'On' : 'Off');
+        words.style.pointerEvents = 'none';
+        box.addEventListener('change', function(){
+            setOn(box.checked);
+            words.textContent = name + ': ' + (box.checked ? 'On' : 'Off');
+        });
+        label.appendChild(box);
+        label.appendChild(words);
+        row.appendChild(label);
+        el.appendChild(row);
+    }
+    soundRow('Music', function(){ return DKAudio.musicOn; }, DKAudio.setMusic);
+    soundRow('Sound effects', function(){ return DKAudio.sfxOn; }, DKAudio.setSfx);
     document.body.appendChild(el);
 }
 
@@ -1881,6 +1917,7 @@ function animate(){
         grounded = false;
         var trampolineHit = false;
         var landedPlatform = null; // which platform we landed on this frame
+        var landImpact = 0; // how fast we hit the ground (for the landing sound)
         
         // 3 iterations
         for(var iter = 0; iter < 3; iter++){
@@ -1901,6 +1938,7 @@ function animate(){
                     
                     // Lava, so respawn player at start instantly.
                     if(platform.specialType === 'lava'){
+                        DKAudio.sfx('burn');
                         player.position.set(0, 5, 0);
                         velocityY = 0;
                         levelStartTime = performance.now();
@@ -1921,6 +1959,7 @@ function animate(){
                 
                     if(velocityY < -0.05 && pushDir.y > 0){
                         // Landing on top (push direction points up)
+                        landImpact = Math.max(landImpact, -velocityY);
                         velocityY = 0;
                         grounded = true;
                         landedPlatform = platform;
@@ -1945,7 +1984,10 @@ function animate(){
         // mark which platform the player is standing on
         for(var pi=0; pi<platforms.length; pi++) platforms[pi].playerStanding = (platforms[pi] === landedPlatform);
         
+        if(grounded && !wasGrounded && landImpact > 4 && !trampolineHit) DKAudio.sfx('land', Math.min(1, landImpact / 20));
+        wasGrounded = grounded;
         if(trampolineHit){
+            DKAudio.sfx('boing');
             velocityY = TRAMPOLINE_BOOST;
             // prevent sticking to trampoline: don't treat it as standing platform
             if(landedPlatform){
@@ -1958,10 +2000,12 @@ function animate(){
         if((keys["Space"] || DKTouch.jumpBuffered()) && grounded && !trampolineHit){
             velocityY = JUMP_SPEED;
             DKTouch.consumeJump();
+            DKAudio.sfx('jump');
         }
         
         // Respawn if fallen too deep
         if(player.position.y < -30){
+            DKAudio.sfx('fall');
             player.position.set(0, 5, 0);
             velocityY = 0;
             grounded = false;

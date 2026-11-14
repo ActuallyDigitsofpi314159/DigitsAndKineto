@@ -8,6 +8,7 @@
 <!-- DK logo until the game has drawn its own icon (the Wumpus sprite, see "Browser tab icon" below) -->
 <link rel="icon" id="tab-icon" type="image/svg+xml" href="../logo.svg">
 <script src="../assets/no-zoom.js"></script>
+<script src="../assets/game-audio.js"></script>
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; overscroll-behavior: none; }
   canvas {
@@ -379,6 +380,7 @@ window.addEventListener("keydown", function (e) {
   const k = e.keyCode;
   if (k === 32 || (k >= 37 && k <= 40)) e.preventDefault();
   keys[k] = true;
+  if (k === 77 && !e.repeat) DKAudio.toggleMusic(); // M
   if (k === KEY_Q && e.repeat) return;   // holding Q must not flick the bow on and off
   onKeyPressed(k);
 });
@@ -1088,6 +1090,9 @@ function sceneTitle() {
   modeButton(110, 280, "MEGA MODE", "mega", "WIN BLINDFOLDED TO UNLOCK");
   modeButton(290, 280, "PREDATOR", "predator", "WIN BLINDFOLDED TO UNLOCK");
   selectButton(200, 335, "HOW TO PLAY", 170, 35, "HOWTO", function () { tScene = "instruction"; });
+  // sound on/off (also: M turns music on/off during a game)
+  selectButton(142, 384, "MUSIC: " + (DKAudio.musicOn ? "ON" : "OFF"), 108, 28, "MUSIC", function () { DKAudio.toggleMusic(); });
+  selectButton(258, 384, "SOUND: " + (DKAudio.sfxOn ? "ON" : "OFF"), 108, 28, "SOUND", function () { DKAudio.toggleSfx(); });
 
   if (titleOp >= 255) { titleOp = 255; tOpChange = -2; hasGenerated = false; }
   if (titleOp <= 0) { titleOp = 0; tOpChange = 2; generatedNum = genRandom; }
@@ -1697,6 +1702,35 @@ function drawGame() {
   ctx = mainCtx;
 })();
 
+// ============================================================
+//  Sound (assets/game-audio.js): music per screen, effects when things change
+// ============================================================
+DKAudio.init("wumpus-hunt");
+const snd = { scene: "", x: 0, y: 0, aim: false, shot: false, killed: 0, wumpus: false, pit: false, bats: false, wipe: false };
+function soundWatch() {
+  const enter = scene !== snd.scene;
+  snd.scene = scene;
+  if (scene === "title" || scene === "instruction") DKAudio.music("wumpus-title");
+  else if (scene === "game") DKAudio.music("wumpus-cave");
+  else if (enter && scene === "gameWin") { DKAudio.music(null); DKAudio.sfx("win"); }
+  else if (enter && scene === "gameOver") { DKAudio.music(null); DKAudio.sfx("lose"); }
+  DKAudio.intensity(scene === "game" && mode === "predator" ? 1 : 0);
+  if (transitionIs && !snd.wipe) DKAudio.sfx("whoosh");
+  snd.wipe = transitionIs;
+  if (scene === "game" && !enter) {
+    if (playerLocX !== snd.x || playerLocY !== snd.y) DKAudio.sfx("step");
+    if (aimIs && !snd.aim) DKAudio.sfx("bowdraw");
+    if (!aimIs && snd.aim && !arrowShot) DKAudio.sfx("bowaway");
+    if (arrowShot && !snd.shot) DKAudio.sfx("shoot");
+    if (killed > snd.killed) DKAudio.sfx("hit");
+    if (inWumpus && !snd.wumpus) DKAudio.sfx("roar");
+    if (inPit && !snd.pit) DKAudio.sfx("pitfall");
+    if (batAnim && !snd.bats) DKAudio.sfx("bats");
+  }
+  snd.x = playerLocX; snd.y = playerLocY; snd.aim = aimIs; snd.shot = arrowShot;
+  snd.killed = killed; snd.wumpus = inWumpus; snd.pit = inPit; snd.bats = batAnim;
+}
+
 let lastT = performance.now();
 let lastCursor = "";
 function frame(now) {
@@ -1716,6 +1750,7 @@ function frame(now) {
   ctx.lineCap = "round";
   ctx.lineJoin = "miter";
   drawGame();
+  soundWatch();
   drawTouchUI();
 
   const cur = wantPointer ? "pointer" : "default";

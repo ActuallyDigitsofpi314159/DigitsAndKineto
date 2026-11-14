@@ -51,6 +51,7 @@
 <!-- DK logo until the game has drawn its own icon (Larry, see "Browser tab icon" below) -->
 <link rel="icon" id="tab-icon" type="image/svg+xml" href="../logo.svg">
 <script src="../assets/no-zoom.js"></script>
+<script src="../assets/game-audio.js"></script>
 <style>
   html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden;
     touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
@@ -1460,6 +1461,12 @@ var game = {
 };
 var btnResume = new Button('Resume', 190, 330, 220, 48);
 var btnMenuP = new Button('Main Menu', 190, 392, 220, 48, { secondary: true });
+var btnMusicP = new Button('Music: On', 190, 454, 220, 44, { secondary: true, size: 18 });
+var btnSfxP = new Button('Sounds: On', 190, 508, 220, 44, { secondary: true, size: 18 });
+function soundLabels() {
+  btnMusicP.label = 'Music: ' + (DKAudio.musicOn ? 'On' : 'Off');
+  btnSfxP.label = 'Sounds: ' + (DKAudio.sfxOn ? 'On' : 'Off');
+}
 var pauseBtnRect = function () { return { x: W - 56, y: 10, w: 46, h: 46 }; };
 function pauseBtnHit(px, py) { var r = pauseBtnRect(); return isTouch && px > r.x && px < r.x + r.w && py > r.y && py < r.y + r.h; }
 
@@ -1492,7 +1499,7 @@ function wakeFx(fx, wt) {
   return -0.24 * (1 - sstep(0.6, 2.8, wt));   // head starts looking down, then gets up
 }
 function updateGame(dt) {
-  if (game.paused) { btnResume.update(dt); btnMenuP.update(dt); return; }
+  if (game.paused) { btnResume.update(dt); btnMenuP.update(dt); btnMusicP.update(dt); btnSfxP.update(dt); return; }
   game.wake += dt; game.freeze -= dt; game.freezeInput -= dt; game.levelTime += dt; game.toast += dt;
   // ---- player movement ----
   var fwd = 0, str = 0, turn = 0;
@@ -1594,7 +1601,8 @@ function drawPause() {
   ui();
   ctx.shadowColor = 'rgba(255,0,0,0.8)'; ctx.shadowBlur = 16; ctx.strokeStyle = '#ff4646';
   AD.text(ctx, 'Paused', 300, 236, 46, 'CENTER'); ctx.shadowBlur = 0;
-  btnResume.draw(); btnMenuP.draw();
+  soundLabels();
+  btnResume.draw(); btnMenuP.draw(); btnMusicP.draw(); btnSfxP.draw();
   txt('Level ' + level, 300, 300, 14, 'rgba(255,255,255,0.6)');
 }
 function drawMiniMap(w) {
@@ -1970,6 +1978,8 @@ function onPress(px, py, u) {
     if (game.paused) {
       if (btnResume.hit(u)) { btnResume.press(); resumeGame(); return; }
       if (btnMenuP.hit(u)) { toMenu(); return; }
+      if (btnMusicP.hit(u)) { btnMusicP.press(); DKAudio.toggleMusic(); return; }
+      if (btnSfxP.hit(u)) { btnSfxP.press(); DKAudio.toggleSfx(); return; }
       if (!isTouch) resumeGame();
       return;
     }
@@ -1999,6 +2009,31 @@ function onKey(code) {
 }
 
 /* =====================================================================
+   SOUND (assets/game-audio.js): music per scene, effects when things change.
+   Music / sound on-off buttons are in the pause menu.
+   ===================================================================== */
+DKAudio.init('maze-man-2');
+var snd = { scene: '', larrys: 0, step: 0 };
+function soundWatch() {
+  var enter = scene !== snd.scene;
+  snd.scene = scene;
+  if (scene === 'title' || scene === 'howto') DKAudio.music('maze-title');
+  else if (scene === 'game' || scene === 'intro') DKAudio.music('maze-game');
+  else if (scene === 'dead') {
+    if (enter) { DKAudio.music(null); DKAudio.sfx('jumpscare'); }
+  } else if (scene === 'complete' && enter) DKAudio.sfx('portal');
+  DKAudio.intensity(scene === 'game' ? game.danger : 0);
+  DKAudio.paused(scene === 'game' && game.paused);
+  if (scene === 'game' && world && world.larrys) {
+    if (!enter && world.larrys.length > snd.larrys) DKAudio.sfx('growl');
+    snd.larrys = world.larrys.length;
+    var stepNow = Math.floor(P.bob / Math.PI);  // one step per half bob
+    if (stepNow !== snd.step && !game.paused && P.bobAmt > 0.3) DKAudio.sfx('footstep', 0.35 + 0.4 * P.bobAmt);
+    snd.step = stepNow;
+  }
+}
+
+/* =====================================================================
    MAIN LOOP (delta time)
    ===================================================================== */
 var last = performance.now();
@@ -2015,6 +2050,7 @@ function frame(now) {
     else if (scene === 'dead') drawDeath(dt);
     if (scene !== 'dead' || st > 1.6) adaptQuality(dt);
     if (fadeBlack > 0) { fadeBlack = Math.max(0, fadeBlack - dt / 1.2); drawWhite(fadeBlack, '#000'); }
+    soundWatch();
   } catch (err) { if (window.console) console.error(err); }
   requestAnimationFrame(frame);
 }

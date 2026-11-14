@@ -10,6 +10,7 @@ I took the original game just made it into p5.js. Antialas and faster.
   <title>Path of Light</title>
   <link rel="icon" type="image/svg+xml" href="../assets/img/favicon-path-of-light.svg">
   <script src="../assets/no-zoom.js"></script>
+  <script src="../assets/game-audio.js"></script>
   <style>
     body{
         margin:0;
@@ -81,6 +82,7 @@ function menuTap(x, y) {
   var m = toUI(x, y);
   var inBox = function(bx, by, bw, bh) { return m.x >= bx && m.x <= bx + bw && m.y >= by && m.y <= by + bh; };
   if (scene === "title") {
+    if (soundButtonTap(m.x, m.y)) return;
     if (inBox(UI_SIZE / 2 - 175, UI_SIZE / 2 + 20, 150, 50)) { scene = "game"; loadLevel(currentLevel); }
     else if (inBox(UI_SIZE / 2 + 25, UI_SIZE / 2 + 20, 150, 50)) { scene = "howToPlay"; }
   } else if (scene === "howToPlay") {
@@ -242,7 +244,7 @@ var scene = "title";
 var titleButtonCanClick = false;
 var sceneToGo = "";
  
-var titleButton = function(x, y, w, h, txt, sc) {
+var titleButton = function(x, y, w, h, txt, sc, ts) {
   var m = toUI(mouseX, mouseY);
   if (m.x >= x && m.x <= x + w && m.y >= y && m.y <= y + h) {
     titleButtonCanClick = true;
@@ -253,8 +255,39 @@ var titleButton = function(x, y, w, h, txt, sc) {
   fill(0, 17, 255);
   rect(x, y, w, h, (w + h) / 20);
   fill(255);
-  textSize((w + h) / 5.5);
+  textSize(ts || (w + h) / 5.5);
   text(txt, x + w / 2, y + h / 2);
+};
+
+// music / sound on-off buttons under Play and How (also: M key turns music on/off)
+var SOUND_Y = UI_SIZE / 2 + 90;
+var drawSoundButtons = function() {
+  titleButton(UI_SIZE / 2 - 175, SOUND_Y, 150, 36, "Music: " + (DKAudio.musicOn ? "On" : "Off"), "toggleMusic", 20);
+  titleButton(UI_SIZE / 2 + 25,  SOUND_Y, 150, 36, "Sounds: " + (DKAudio.sfxOn ? "On" : "Off"), "toggleSfx", 20);
+};
+// returns true if (x, y) in UI space was a sound button
+var soundButtonTap = function(mx, my) {
+  if (my < SOUND_Y || my > SOUND_Y + 36) return false;
+  if (mx >= UI_SIZE / 2 - 175 && mx <= UI_SIZE / 2 - 25) { DKAudio.toggleMusic(); return true; }
+  if (mx >= UI_SIZE / 2 + 25 && mx <= UI_SIZE / 2 + 175) { DKAudio.toggleSfx(); return true; }
+  return false;
+};
+
+// SOUND (assets/game-audio.js): music per screen, effects when things change
+DKAudio.init('path-of-light');
+var snd = { scene: "", level: -1, dead: false };
+var soundWatch = function() {
+  var enter = scene !== snd.scene;
+  snd.scene = scene;
+  if (scene === "title" || scene === "howToPlay") DKAudio.music("pol-title");
+  else if (scene === "game") DKAudio.music("pol-game");
+  else if (scene === "won" && enter) { DKAudio.music("pol-title"); DKAudio.sfx("win"); }
+  if (scene === "game") {
+    if (snd.level >= 0 && currentLevel > snd.level) DKAudio.sfx("levelup");
+    if (dead && !snd.dead) DKAudio.sfx("death");
+  }
+  snd.level = scene === "game" ? currentLevel : -1;
+  snd.dead = dead;
 };
  
 var drawTitleScreen = function() {
@@ -275,6 +308,7 @@ var drawTitleScreen = function() {
   text("PATH OF LIGHT", UI_SIZE / 2, UI_SIZE / 2 - 50);
   titleButton(UI_SIZE / 2 - 175, UI_SIZE / 2 + 20, 150, 50, "Play", "game");
   titleButton(UI_SIZE / 2 + 25,  UI_SIZE / 2 + 20, 150, 50, "How",  "howToPlay");
+  drawSoundButtons();
 };
  
 // wave stuff for the how to play screen
@@ -311,6 +345,7 @@ var drawHowToPlayScreen = function() {
   }
   text("Reach the glowing box to advance.", 20, 180);
   text("Don't fall into the void.", 20, 220);
+  if (!IS_TOUCH) text("M turns the music on or off.", 20, 300);
   if (!IS_TOUCH) text("ENTER prints a save code to the console.", 20, 260);
   textAlign(CENTER, CENTER);
   titleButton(20, UI_SIZE - 60, 100, 40, "Back", "title");
@@ -700,6 +735,7 @@ function windowResized() {
  
 function draw() {
   computeUI();
+  soundWatch();
   dt = constrain(deltaTime / (1000 / 60), 0, 6);   // cap so a hidden tab doesn't jump
   // print save code to console (copy paste it to the saveCode variable at the top)
   if (keys[ENTER]) {
@@ -809,6 +845,7 @@ function draw() {
       var vr = checkVerticalCollision(playerX, playerY, playerZ, colliders[i]);
       if (vr === "top") {
         // landed on top of a box
+        if (!onGround && jumpSpeed > 3) DKAudio.sfx("land", Math.min(1, jumpSpeed / 12));
         playerY = colliders[i].position.y - colliders[i].size.height / 2 - playerSize / 2;
         isJumping = false; onGround = true; jumpSpeed = 0; onSurface = true;
       } else if (vr === "bottom") {
@@ -819,7 +856,7 @@ function draw() {
     }
     onGround = onSurface;
  
-    if ((keys[32] || DKTouch.jumpHeld) && onGround) { isJumping = true; onGround = false; jumpSpeed = -8; } // jump
+    if ((keys[32] || DKTouch.jumpHeld) && onGround) { isJumping = true; onGround = false; jumpSpeed = -8; DKAudio.sfx("jump"); } // jump
     if (playerY > fallResetY)  dead = true; // fell into the void
  
     // did we reach the goal?
@@ -960,7 +997,11 @@ function draw() {
 // not too long honestly, most the code is levels + comments anyway
  
 // return false so the browser doesn't scroll on space/arrow keys
-function keyPressed()  { keys[keyCode] = true;  return false; }
+function keyPressed()  {
+  keys[keyCode] = true;
+  if (keyCode === 77) DKAudio.toggleMusic(); // M
+  return false;
+}
 function keyReleased() { keys[keyCode] = false; }
  
 function mousePressed() {
@@ -971,6 +1012,11 @@ function mousePressed() {
 }
  
 function mouseClicked() {
+  if (scene === "title" && titleButtonCanClick && (sceneToGo === "toggleMusic" || sceneToGo === "toggleSfx")) {
+    if (IS_TOUCH) return; // taps are handled by menuTap
+    if (sceneToGo === "toggleMusic") DKAudio.toggleMusic(); else DKAudio.toggleSfx();
+    return;
+  }
   if (scene === "title" && titleButtonCanClick) {
     scene = sceneToGo;
     if (sceneToGo === "game") {

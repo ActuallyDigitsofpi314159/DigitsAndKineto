@@ -1,6 +1,6 @@
 # Digits & Kineto
 
-The website for Digits & Kineto (DK Digital), live at **digitsandkineto.com**. It hosts our games, our story, dev updates, and **DK Converter**, an image/GIF encoder, video converter, and audio converter for Khan Academy.
+The website for Digits & Kineto (DK Digital), live at **digitsandkineto.com**. It hosts our games, our story, dev updates, and **DK Converter**, an image/GIF encoder, video converter, audio converter, vector SVG converter, and MIDI converter for Khan Academy.
 
 The site is plain HTML, CSS and JavaScript with no build step: every page is a static file, so edit it and push.
 
@@ -27,6 +27,7 @@ The site is plain HTML, CSS and JavaScript with no build step: every page is a s
   - `ads.js` + `ads.css`: the ad spots (see "Ads" below)
   - `touch-controls.js`: the on-screen joystick, jump button and drag-to-look shared by the 3D games (Path of Light, Maze Man 2, Generic Platformer). The stick stays fixed in the bottom-left corner.
   - `no-zoom.js`: stops phones from zooming the page during a game; every playable game includes it
+  - `game-audio.js`: music and sound effects for Wumpus Hunt, Maze Man 2, Path of Light and Generic Platformer (not DASH Parkour, which has its own). Everything is synthesized live from original note patterns in the file, so there are no sound files. Music and effects can each be turned off: in the pause menu (Maze Man 2, Generic Platformer) or on the title screen and with the M key (Wumpus Hunt, Path of Light). The choice is saved per game in the browser (localStorage key `dk-audio:<game>`).
   - `img/`: images used by pages
 - `games/`: one folder per game, plus `games.js` (the homepage game list)
 - `updates/`: `posts.js` (all posts) and `images/` (post pictures)
@@ -108,7 +109,9 @@ Opening the HTML files directly (file://) mostly works, but DK Converter's backg
 - Uses the same alphabet in generated data and the utility; outputs from prior alphabet formats (DKL1–DKL3 and DKC1–DKC4) are not supported by this decoder
 
 ### Usage
-- Upload or drag-and-drop an image, GIF, browser-decodable video, or audio file.
+- Upload or drag-and-drop an image, SVG, GIF, browser-decodable video, audio, or MIDI file.
+- **SVG** stays a vector drawing: shapes, curves, fills, strokes (with caps, joins and dashes) and transforms are kept, and the KA utility redraws it sharply at any size (`drawSVG123(x, y, size)`). The SVG Detail slider (the image quality slider) sets how finely points are stored; Max Output Resolution sets its size at size 1. Text, embedded pictures, filters, masks and clip paths are skipped or ignored (convert text to outlines first), and gradients become their average color. Code: `dkconverter/svg-encoder.js`.
+- **MIDI** needs no settings: every note (time, length, pitch, loudness, channel, instrument family) is stored exactly and played in KA by a small built-in synthesizer with drums, so the output is tiny. Call `playMidi123(volume, repeat, startAt)` from a click; `stopMidi()`, `midiPlaying()`, `midiTime()`, `midiLength()` and `midiVolume(v)` control playback. Code: `dkconverter/midi-encoder.js`.
 - For images, GIFs, and video, choose an image quality from 0 to 100; 100 is lossless before any optional color cap. Below 100, opaque still images use browser JPEG encoding, with an optional color cap applied after decoding; transparent images, GIFs, and videos use lossy WebP. Color capping is an independent optional control. For plain audio, choose only the separate audio quality level from 1 to 100.
 - Leave maximum output resolution blank to use source dimensions. GIF and video frame limits default to 30; leave either blank to keep every frame.
 - Copy the generated image code and its media-specific utility into Khan Academy, or use **Copy All** to copy both at once. The on-page code is only a bounded preview; copy actions include the full code.

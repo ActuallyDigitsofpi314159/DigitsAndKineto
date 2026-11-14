@@ -2666,6 +2666,196 @@ async function processGIF(file, maxDimension, settings) {
     );
 }
 
+/* ------------------------------------------------------------------ MIDI and SVG */
+
+function isMIDIFileName(file) {
+    const type = (file.type || '').toLowerCase();
+    return type === 'audio/midi' || type === 'audio/mid' || type === 'audio/x-midi' ||
+        type === 'audio/sp-midi' || /\.(midi?|kar|rmi)$/i.test(file.name);
+}
+
+function isSVGFileName(file) {
+    return (file.type || '').toLowerCase() === 'image/svg+xml' || /\.svgz?$/i.test(file.name);
+}
+
+// Picks an unused three-digit suffix for a generated function name.
+function nextGeneratedSuffix() {
+    if (generatedFunctionNames.size >= 900) {
+        throw new Error('Generated all available three-digit media function names. Reload the converter to continue.');
+    }
+    let suffix;
+    do {
+        suffix = String(Math.floor(Math.random() * 900) + 100);
+    } while (generatedFunctionNames.has(suffix));
+    generatedFunctionNames.add(suffix);
+    return suffix;
+}
+
+// raw bytes -> { literal, rawLength, characters } (Zstandard, then Base-K text)
+async function packForKhanAcademy(raw, onProgress) {
+    const compressed = await compressBytesWithZstd(raw, fraction => onProgress && onProgress(fraction * 0.6));
+    if (conversionCancelled) throw new DOMException('Conversion cancelled.', 'AbortError');
+    const text = await encodeBytes(compressed.bytes, fraction => onProgress && onProgress(0.6 + fraction * 0.4));
+    return {
+        literal: `{s:${JSON.stringify(text)},n:${compressed.bytes.length},p:${compressed.padding},l:${raw.length}}`,
+        rawLength: raw.length,
+        characters: text.length
+    };
+}
+
+function formatSongTime(seconds) {
+    const total = Math.max(0, Math.round(seconds));
+    const minutes = Math.floor(total / 60);
+    return minutes + ':' + String(total % 60).padStart(2, '0');
+}
+
+function showGeneratedCode(code, heading, countText, successText, mediaType) {
+    fullImageCode = simplifyGeneratedFunctionNames(code);
+    fullImageUtilityCode = getUniversalUtilityCode();
+    fullUtilityCode = fullImageUtilityCode;
+    document.getElementById('copy-all-button').disabled = false;
+    updateUtilityCodeDisplay();
+    const imageOutput = document.getElementById('jsOutput');
+    imageOutput.textContent = createCodePreview(fullImageCode);
+    imageOutput.classList.add('code-preview');
+    document.getElementById('rectCount').textContent = countText;
+    document.getElementById('result-section').style.display = 'block';
+    document.getElementById('result-section').querySelector('h2').textContent = heading;
+    document.getElementById('success').textContent = successText;
+    document.getElementById('success').style.display = 'block';
+    updateProgress(100, 'Conversion complete.');
+    document.getElementById('loading-screen').style.display = 'none';
+    document.getElementById('generate-button').disabled = false;
+    document.getElementById('cancel-conversion-button').hidden = true;
+    activeConversionController = null;
+    document.getElementById('result-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    updateCount(mediaType);
+}
+
+async function processMIDI(file) {
+    updateProgress(5, 'Reading MIDI file...');
+    const fileBytes = new Uint8Array(await file.arrayBuffer());
+    updateProgress(15, 'Finding the notes...');
+    await yieldToBrowser();
+    const song = parseMIDIFile(fileBytes);
+    if (!song.notes.length) {
+        throw new Error('This MIDI file has no notes to play.');
+    }
+    const raw = packMIDINotes(song);
+    // self-check: the KA player reads the notes back exactly like this
+    const check = unpackMIDINotes(raw);
+    if (check.notes.length !== song.notes.length) {
+        throw new Error('MIDI notes did not survive packing; please report this file.');
+    }
+    updateProgress(30, `Compressing ${song.notes.length.toLocaleString()} notes...`);
+    const packed = await packForKhanAcademy(raw, fraction =>
+        updateProgress(30 + fraction * 55, `Compressing ${song.notes.length.toLocaleString()} notes (${Math.round(fraction * 100)}%)...`));
+    updateProgress(90, 'Preparing song playback code...');
+    await yieldToBrowser();
+    const name = `playMidi${nextGeneratedSuffix()}`;
+    const drums = song.notes.some(note => note.channel === 9);
+    const fileLabel = file.name.replace(/\*\//g, '* /');
+    const code = `/*\n` +
+        `DK Converter MIDI song "${fileLabel}": ${song.notes.length.toLocaleString()} notes, ` +
+        `${formatSongTime(check.lengthSeconds)} long, ${song.bpm} BPM${drums ? ', with drums' : ''}\n` +
+        `DKM1 note data: ${packed.rawLength.toLocaleString()} bytes; encoded data characters: ${packed.characters.toLocaleString()}\n` +
+        `Played by DK Converter's built-in synthesizer (no sound file needed).\n` +
+        `*/\n` +
+        `function ${name}(volume, repeat, startAt) {\n` +
+        `    if (!${name}.createData) {\n` +
+        `        /* jshint ignore:start */\n` +
+        `        ${name}.createData = ${packed.literal};\n` +
+        `        /* jshint ignore:end */\n` +
+        `    }\n` +
+        `    dkPlayMidi(${JSON.stringify(name)}, ${name}.createData, volume, repeat, startAt);\n` +
+        `}\n\n` +
+        `/*// Example usage:\n` +
+        `// ${name}(volume, repeat, startAt): volume 0-1, repeat true = loop, startAt = seconds in.\n` +
+        `// Sound can only start from a click or key press, so start the song in mouseClicked.\n` +
+        `mouseClicked = function() {\n` +
+        `    if (dkMidiPlaying()) {\n` +
+        `        dkStopMidi();\n` +
+        `    } else {\n` +
+        `        ${name}(0.8);\n` +
+        `    }\n` +
+        `};\n\n` +
+        `draw = function() {\n` +
+        `    background(255);\n` +
+        `    fill(0);\n` +
+        `    textSize(16);\n` +
+        `    text(dkMidiPlaying() ? "Playing - click to stop" : "Click to play", 20, 30);\n` +
+        `    text(round(dkMidiTime()) + " / " + round(dkMidiLength()) + " seconds", 20, 55);\n` +
+        `};\n` +
+        `*/`;
+    showGeneratedCode(
+        code,
+        'Generated MIDI Code',
+        `${packed.characters.toLocaleString()} embedded MIDI characters`,
+        `MIDI converted successfully: ${song.notes.length.toLocaleString()} notes, ${formatSongTime(check.lengthSeconds)} long, ` +
+            `${packed.characters.toLocaleString()} embedded characters. Start the song from a click.`,
+        'MIDI'
+    );
+}
+
+// Image quality 0-100 -> grid steps per pixel (1, 2, 4, ... 32)
+function svgPrecisionForQuality(quality) {
+    return Math.max(1, Math.min(32, Math.round(Math.pow(2, quality / 20))));
+}
+
+async function processSVG(file, maxDimension, settings) {
+    updateProgress(5, 'Reading SVG file...');
+    let text;
+    if (/\.svgz$/i.test(file.name) && typeof DecompressionStream === 'function') {
+        text = await new Response(file.stream().pipeThrough(new DecompressionStream('gzip'))).text();
+    } else {
+        text = await file.text();
+    }
+    updateProgress(15, 'Reading shapes...');
+    await yieldToBrowser();
+    const drawing = readSVGDrawing(text, maxDimension);
+    const precision = svgPrecisionForQuality(settings.imageQuality);
+    const packedShapes = packSVGShapes(drawing.shapes, drawing.width, drawing.height, precision);
+    unpackSVGShapes(packedShapes.bytes); // self-check
+    updateProgress(30, `Compressing ${packedShapes.shapeCount.toLocaleString()} shapes...`);
+    const packed = await packForKhanAcademy(packedShapes.bytes, fraction =>
+        updateProgress(30 + fraction * 55, `Compressing shapes (${Math.round(fraction * 100)}%)...`));
+    updateProgress(90, 'Preparing drawing code...');
+    await yieldToBrowser();
+    const name = `drawSVG${nextGeneratedSuffix()}`;
+    const width = Math.round(drawing.width * 100) / 100;
+    const height = Math.round(drawing.height * 100) / 100;
+    const notes = drawing.warnings.length
+        ? '\nNotes:\n' + drawing.warnings.map(w => '- ' + w).join('\n') + '\n'
+        : '\n';
+    const fileLabel = file.name.replace(/\*\//g, '* /');
+    const code = `/*\n` +
+        `DK Converter SVG drawing "${fileLabel}": ${width}x${height}, ${packedShapes.shapeCount.toLocaleString()} shapes, ` +
+        `${packedShapes.paletteSize.toLocaleString()} colors (precision: 1/${precision} pixel)\n` +
+        `DKV1 vector data: ${packed.rawLength.toLocaleString()} bytes; encoded data characters: ${packed.characters.toLocaleString()}` +
+        notes +
+        `*/\n` +
+        `function ${name}(x, y, size) {\n` +
+        `    if (!${name}.createData) {\n` +
+        `        /* jshint ignore:start */\n` +
+        `        ${name}.createData = ${packed.literal};\n` +
+        `        /* jshint ignore:end */\n` +
+        `    }\n` +
+        `    dkDrawSVG(x, y, size, ${name}.createData);\n` +
+        `}\n\n` +
+        `/*// Example usage:\n` +
+        `// size 1 = ${width}x${height}; any size stays sharp (each new size is drawn once, then remembered)\n` +
+        `${name}(0, 0, 1);\n` +
+        `*/`;
+    showGeneratedCode(
+        code,
+        'Generated SVG Code',
+        `${packed.characters.toLocaleString()} embedded vector characters`,
+        `SVG converted successfully: ${packedShapes.shapeCount.toLocaleString()} shapes, ${packed.characters.toLocaleString()} embedded characters.` +
+            (drawing.warnings.length ? ' ' + drawing.warnings.join(' ') : ''),
+        'SVG'
+    );
+}
+
 function showLoading() {
     const fileInput = document.getElementById('image_file');
     if (!fileInput.files.length) return true;
@@ -2677,13 +2867,19 @@ function showLoading() {
         progressStatusTimer = null;
     }
     const file = fileInput.files[0];
-    const isAudio = (file.type || '').toLowerCase().startsWith('audio/') ||
-        /\.(mp3|wav|m4a|aac|ogg|opus|flac|wma|aiff?)$/i.test(file.name);
+    const isMIDI = isMIDIFileName(file);
+    const isSVG = isSVGFileName(file);
+    const isAudio = !isMIDI && ((file.type || '').toLowerCase().startsWith('audio/') ||
+        /\.(mp3|wav|m4a|aac|ogg|opus|flac|wma|aiff?)$/i.test(file.name));
     const isVideo = (file.type || '').toLowerCase().startsWith('video/') ||
         /\.(mp4|webm|mov|m4v|avi|mkv|ogv)$/i.test(file.name);
     const isGIF = (file.type || '').toLowerCase() === 'image/gif' ||
         /\.gif$/i.test(file.name);
-    document.querySelector('#loading-screen h2').textContent = isVideo
+    document.querySelector('#loading-screen h2').textContent = isMIDI
+        ? 'PROCESSING MIDI...'
+        : isSVG
+            ? 'PROCESSING SVG...'
+        : isVideo
         ? 'PROCESSING VIDEO...'
         : isAudio
             ? 'PROCESSING AUDIO...'
@@ -2695,7 +2891,11 @@ function showLoading() {
     document.getElementById('generate-button').disabled = true;
     updateProgress(
         0,
-        isVideo
+        isMIDI
+            ? 'Preparing MIDI...'
+        : isSVG
+            ? 'Preparing SVG...'
+        : isVideo
             ? 'Preparing video...'
             : isAudio
                 ? 'Preparing audio...'
@@ -2859,9 +3059,14 @@ document.addEventListener('DOMContentLoaded', () => {
             /\.(mp4|webm|mov|m4v|avi|mkv|ogv)$/i.test(file.name);
     }
     function isAudioFile(file) {
-        return (file.type || '').toLowerCase().startsWith('audio/') ||
-            /\.(mp3|wav|m4a|aac|ogg|opus|flac|wma|aiff?)$/i.test(file.name);
+        return !isMIDIFileName(file) && ((file.type || '').toLowerCase().startsWith('audio/') ||
+            /\.(mp3|wav|m4a|aac|ogg|opus|flac|wma|aiff?)$/i.test(file.name));
     }
+    const imageQualityTitle = document.getElementById('image-quality-title');
+    const imageQualityHelp = document.getElementById('image-quality-help');
+    const imageQualityTitleText = imageQualityTitle ? imageQualityTitle.textContent : '';
+    const imageQualityHelpText = imageQualityHelp ? imageQualityHelp.textContent : '';
+    const midiOptionsNote = document.getElementById('midi-options-note');
     let framePresetRequest = 0;
     document.querySelectorAll('.preset-pill').forEach(button => {
         button.addEventListener('click', async () => {
@@ -2903,15 +3108,31 @@ document.addEventListener('DOMContentLoaded', () => {
         const isGIF = !!file && isGIFFile(file);
         const isVideo = !!file && isVideoFile(file);
         const isAudio = !!file && isAudioFile(file);
+        const isMIDI = !!file && isMIDIFileName(file);
+        const isSVG = !!file && isSVGFileName(file);
         updateColorCapOptions();
         updateUtilityCode(pixelArtInput.checked, capColorsInput.checked);
-        imageVideoOptions.hidden = isAudio;
-        imageQualityOptions.hidden = isAudio;
+        imageVideoOptions.hidden = isAudio || isMIDI;
+        imageQualityOptions.hidden = isAudio || isMIDI;
         gifFrameOptions.hidden = !isGIF && !isVideo;
         mediaAudioOptions.hidden = !isVideo && !isAudio;
         if (colorOptionsGroup) {
-            colorOptionsGroup.hidden = isAudio;
+            colorOptionsGroup.hidden = isAudio || isMIDI || isSVG;
         }
+        if (midiOptionsNote) {
+            midiOptionsNote.hidden = !isMIDI;
+        }
+        // for SVG the quality slider sets how finely points are stored
+        imageQualityOptions.dataset.mode = isSVG ? 'svg' : 'image';
+        if (imageQualityTitle) {
+            imageQualityTitle.textContent = isSVG ? 'SVG Detail' : imageQualityTitleText;
+        }
+        if (imageQualityHelp) {
+            imageQualityHelp.textContent = isSVG
+                ? 'Higher keeps points more exactly (100 = 1/32 pixel) but makes the code longer. 40-60 looks the same as the original for most drawings. Max Output Resolution sets the size at size 1.'
+                : imageQualityHelpText;
+        }
+        imageQualityInput.dispatchEvent(new Event('input', { bubbles: true }));
         maxFramesLabel.textContent = isVideo ? 'Maximum video frames' : 'Maximum GIF frames';
         maxFramesHelp.textContent = isVideo
             ? 'Leave blank for all frames. FPS presets calculate a frame count from the video duration; frames are sampled at a whole-frame interval.'
@@ -2923,10 +3144,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const gifSelected = !!file && isGIFFile(file);
         const videoSelected = !!file && isVideoFile(file);
         const audioSelected = !!file && isAudioFile(file);
-        imageVideoOptions.hidden = audioSelected;
-        imageQualityOptions.hidden = audioSelected;
+        const midiSelected = !!file && isMIDIFileName(file);
+        const svgSelected = !!file && isSVGFileName(file);
+        imageVideoOptions.hidden = audioSelected || midiSelected;
+        imageQualityOptions.hidden = audioSelected || midiSelected;
         if (colorOptionsGroup) {
-            colorOptionsGroup.hidden = audioSelected;
+            colorOptionsGroup.hidden = audioSelected || midiSelected || svgSelected;
         }
         pixelArtOptions.hidden = videoSelected;
         pixelArtInput.disabled = videoSelected;
@@ -2963,13 +3186,15 @@ document.addEventListener('DOMContentLoaded', () => {
             reportError(new Error('Please select an image, GIF, or video file.'));
             return;
         }
+        const isMIDI = isMIDIFileName(file);
+        const isSVG = isSVGFileName(file);
         const isGIF = isGIFFile(file);
         const isVideo = isVideoFile(file);
         const isAudio = isAudioFile(file);
         const isImage = (file.type || '').toLowerCase().startsWith('image/') ||
             /\.(png|jpe?g|bmp|webp|avif|svg|tiff?)$/i.test(file.name);
-        if (!isGIF && !isVideo && !isAudio && !isImage) {
-            reportError(new Error('Choose a supported image, GIF, video, or audio file.'));
+        if (!isMIDI && !isSVG && !isGIF && !isVideo && !isAudio && !isImage) {
+            reportError(new Error('Choose a supported image, SVG, GIF, video, audio, or MIDI file.'));
             return;
         }
         if (!isAudio && !supportsZstdEncoding()) {
@@ -2978,7 +3203,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ));
             return;
         }
-        if (!isAudio && maxDimension !== null &&
+        if (!isAudio && !isMIDI && maxDimension !== null &&
             (!Number.isSafeInteger(maxDimension) || maxDimension < 1)) {
             reportError(new Error('Max output resolution must be a positive whole number.'));
             return;
@@ -2999,7 +3224,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const imageQuality = Number(imageQualityInput.value);
-        if (!isAudio &&
+        if (!isAudio && !isMIDI &&
             (!Number.isSafeInteger(imageQuality) || imageQuality < 0 || imageQuality > 100)) {
             reportError(new Error('Image compression quality must be a whole number from 0 to 100.'));
             return;
@@ -3046,7 +3271,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('cancel-conversion-button').disabled = false;
 
         try {
-            if (isAudio) {
+            if (isMIDI) {
+                await processMIDI(file);
+            } else if (isSVG) {
+                await processSVG(file, maxDimension, settings);
+            } else if (isAudio) {
                 await processAudio(file, settings);
             } else if (isVideo) {
                 await processVideo(file, maxDimension, settings);
