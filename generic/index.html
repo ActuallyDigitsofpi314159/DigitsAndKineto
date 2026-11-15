@@ -1372,6 +1372,16 @@ var wasGrounded = false; // grounded last frame (for the landing sound)
 // Music and sound effects (assets/game-audio.js); on/off is in the pause menu
 DKAudio.init('generic-platformer');
 DKAudio.music('generic-main');
+// menu buttons: a soft tick on hover (mouse only), a click when pressed
+(function(){
+    function btnOf(el){ return el && el.closest ? el.closest('button, label') : null; }
+    document.addEventListener('pointerover', function(e){
+        var b = btnOf(e.target);
+        if(!b || e.pointerType !== 'mouse' || b.contains(e.relatedTarget)) return;
+        DKAudio.sfx('hover');
+    });
+    document.addEventListener('click', function(e){ if(btnOf(e.target)) DKAudio.sfx('click'); }, true);
+})();
 var clock = new THREE.Clock();
 
 // ramp helpers

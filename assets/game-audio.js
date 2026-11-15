@@ -7,6 +7,7 @@
  *   DKAudio.init('wumpus-hunt');      // once; loads that game's saved on/off settings
  *   DKAudio.music('wumpus-cave');     // start / switch song (null = silence)
  *   DKAudio.sfx('jump');              // play a sound effect (see SFX below)
+ *   DKAudio.sfx('larry-breath', 0.5, -0.3); // ...at half volume, a little to the left (pan -1..1)
  *   DKAudio.intensity(0.7);           // 0-1, fades in a song's "danger" parts
  *   DKAudio.paused(true);             // quieter music while a game is paused
  *   DKAudio.musicOn / DKAudio.sfxOn   // current settings
@@ -24,6 +25,7 @@
   var settings = { music: true, sfx: true };
   var wantedSong = null, current = null, intensityValue = 0, isPaused = false;
   var lastSfx = {};
+  var gestured = false;   // has the player tapped / clicked / pressed a key yet?
 
   /* ------------------------------------------------------------ setup */
 
@@ -42,13 +44,20 @@
 
   function ensure() {
     if (ctx || !AC) return !!ctx;
+    // Phones (iOS Safari especially) can leave a context that was made before the first
+    // tap silent for good, so the context is only ever made inside a tap / click / key press.
+    if (!gestured) return false;
     try { ctx = new AC(); } catch (e) { ctx = null; return false; }
+    // a limiter at the end so the louder mix never distorts
     var squash = ctx.createDynamicsCompressor();
-    squash.threshold.value = -14;
-    squash.ratio.value = 5;
+    squash.threshold.value = -9;
+    squash.knee.value = 6;
+    squash.ratio.value = 12;
+    squash.attack.value = 0.003;
+    squash.release.value = 0.2;
     squash.connect(ctx.destination);
     master = ctx.createGain();
-    master.gain.value = 0.9;
+    master.gain.value = 1.4;
     master.connect(squash);
     musicBus = ctx.createGain();
     musicBus.gain.value = settings.music ? musicLevel() : 0;
@@ -60,18 +69,36 @@
     noiseBuffer = ctx.createBuffer(1, Math.floor(rate * 1.5), rate);
     var d = noiseBuffer.getChannelData(0);
     for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    // When the context really starts running (it can take a moment after resume(), or a
+    // second tap on some phones), restart a song that was queued while it was still asleep.
+    ctx.onstatechange = function () {
+      if (ctx.state !== 'running') return;
+      if (current && current.sleepy) startSong(current.name);
+      else if (wantedSong && !current && settings.music) startSong(wantedSong);
+    };
     return true;
   }
 
-  function musicLevel() { return isPaused ? 0.3 : 0.55; }
+  function musicLevel() { return isPaused ? 0.4 : 0.75; }
 
   function unlock() {
+    gestured = true;
     if (!ensure()) return;
-    if (ctx.state === 'suspended' && !document.hidden) ctx.resume();
+    if (ctx.state !== 'running' && !document.hidden) { // 'suspended', or 'interrupted' on iOS
+      try { var p = ctx.resume(); if (p && p.catch) p.catch(function () {}); } catch (e) { /* next tap tries again */ }
+      // iOS also wants a sound actually started during the tap before it opens up
+      try {
+        var b = ctx.createBufferSource();
+        b.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+        b.connect(ctx.destination);
+        b.start(0);
+      } catch (e) { /* ignore */ }
+    }
     if (wantedSong && !current && settings.music) startSong(wantedSong);
   }
-  ['pointerdown', 'touchend', 'keydown', 'mousedown'].forEach(function (name) {
-    window.addEventListener(name, unlock, true);
+  // every tap / click / key press re-checks, so a phone that missed the first one recovers on the next
+  ['touchstart', 'touchend', 'pointerdown', 'pointerup', 'mousedown', 'click', 'keydown'].forEach(function (name) {
+    window.addEventListener(name, unlock, { capture: true, passive: true });
   });
   // no music from a background tab
   document.addEventListener('visibilitychange', function () {
@@ -79,6 +106,8 @@
     if (document.hidden) ctx.suspend();
     else ctx.resume();
   });
+  // coming back to the page from the back/forward cache
+  window.addEventListener('pageshow', function () { if (ctx && !document.hidden) ctx.resume(); });
 
   /* ------------------------------------------------------------ building blocks */
 
@@ -319,7 +348,8 @@
     current = {
       name: name, song: song, parts: parts, bus: bus,
       stepTime: 60 / song.bpm / song.step,
-      start: ctx.currentTime + 0.12, nextStep: 0, timer: null
+      start: ctx.currentTime + 0.12, nextStep: 0, timer: null,
+      sleepy: ctx.state !== 'running'   // queued before the context woke up
     };
     pump(current);
   }
@@ -423,6 +453,82 @@
       });
     },
     portal: function (t, o, v) { sweep('sine', 200, 1600, t, 0.9, 0.2 * v, o); notes('bell', ['C6', 'G6', 'C7'], 0.12, 0.15 * v, o, t + 0.3); },
+    // menus: a soft tick when the pointer moves onto a button (click above is the press)
+    hover: function (t, o, v) { sweep('sine', 1500, 1800, t, 0.03, 0.08 * v, o); },
+    // short bright fanfare for a win screen
+    victory: function (t, o, v) {
+      notes('lead', ['G4', 'C5', 'E5'], 0.11, 0.32 * v, o, t);
+      INSTRUMENTS.lead(noteFreq('G5'), t + 0.33, 0.55, 0.36 * v, o);
+      INSTRUMENTS.lead(noteFreq('E5'), t + 0.33, 0.55, 0.22 * v, o);
+      notes('bass', ['C3', 'G2', 'C3'], 0.11, 0.35 * v, o, t);
+      INSTRUMENTS.bass(noteFreq('C2'), t + 0.33, 0.6, 0.4 * v, o);
+      notes('bell', ['C6', 'E6', 'G6', 'C7'], 0.08, 0.16 * v, o, t + 0.42);
+      INSTRUMENTS.kick(0, t + 0.33, 0, 0.45 * v, o);
+      noiseHit('highpass', 6000, t + 0.33, 0.7, 0.1 * v, o);
+    },
+    // Larry's ambient noises (played with distance volume + pan by the game)
+    'larry-breath': function (t, o, v) { // slow wet inhale / exhale
+      [0, 0.75].forEach(function (d, i) {
+        var g = gainNode(o, 0), bp = filter('bandpass', i ? 520 : 760, 1.4, g);
+        bp.frequency.setValueAtTime(i ? 620 : 600, t + d);
+        bp.frequency.linearRampToValueAtTime(i ? 380 : 900, t + d + 0.6);
+        noise(t + d, bp).stop(env(g.gain, t + d, (i ? 0.55 : 0.4) * v, 0.25, 0.15, 0.35));
+      });
+    },
+    'larry-groan': function (t, o, v) { // low wavering moan
+      var g = gainNode(o, 0), lp = filter('lowpass', 420, 4, g);
+      var x = osc('sawtooth', 82 + Math.random() * 14, t, lp), y = osc('sawtooth', 58, t, lp);
+      x.frequency.linearRampToValueAtTime(64, t + 1.3);
+      var wob = osc('sine', 5.5, t, gainNode(x.frequency, 4));
+      var end = env(g.gain, t, 0.42 * v, 0.3, 0.6, 0.6);
+      x.start(t); x.stop(end); y.start(t); y.stop(end); wob.start(t); wob.stop(end);
+    },
+    'larry-chitter': function (t, o, v) { // teeth clicking
+      var n = 5 + Math.floor(Math.random() * 5);
+      for (var i = 0; i < n; i++) {
+        var at = t + i * (0.045 + Math.random() * 0.03);
+        noiseHit('bandpass', 2600 + Math.random() * 1400, at, 0.025, 0.45 * v, o, 6);
+      }
+    },
+    'larry-whisper': function (t, o, v) { // hissing, wordless whisper
+      for (var i = 0; i < 4; i++) {
+        var at = t + i * 0.22 + Math.random() * 0.05;
+        var g = gainNode(o, 0), bp = filter('bandpass', 2800 + Math.random() * 1600, 3, g);
+        noise(at, bp).stop(env(g.gain, at, (0.22 + Math.random() * 0.12) * v, 0.05, 0.05, 0.14));
+      }
+    },
+    // a huge, close-up roar for a jumpscare
+    bigroar: function (t, o, v) {
+      var g = gainNode(o, 0), lp = filter('lowpass', 1300, 2.5, g);
+      lp.frequency.setValueAtTime(600, t);
+      lp.frequency.linearRampToValueAtTime(1500, t + 0.25);
+      lp.frequency.exponentialRampToValueAtTime(380, t + 1.4);
+      [92, 97, 138, 46].forEach(function (f, i) {
+        var x = osc(i === 3 ? 'square' : 'sawtooth', f, t, i === 3 ? gainNode(lp, 0.5) : lp);
+        x.frequency.linearRampToValueAtTime(f * 1.2, t + 0.2);
+        x.frequency.exponentialRampToValueAtTime(f * 0.62, t + 1.4);
+        x.start(t); x.stop(t + 1.5);
+      });
+      var trem = osc('sine', 24, t, gainNode(g.gain, 0.22 * v));
+      trem.start(t); trem.stop(t + 1.5);
+      env(g.gain, t, 0.6 * v, 0.04, 0.75, 0.6);
+      var rasp = gainNode(o, 0);
+      noise(t, filter('bandpass', 900, 0.9, rasp)).stop(env(rasp.gain, t, 0.55 * v, 0.03, 0.7, 0.6));
+      sweep('sine', 70, 32, t, 1.2, 0.5 * v, o); // chest rumble
+    },
+    // a skull slamming down and cracking
+    skullslam: function (t, o, v) {
+      var g = gainNode(o, 0), x = osc('sine', 110, t, g);
+      x.frequency.exponentialRampToValueAtTime(34, t + 0.35);
+      x.start(t); x.stop(env(g.gain, t, 0.9 * v, 0.002, 0.05, 0.45));
+      noiseHit('lowpass', 900, t, 0.35, 0.8 * v, o);
+      noiseHit('bandpass', 260, t, 0.6, 0.5 * v, o, 1.2);
+      // the crack: a few sharp splinters right after the hit
+      [0.02, 0.06, 0.09, 0.15, 0.22].forEach(function (d, i) {
+        noiseHit('highpass', 2500 + i * 500, t + d, 0.035 + Math.random() * 0.03, (0.6 - i * 0.08) * v, o);
+        noiseHit('bandpass', 1400 + Math.random() * 800, t + d, 0.05, 0.4 * v, o, 4);
+      });
+    },
     growl: function (t, o, v) {
       var g = gainNode(o, 0), x = osc('sawtooth', 62, t, filter('lowpass', 500, 3, g));
       var trem = osc('sine', 9, t, gainNode(g.gain, 0.1 * v));
@@ -454,13 +560,22 @@
       if (!wantedSong) { stopSong(0.8); return; }
       if (settings.music) startSong(wantedSong);
     },
-    sfx: function (name, volume) {
+    sfx: function (name, volume, pan) {
       if (!settings.sfx || !SFX[name] || !ensure()) return;
       if (ctx.state !== 'running') return;
       var now = ctx.currentTime;
       if (lastSfx[name] && now - lastSfx[name] < 0.05) return; // same sound twice in one frame
       lastSfx[name] = now;
-      try { SFX[name](now + 0.005, sfxBus, volume === undefined ? 1 : volume); } catch (e) { /* never break the game */ }
+      try {
+        var out = sfxBus;
+        if (pan && ctx.createStereoPanner) {
+          out = ctx.createStereoPanner();
+          out.pan.value = Math.max(-1, Math.min(1, pan));
+          out.connect(sfxBus);
+          setTimeout(function () { try { out.disconnect(); } catch (e) { /* gone */ } }, 4000);
+        }
+        SFX[name](now + 0.005, out, volume === undefined ? 1 : volume);
+      } catch (e) { /* never break the game */ }
     },
     intensity: function (value) {
       value = Math.max(0, Math.min(1, value || 0));

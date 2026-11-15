@@ -844,11 +844,13 @@ function rrect(c, x, y, w, h, r) {
 }
 function Button(label, x, y, w, h, opts) {
   this.label = label; this.x = x; this.y = y; this.w = w; this.h = h; this.hv = 0; this.down = 0;
-  this.opts = opts || {}; this.alpha = 1; this.active = true;
+  this.opts = opts || {}; this.alpha = 1; this.active = true; this.over = false;
 }
 Button.prototype.hit = function (u) { return this.active && this.alpha > 0.5 && u.x > this.x && u.x < this.x + this.w && u.y > this.y && u.y < this.y + this.h; };
 Button.prototype.update = function (dt) {
   var over = !isTouch && pointer.inside && this.hit(toUI(pointer.x, pointer.y));
+  if (over && !this.over) DKAudio.sfx('hover');
+  this.over = over;
   this.hv += ((over ? 1 : 0) - this.hv) * (1 - Math.exp(-dt * 14));
   this.down = Math.max(0, this.down - dt * 5);
 };
@@ -868,7 +870,7 @@ Button.prototype.draw = function (dy) {
   ctx.fillText(this.label, 0, 1);
   ctx.restore();
 };
-Button.prototype.press = function () { this.down = 1; };
+Button.prototype.press = function () { this.down = 1; DKAudio.sfx('click'); };
 
 function drawVignette(strength, r, g, b) {
   scr();
@@ -1970,14 +1972,14 @@ function onPress(px, py, u) {
     if (btnPlay.hit(u)) { btnPlay.press(); startIntro(); return; }
     if (btnHow.hit(u)) { btnHow.press(); setScene('howto'); howto.page = 0; howto.pos = 0; return; }
   } else if (scene === 'howto') {
-    if (howto.btnBack.hit(u)) { setScene('title'); st = 0.3; return; }
-    if (howto.btnPrev.hit(u)) { howto.go(-1); return; }
-    if (howto.btnNext.hit(u)) { howto.go(1); return; }
-    if (howto.btnPlay.hit(u)) { startIntro(); return; }
+    if (howto.btnBack.hit(u)) { howto.btnBack.press(); setScene('title'); st = 0.3; return; }
+    if (howto.btnPrev.hit(u)) { howto.btnPrev.press(); howto.go(-1); return; }
+    if (howto.btnNext.hit(u)) { howto.btnNext.press(); howto.go(1); return; }
+    if (howto.btnPlay.hit(u)) { howto.btnPlay.press(); startIntro(); return; }
   } else if (scene === 'game') {
     if (game.paused) {
       if (btnResume.hit(u)) { btnResume.press(); resumeGame(); return; }
-      if (btnMenuP.hit(u)) { toMenu(); return; }
+      if (btnMenuP.hit(u)) { btnMenuP.press(); toMenu(); return; }
       if (btnMusicP.hit(u)) { btnMusicP.press(); DKAudio.toggleMusic(); return; }
       if (btnSfxP.hit(u)) { btnSfxP.press(); DKAudio.toggleSfx(); return; }
       if (!isTouch) resumeGame();
@@ -1990,7 +1992,7 @@ function onPress(px, py, u) {
   } else if (scene === 'dead') {
     if (st < 3.7) return;
     if (btnRetry.hit(u)) { btnRetry.press(); retry(); return; }
-    if (btnMenuD.hit(u)) { toMenu(); return; }
+    if (btnMenuD.hit(u)) { btnMenuD.press(); toMenu(); return; }
   }
 }
 function onKey(code) {
@@ -2013,20 +2015,53 @@ function onKey(code) {
    Music / sound on-off buttons are in the pause menu.
    ===================================================================== */
 DKAudio.init('maze-man-2');
-var snd = { scene: '', larrys: 0, step: 0 };
+var snd = { scene: '', larrys: 0, step: 0, st: 0, t: performance.now() };
+// Larry's ambient noises: each Larry that can "see" you (no wall in between) breathes, groans,
+// clicks his teeth and whispers now and then - louder and more often the closer he is, and
+// panned to the side he's on. A wall in the way blocks the sound completely.
+var LARRY_HEAR = 10;                         // tiles: beyond this you can't hear him
+var LARRY_SOUNDS = ['larry-breath', 'larry-breath', 'larry-groan', 'larry-chitter', 'larry-whisper'];
+function larryAmbience(dt) {
+  for (var i = 0; i < world.larrys.length; i++) {
+    var L = world.larrys[i];
+    if (L.sndT === undefined) L.sndT = 0.5 + Math.random() * 2;
+    L.sndT -= dt;
+    if (L.sndT > 0) continue;
+    var dx = L.x - P.x, dy = L.y - P.y, d = Math.sqrt(dx * dx + dy * dy);
+    var near = 1 - d / LARRY_HEAR;
+    L.sndT = 0.4 + Math.random() * 0.6;      // out of range / behind a wall: check again soon
+    if (near <= 0 || !lineOfSight(world, L.x, L.y, P.x, P.y)) continue;
+    var chasing = L.state === 'chase';
+    var vol = Math.pow(near, 1.6) * (chasing ? 1.15 : 0.85);
+    var pan = d > 0.01 ? clamp((dx * -Math.sin(P.a) + dy * Math.cos(P.a)) / d, -1, 1) * 0.8 : 0;
+    var name = LARRY_SOUNDS[Math.floor(Math.random() * LARRY_SOUNDS.length)];
+    if (chasing && Math.random() < 0.35) name = 'larry-groan';
+    DKAudio.sfx(name, vol, pan);
+    L.sndT = (1.2 + Math.random() * 2.2) * (0.45 + 0.55 * (1 - near)) * (chasing ? 0.7 : 1);
+  }
+}
 function soundWatch() {
+  var now = performance.now(), dt = Math.min(0.1, (now - snd.t) / 1000); snd.t = now;
   var enter = scene !== snd.scene;
   snd.scene = scene;
+  var prevSt = enter ? -1 : snd.st; snd.st = st;
+  function at(sec) { return prevSt < sec && st >= sec; }   // st just passed `sec`
   if (scene === 'title' || scene === 'howto') DKAudio.music('maze-title');
   else if (scene === 'game' || scene === 'intro') DKAudio.music('maze-game');
   else if (scene === 'dead') {
-    if (enter) { DKAudio.music(null); DKAudio.sfx('jumpscare'); }
+    // Larry's face fills the screen roaring, he lunges (the death sting), then the skull slams down and cracks
+    if (enter) DKAudio.music(null);
+    if (at(0)) DKAudio.sfx('bigroar');
+    if (at(1.25)) DKAudio.sfx('jumpscare', 0.8);
+    if (at(1.6 + 0.45)) DKAudio.sfx('skullslam');
+    if (at(1.6 + 0.55)) DKAudio.sfx('larry-chitter', 0.6);
   } else if (scene === 'complete' && enter) DKAudio.sfx('portal');
   DKAudio.intensity(scene === 'game' ? game.danger : 0);
   DKAudio.paused(scene === 'game' && game.paused);
   if (scene === 'game' && world && world.larrys) {
     if (!enter && world.larrys.length > snd.larrys) DKAudio.sfx('growl');
     snd.larrys = world.larrys.length;
+    if (!game.paused && game.freeze <= 0) larryAmbience(dt);
     var stepNow = Math.floor(P.bob / Math.PI);  // one step per half bob
     if (stepNow !== snd.step && !game.paused && P.bobAmt > 0.3) DKAudio.sfx('footstep', 0.35 + 0.4 * P.bobAmt);
     snd.step = stepNow;

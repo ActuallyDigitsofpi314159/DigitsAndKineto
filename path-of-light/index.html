@@ -83,10 +83,10 @@ function menuTap(x, y) {
   var inBox = function(bx, by, bw, bh) { return m.x >= bx && m.x <= bx + bw && m.y >= by && m.y <= by + bh; };
   if (scene === "title") {
     if (soundButtonTap(m.x, m.y)) return;
-    if (inBox(UI_SIZE / 2 - 175, UI_SIZE / 2 + 20, 150, 50)) { scene = "game"; loadLevel(currentLevel); }
-    else if (inBox(UI_SIZE / 2 + 25, UI_SIZE / 2 + 20, 150, 50)) { scene = "howToPlay"; }
+    if (inBox(UI_SIZE / 2 - 175, UI_SIZE / 2 + 20, 150, 50)) { DKAudio.sfx("click"); scene = "game"; loadLevel(currentLevel); }
+    else if (inBox(UI_SIZE / 2 + 25, UI_SIZE / 2 + 20, 150, 50)) { DKAudio.sfx("click"); scene = "howToPlay"; }
   } else if (scene === "howToPlay") {
-    if (inBox(20, UI_SIZE - 60, 100, 40)) scene = "title";
+    if (inBox(20, UI_SIZE - 60, 100, 40)) { DKAudio.sfx("click"); scene = "title"; }
   }
 }
 
@@ -243,12 +243,14 @@ var scene = "title";
 // so it's only true if the mouse is actually over a button right now
 var titleButtonCanClick = false;
 var sceneToGo = "";
+var hoveredButton = "";   // which button the mouse is over this frame (for the hover sound)
  
 var titleButton = function(x, y, w, h, txt, sc, ts) {
   var m = toUI(mouseX, mouseY);
   if (m.x >= x && m.x <= x + w && m.y >= y && m.y <= y + h) {
     titleButtonCanClick = true;
     sceneToGo = sc;
+    hoveredButton = sc;
     // grow the button a bit on hover
     w += 10; h += 6; x -= 5; y -= 3;
   }
@@ -268,17 +270,19 @@ var drawSoundButtons = function() {
 // returns true if (x, y) in UI space was a sound button
 var soundButtonTap = function(mx, my) {
   if (my < SOUND_Y || my > SOUND_Y + 36) return false;
-  if (mx >= UI_SIZE / 2 - 175 && mx <= UI_SIZE / 2 - 25) { DKAudio.toggleMusic(); return true; }
-  if (mx >= UI_SIZE / 2 + 25 && mx <= UI_SIZE / 2 + 175) { DKAudio.toggleSfx(); return true; }
+  if (mx >= UI_SIZE / 2 - 175 && mx <= UI_SIZE / 2 - 25) { DKAudio.sfx("click"); DKAudio.toggleMusic(); return true; }
+  if (mx >= UI_SIZE / 2 + 25 && mx <= UI_SIZE / 2 + 175) { DKAudio.sfx("click"); DKAudio.toggleSfx(); return true; }
   return false;
 };
 
 // SOUND (assets/game-audio.js): music per screen, effects when things change
 DKAudio.init('path-of-light');
-var snd = { scene: "", level: -1, dead: false };
+var snd = { scene: "", level: -1, dead: false, hover: "" };
 var soundWatch = function() {
   var enter = scene !== snd.scene;
   snd.scene = scene;
+  if (hoveredButton && hoveredButton !== snd.hover && !IS_TOUCH) DKAudio.sfx("hover");
+  snd.hover = hoveredButton; hoveredButton = "";
   if (scene === "title" || scene === "howToPlay") DKAudio.music("pol-title");
   else if (scene === "game") DKAudio.music("pol-game");
   else if (scene === "won" && enter) { DKAudio.music("pol-title"); DKAudio.sfx("win"); }
@@ -1014,10 +1018,12 @@ function mousePressed() {
 function mouseClicked() {
   if (scene === "title" && titleButtonCanClick && (sceneToGo === "toggleMusic" || sceneToGo === "toggleSfx")) {
     if (IS_TOUCH) return; // taps are handled by menuTap
+    DKAudio.sfx("click");
     if (sceneToGo === "toggleMusic") DKAudio.toggleMusic(); else DKAudio.toggleSfx();
     return;
   }
   if (scene === "title" && titleButtonCanClick) {
+    DKAudio.sfx("click");
     scene = sceneToGo;
     if (sceneToGo === "game") {
       if (!IS_TOUCH) cnv.elt.requestPointerLock();
@@ -1026,6 +1032,7 @@ function mouseClicked() {
   } else if (scene === "howToPlay") {
     var m = toUI(mouseX, mouseY);
     if (m.x > 20 && m.x < 120 && m.y > UI_SIZE - 60 && m.y < UI_SIZE - 20) {
+      DKAudio.sfx("click");
       scene = "title";
     }
   }

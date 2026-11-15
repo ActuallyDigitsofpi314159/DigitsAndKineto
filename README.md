@@ -63,7 +63,7 @@ The site is plain HTML, CSS and JavaScript with no build step: every page is a s
 
 ### Ads
 - There are two ad spots: a full-screen video ad after Play is pressed on a game page (before the game opens), and a banner/video box on DK Converter's loading screen.
-- The AdSense loader is enabled in `assets/ads.js` for game pre-rolls. The converter box stays hidden until its `slots.converter` setting is filled in with that placement's AdSense ad unit ID.
+- Ads are switched off for now: set `ADS_ON = true` at the top of `assets/ads.js` to turn the game pre-rolls back on. The converter box stays hidden until its `slots.converter` setting is filled in with that placement's AdSense ad unit ID.
 - To see where the ads go without an ad service, add `?ads=preview` to a game page or converter address, e.g. /games/dash-parkour/?ads=preview
 - A new game gets the pre-roll automatically (it is part of the copied index.html).
 

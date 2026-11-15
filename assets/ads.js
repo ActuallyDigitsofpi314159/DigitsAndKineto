@@ -9,8 +9,9 @@
         while a file is loading or converting. (The <div data-dk-ad="converter">
         in dkconverter/index.html.)
 
-   TURNING ADS ON: fill in CONFIG below. While `provider` is '' nothing loads
-   and the site behaves exactly as it did without ads.
+   TURNING ADS ON / OFF: flip ADS_ON below (true = on, false = off). While it
+   is false nothing loads, Play opens the game right away, and the site
+   behaves exactly as it did without ads. The rest of CONFIG is kept ready.
 
    PREVIEWING THE SPOTS: add ?ads=preview to a game page or converter address,
    e.g. /games/dash-parkour/?ads=preview — placeholder ads appear, no ad
@@ -18,6 +19,8 @@
    ========================================================================== */
 (function () {
     'use strict';
+
+    var ADS_ON = false;         // <-- the one switch: true = ads on, false = ads off
 
     var CONFIG = {
         provider: 'adsense',    // '' = ads off  ·  'adsense' = Google AdSense
@@ -32,7 +35,7 @@
     var script = document.currentScript;
     var wantsPreroll = !!script && script.hasAttribute('data-preroll');
     var preview = /[?&]ads=preview\b/.test(window.location.search);
-    var adsense = !preview && CONFIG.provider === 'adsense' && !!CONFIG.adsenseClient;
+    var adsense = ADS_ON && !preview && CONFIG.provider === 'adsense' && !!CONFIG.adsenseClient;
     var scriptFailed = false;
 
     if (adsense) {
@@ -128,5 +131,5 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setUpSlots);
     else setUpSlots();
 
-    window.DKAds = { preroll: preroll };
+    window.DKAds = { preroll: preroll, active: preview || (adsense && wantsPreroll) };
 })();

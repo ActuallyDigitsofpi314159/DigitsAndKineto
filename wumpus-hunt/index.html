@@ -820,19 +820,24 @@ function transition(x, y, sz) {
 
 // Menu button with smooth (lerped) hover + press.
 // action() runs on click. Locked buttons shake and show `hint` instead.
+// Buttons listed in STAY_BUTTONS (the sound switches) act right away with no screen wipe.
+const STAY_BUTTONS = { MUSIC: true, SOUND: true };
 function selectButton(x, y, label, w, h, id, action, locked, hint, isNewBadge) {
-  const st = btnState[id] || (btnState[id] = { t: 0, p: 0, shake: 0, hint: 0, h: 0 });
+  const st = btnState[id] || (btnState[id] = { t: 0, p: 0, shake: 0, hint: 0, h: 0, over: false });
   const halfH = Math.max(20, h / 2);
   const over = function (px, py) { return px >= x - w / 2 && px <= x + w / 2 && py >= y - halfH && py <= y + halfH; };
   const hovered = !transitionIs && over(mouseX, mouseY);
   if (hovered) wantPointer = true;
+  if (hovered && !st.over && !touchMode) DKAudio.sfx("hover");
+  st.over = hovered;
   st.t = approach(st.t, hovered ? 1 : 0, 14);
   st.p = approach(st.p, hovered && mouseIsPressed ? 1 : 0, 22);
 
   if (click && !transitionIs && over(click.x, click.y)) {
     click = null;
-    if (locked) { st.shake = 1; st.hint = 1.6; }
-    else { transitionIs = true; action(); }
+    if (locked) { st.shake = 1; st.hint = 1.6; DKAudio.sfx("bowaway"); }
+    else if (STAY_BUTTONS[id]) { DKAudio.sfx("click"); action(); }
+    else { DKAudio.sfx("click"); transitionIs = true; action(); }
   }
   st.shake = Math.max(0, st.shake - dt * 2.5);
   st.hint = Math.max(0, st.hint - dt);
@@ -1349,7 +1354,7 @@ function sceneGameOver() {
 
   if (deathAnimationFrames > 140) {
     wantPointer = true;
-    if (click && !transitionIs) { click = null; transitionIs = true; tScene = "title"; winStreak = 0; }
+    if (click && !transitionIs) { click = null; DKAudio.sfx("click"); transitionIs = true; tScene = "title"; winStreak = 0; }
   }
 }
 
@@ -1427,6 +1432,7 @@ function sceneGameWin() {
       wantPointer = true;
       if (click && !transitionIs) {
         click = null;
+        DKAudio.sfx("click");
         transitionIs = true;
         tScene = "title";
         winStreak += MODE_POINTS[mode] || 1;
@@ -1706,14 +1712,18 @@ function drawGame() {
 //  Sound (assets/game-audio.js): music per screen, effects when things change
 // ============================================================
 DKAudio.init("wumpus-hunt");
-const snd = { scene: "", x: 0, y: 0, aim: false, shot: false, killed: 0, wumpus: false, pit: false, bats: false, wipe: false };
+const snd = { scene: "", x: 0, y: 0, aim: false, shot: false, killed: 0, wumpus: false, pit: false, bats: false, wipe: false, landed: false };
 function soundWatch() {
   const enter = scene !== snd.scene;
   snd.scene = scene;
   if (scene === "title" || scene === "instruction") DKAudio.music("wumpus-title");
   else if (scene === "game") DKAudio.music("wumpus-cave");
-  else if (enter && scene === "gameWin") { DKAudio.music(null); DKAudio.sfx("win"); }
+  else if (enter && scene === "gameWin") { DKAudio.music(null); DKAudio.sfx("hit"); }
   else if (enter && scene === "gameOver") { DKAudio.music(null); DKAudio.sfx("lose"); }
+  // win screen: the dead Wumpus thuds down, then the victory fanfare
+  const landed = scene === "gameWin" && deadWumpY <= -272;
+  if (landed && !snd.landed) { DKAudio.sfx("land", 1); DKAudio.sfx("victory"); }
+  snd.landed = landed;
   DKAudio.intensity(scene === "game" && mode === "predator" ? 1 : 0);
   if (transitionIs && !snd.wipe) DKAudio.sfx("whoosh");
   snd.wipe = transitionIs;
