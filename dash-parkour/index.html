@@ -51,6 +51,10 @@ var dashServerMode = window.dashServerMode || { on: "auto", url: "https://party.
 <meta name="theme-color" content="#000000">
 <title>DASH Parkour</title>
 <script src="../assets/no-zoom.js"></script>
+<!-- DASH Parkour soundtrack + sound effects (synthesized live, see audio/dash-audio.js) -->
+<script src="audio/dash-audio.js"></script>
+<script src="audio/dash-music.js"></script>
+<script src="audio/dash-sfx.js"></script>
 <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAOoUlEQVR42s1be2wV15n/nTNz335cv21sY2MSAqXOsjghMWtvlFASaBNFTeRVmtI0qWDZsNCqS6oIrRJEQxJls+w/bROaldqoi+jKFc3m0TZNmwdNDEsEdKEF5NQIN8VpIQ34Cdh35vz2j5m5njueuff64hhGOvK9d8Znzu97f9/5jsAVuggIABKAEICRviEEqFQIra2LcO7c32F09EakUktw8aJAcXEVRkc/QSKhkEgcRFHRq6K//xWYJmjNRQEQV+NFQHQDGgHdXuzkpWlgW9vc86XlX7xUXPo9xuPHGQpNUEoSCB66TkYi+zl37kZomvMeedUAJiADAd91Vw3r61czkXiSRUUHzVDoIoXwgjQJGPZfk4ByfTbs76SmkSUlr5xrayu9YkTwANYybkoJfu1rxafnzF3O0tJHmEj83IxGB6lp9IA2CKRcYJnHMAlMECBjsZ6Xbrk7aa9DzBZojYCecUMIkAxx8eK/YUXFwywvf5Xx+AA13QvYLABw0BinEByNJ16GEJjChJkGPEXMdB28+eZrWFNzH0tLd7Ko6A8MhejRY2UDNmYAsN+YoBC8UJz8ir1ebaZATxVrTQO7umrZ0vIFJpP/xuLi/2MkMu5juD5NwFPUwQSUIeWHA6iL22sXhQKXGaCFAL/xjSQXLryF5eVbmEj8grHYEDXNuwi3Hs88SCEso6fr1tA0S8omVStFgCwq2mDj0AsS8zTozs46NjU9xNLSbsZif2Yo9GnqcfCQkj7EzhyWUbXWEY/3sbs7nEsKhJfrAlAQAmxr+1t8+OFGDA7eDcOogFKux2DCFch86tZW0yzhBoCSEqC1FWhsBCIR4Px54PhxoK8vLakQQkFKiQULOsXx4+8R0IS15qyc1wCAmzaVMJl8luFwyiPWs6XHU7kKkIsXk88/T54+zSnX+Dh54AB5332TaiAlWVOzw7Fh+YG/7rpWMx4/Yhsyx2LPPmgv+LVrydHRScBKkYZBGgZVKsWUYTBF0iCZevllmvX1BgEyHj9gu8RgNXDcGW+44bOMRP6SdidXCrQX/KOPTgJPpSzwDh1Mk77XwIAyGhtJKS+ws7Mxa3RIQGNXVynj8RNXHfh77vEFbgmB9f3ChQvcuXMn165dyy/dfz///emneebcObKvL8VQiKyvf8CWgmA1YHX1s5cNXojMcbnzVFaSn3xiAfdw2rS/9/f3c+nSpbQNc3rMqa3lr48eTfGZZ9QE8AJ0PZgAFz7/+SaGw4MFuTEhLF/sl7VpGn1i/dxD162/W7ZMct/DedM0OTY2xiVLlhAAw+EwdV2npmkMhUIEwOLKSnPg0CGyufnUvq6uWDD3Gxq+ZQMwChJTZ0SjZEUFWVY2FXSutNZLVIA8eHDS2NFtBiyC7Nq1iwDSgN3D+e1fHn/c5KZN5hlgCaT0tQMSIyMroRSn5c+ltPxycTGwbh3w+uvAiRNAby/wwQfA0aPAj34E3HOP5ZeVgpOvZ72EsMhQVwcsWGB9l/62q6enB1JKkFPrH0opCCGw78gRxYULZYWU7RAC8DOE1LRjroguN3ccbn75y2RfH4Muk7Rc07vvUi1Z4i81ftEeQLa2Zro8HwlYv349hRDUdX2KBGiaRiEEl61ebfDVV2lI+VPbDmhTJSCRuNamvszJHSktbj77LLBrFzB/PmAYdgqiABLKNEHThIRldbSODoj334d5553Wc/lIgq5nvtfnam9vB0kIn/uOZLQtXSoRj4NkJ3fsKBEWkzP/gaWl09P5rVstVkxMBFpnkjx06BB3797NX//ylxweGbHuL1+e3SY4+l9fT46N+UqAUopKKQ4PD3PevHlpI6hpWoYRjOg6T/zpT+QPfqAIKLa2dvqmyIzHz9gvVznBt7dbC/Lxyw74I0eO8NZbb80Qybn19fz+D39IfvQRzXjcm735Z3u//72vC3S/6/Dhw2xubp6iAkVFRdzT3W2pzJo1VkhfVbXFNzs0df23OW2Aw7HXX/d1TaZpUinFU6dOsaqqigAopaSmaZRSphf2/T17yMcfp+F2d0Fu8IknfN/lJcLHH3/M7du3c9WqVVyxYgW3bNnCD3p7rWcGB8k5cyzvVlLyLjRtqicwS0v/x5XwBINftMhySR7Ok6Rhu6oHHnggLZJeoySlZHLOHP71jTfIUIgqSAIc6WhsJIeGLAnweadX5fyMMHfutHIaKclweJQrV1ZPCYtZVvaoLY5GVo6sWxcYmJDk2NgY6+rqKITI4HqaCPZvP929m2xtZSqbLXBUbtOmyWwvgAhKKaZSKZqmSdM0mbp0yQI/MEBWVzsENSglWVa22msHZCoW+w2kNJGrlHzddVlvj4yMYHR0FCR9fbMQAlJKfDwxAbS0ZLXwaW/xne8Azz8PhMOTBS/P3EII6LoOCUCaJvRIBHJ4GOjqAs6etblMQikilfqctw4iQ7fddlRp2oD9Y/CuSjSalQBlZWWorKyElNLXNdEOUJrmzwd0PXfUpZTldjdsAJ54wvqsaRbRTNNyv85wng2FrMLIqlXAvn3W81YhxyrcKHU7SYmM4oiUYDK5J9AOOCqwbdukBwiwAY899pjlgiIRCiEIgEKItGtqaW7mWCpF1dlJlU9g5FaTjg7yJz8hL1zwV/r+fvKpp5h265lzKxvLJTY1Nbu25qwPRm3tBtsOpAIJcP/9DlpfPTRNk8PDw1y2bNkU/XcM45tvv02Oj9OorJxejuAGM3++VfnZto3cvp385jfJlSvJRCJX7pGiEGRDw9op7pBz5iygrmf3Ag0NVnCilK9Bcozh0NAQN27cyLq6OgJgSUkJV65cyf3vvWdZ57femn6C5BAh1/9kzz4t5iaTuzM2TggIkroZj/cFxgMOB37846y+WbkIMzg4yGPHjnFgYCDTNd17b6ZkFVIddkri7tJ47rTbwhUOn+TWrWG3CoTsiPB7GZTy883z51s6aJq+EZpDBMOjJub4uAX+nXeC6wezMxQ1LcWmpiWOO5Rpyx+NvmWnniLQIp88Caxfb312rLGPu9M0zfI8pgk1MQEZDkOeOQM8+KBlta/cZUIpHRMTd6STQVdRtJHh8MWsVSFHFR5+eNIYmqalEoYxKRmGkakmJ09aKW4hup/HUABNgIY9VPCzKQK8GEu8BiGn2AHJePxAzrzAIcLy5eTevcx6DQ+Tzz1nRWQzDN4NeDp7hwRoaPpfBtra4u4gRQcAJhLfDrQDQW7pttvI736X7Okhe3utUtaePZZ7amoqrCwWwGUDYMqHwwbAQwDvBfgPAP9oP6OCiKBrZEvLiqkbI42Nt9vgjLyssdfy+gU2hRRGPYBNn/t/BPjfAP8R4CJPzPElF2EC3WFZ2beByWDA2vjr6DiMl14ahmmW2JOJrKGqs2/nGETHKDq/KeVrKAP2J6xw2X6phszKxVkABwG8A+BdAEcBXPDMEYHVbRXJUXkEAFy82JGRixDQIAQYjf4sa3qcT0V3BvR4DOB+gE8DvB1guU90qQHUAUr7u27//Wd7jlSQK7Qk8xNec02VnkEZEojF3salS6tRSLsZmZPLyv6redJPE8Bxm7tvA3gfwIdTCph2L5w9jxnA3vLcEqBAlmFk5Cbdsz6gpqYHo6MCqZQ2A90l6UU6i3dP2g/gAIC3ALwH4ISH6o4qOIBVWlezq9GNfnv/3kdJCcNY7m1cBDdvTjASOZ13qXwa4yzAnwHcDPBGgDEfsdZt0ZY+97INaTdJVgEcdBnSgLVY6l1e/oqXgrodFu/Kyx1mseAE+BHA/wT4lK3HFTn0WEwTtJdwAPiv2T1AZl5QWvo7fwLU1v6T7bdThQYpBHhrAKdmArB3TgBsBHg+ewxAj2Qf8u6YWioWDr8BIcZze5TsfTeXYGVa0nZP+ejxdC+3IX0RQNKeP69W0Wg05N8dRkpGIkcLtQOO+3nBI54zPTSXFL2Qn+hnSkB19Zt+hJJCSoVYbF+GVEynp8le4VcALLa5r88g14U9n2lL2H8BWGe/R8vXQQkBjI8fkAEuAkgkfhWYHuexQAKIAtgFoGSGiOAApz3fQjtmWDP9+QWkJGpqfhPUxw+2tFRT14czoqcCjWEPwAZbVMU0jaC0RV1z/RYH+C2Aw9MTe7f4KxYV9bK7OxzcLEmK8Vi8p+Cw2LO4AYBf9QBxu0Hv0HyIUQlwA8Ben/mn20/MpqYHs0VUOgCMlFc/42qX4+USgQB/C/DrABfkKQENdpr7oh1IuedUhXSUW/uErzn5jwjqHBOAydrav8fZs3uhVN6eJVeY6kySAtAL4BiAUwCGbGur265srq3j8wEUeXIGMf3FWGZDiBBCoX1ob/8C9u4dDsx30nagq6uI4fBfZzIsNgsQ26BCSJ76nkpnqvH4S1y2rCRjYyRr96iUYFnZazOhBkF1vFSWYRYO2kjbLSHIaPQcq6oecfqN8jpSkw6LGxoeKqiLbDZL3ZMt+pk7WuFwHysrn+IttzTYmyH5H6VJV4tvuqmGun7OfpG6ygCrjGJMKEQmEv2srn6Rzc13c/PmhLfsN13LoUMImJWVL15OdjgDgE3fQxiaRkYif2Yy+XMmkxu5cGEbd+yIuVvr7CM+l3VqRIzffHMrw2FjlrrH3YAz1U5qnND0c0Y8/uZQWdU21tV1sKur1NtLaIPWZuTkWLpiXFHxpF3zm5g1PbZacS8xkTjM6urnWFl554HP3FgLITOguc8nzvhxufRJsa1bw2YotG+GOsqV79kiZ+MzFvsDKyp2s6HhIV5//byMvsFMwNpsnQ+0DOIdd9QxmTzjIoJ5WWLttMSFw6dZUvIyGxoe4bx517O7O+xtn5lVwNmIcKmj4zOMx/e6SuDKdbxV+RxvNX3c03kWF7/D2tonuWjR59jVVRSgx/pVcxY4I4AQAkwkvs5IpDdrm4vTW6zrI4xG/5cVFf/Ba6/9Itvbq7MBnk0ui0KIIOwiCdesSWD//hUYHr4LQ0M3gIwiFIrh4sXzqrh4UJK/Qyx2AMnkPnHy5Cn3LhE9Zf4rdez9/wEP4Di+yXW4yAAAAABJRU5ErkJggg==">
 <style>
 html, body {
@@ -73,10 +77,14 @@ canvas:focus { outline: none; }
 <script id="dash-sounds">
 // ===================================================================
 // DASH Parkour sounds (v1.1)
-// Paste each sound as the object DK Converter makes, for example
+// Every sound and song is synthesized by audio/dash-audio.js (songs in
+// audio/dash-music.js, effects in audio/dash-sfx.js; the full list is in
+// games/dash-parkour/AUDIO.md). To use a recording instead, paste the
+// object DK Converter makes into a slot below, for example
 //     jump: { s: "....", n: 12345, b: 4 },
-// A sound left as null stays silent. Sound Effects / Play Music in the
-// game's settings turn them on and off.
+// and it plays instead of the synthesized one. Any effect from
+// dash-sfx.js can be given a slot here the same way.
+// Sound Effects / Play Music in the game's settings turn them on and off.
 // ===================================================================
 var DASH_SOUNDS = {
   // menus
@@ -119,12 +127,17 @@ var DASH_SOUNDS = {
   countBeep: null,      // 3, 2, 1 at the start of a level
   countGo: null         // GO!
 };
-// Background music (loops). Same format as the sounds.
+// Background music. A recording pasted here (same format) replaces that
+// synthesized song; the names are the songs in audio/dash-music.js.
 var DASH_MUSIC = {
-  menu: null,           // title screen, map, shop and other menus
-  level: null,          // normal levels
-  boss: null,           // boss fights
-  final: null           // the final boss's second stage
+  title: null,          // title screen, map, settings, achievements, runs
+  shop: null,
+  area1: null, area2: null, area3: null, areaX: null,
+  guard1: null, guard2: null, guard3: null,   // the Diamond / Emerald / Ruby Guard
+  final1: null,         // the Parkour Master
+  final2: null,         // the vortex (Master X)
+  final3: null,         // the chase back through Area 1
+  prologue: null, cutPortal: null, cutMasterX: null, ending: null   // cutscenes (final2 also scores the escape into Area 1)
 };
 
 // DK AUDIO-ONLY SUPPORT FOR KHAN ACADEMY HTML
@@ -464,10 +477,14 @@ function dashPlayOn(ctx, key, volume, loop) {
   return src;
 }
 var dashUiSources = {};
-window.dashSfx = function (name, volume) {
+window.dashSfx = function (name, volume, opt) {
   var data = DASH_SOUNDS[name];
-  if (!data || !(data.s || data.data)) return;
   volume = volume === undefined ? 1 : volume;
+  if (!data || !(data.s || data.data)) {
+    // no recording pasted in: the synthesized effect from audio/dash-sfx.js
+    if (window.DashAudio) window.DashAudio.sfx(name, volume, opt);
+    return;
+  }
   try {
     if (DASH_UI_SOUNDS[name]) {
       // menu sounds: on the context that keeps playing in the pause menu
@@ -488,6 +505,7 @@ window.dashPauseSfx = function (paused) {
   paused = !!paused;
   if (paused === dashSfxPaused) return;
   dashSfxPaused = paused;
+  if (window.DashAudio) window.DashAudio.pause(paused); // synthesized sounds freeze, music gets quieter
   if (!dkAudioContext) return;
   try {
     if (paused) dkAudioContext.suspend();
@@ -509,7 +527,12 @@ window.dashMusic = function (track) {
     dashMusicSource = null;
   }
   var data = track ? DASH_MUSIC[track] : null;
-  if (!data || !(data.s || data.data)) return;
+  if (!data || !(data.s || data.data)) {
+    // no recording pasted in: the synthesized song from audio/dash-music.js
+    if (window.DashAudio) window.DashAudio.music(track);
+    return;
+  }
+  if (window.DashAudio) window.DashAudio.music("");
   var key = "music:" + track;
   try {
     dkLoadAudio(key, data, function (error) {
@@ -520,6 +543,24 @@ window.dashMusic = function (track) {
     });
   } catch (e) {}
 };
+// What is happening in the game (boss states, cutscene timing, the vortex...):
+// the dynamic songs follow it (see react() in audio/dash-music.js).
+window.dashMusicState = function (state) {
+  if (window.DashAudio) window.DashAudio.state(state);
+};
+// A soft tick when the pointer moves onto something the game shows as a button
+// (the game turns the cursor into a hand over its buttons).
+(function () {
+  var was = false;
+  setInterval(function () {
+    var c = document.getElementById("output-canvas");
+    if (!c || !window.DashAudio) return;
+    var on = c.style.cursor === "pointer" || c.style.cursor === "hand";
+    if (on && !was && window.__dashSfxOn !== false && !window.__dashTouchOnly) window.dashSfx("hover", 1);
+    was = on;
+  }, 50);
+  window.addEventListener("touchstart", function () { window.__dashTouchOnly = true; }, { passive: true, capture: true });
+})();
 
 </script>
 </head>
@@ -21026,10 +21067,26 @@ function program() {
   // ===== [v1.1] SOUND =====
   // sfx("name") plays that sound from the DASH_SOUNDS list at the top of the
   // file (if it has been filled in and Sound Effects is on in the settings).
-  var sfx = function sfx(name, volume) {
+  // sfx("name", volume, { pan, kind, ... }) plays a sound effect (see audio/dash-sfx.js).
+  var sfx = function sfx(name, volume, opt) {
     if (typeof window !== "undefined" && window.dashSfx && (typeof settings === "undefined" || !settings || settings.soundEffects !== false)) {
-      window.dashSfx(name, volume === undefined ? 1 : volume);
+      window.dashSfx(name, volume === undefined ? 1 : volume, opt);
     }
+  };
+  // a sound that comes from somewhere in the level: quieter when far away, panned left/right
+  var sfxAt = function sfxAt(name, x, y, volume, opt) {
+    if (typeof p === "undefined" || !p) {
+      sfx(name, volume, opt);
+      return;
+    }
+    var d = Math.sqrt((x - p.x) * (x - p.x) + (y - p.y) * (y - p.y));
+    var near = 1 - Math.min(1, Math.max(0, (d - 150) / 550));
+    if (near <= 0.02) {
+      return;
+    }
+    opt = opt || {};
+    opt.pan = Math.max(-0.8, Math.min(0.8, (x - p.x) / 500));
+    sfx(name, (volume === undefined ? 1 : volume) * near, opt);
   };
 
   // ===== [DELTA] Frame-rate independent timing =====
@@ -28658,7 +28715,7 @@ function program() {
   // [BUGFIX] Same landing squash + dust that normal blocks give, for boss arenas/platforms.
   var applyLandingSquash = function applyLandingSquash() {
     if (!p.prevGrounded && p.prevVy > 4) {
-      sfx("land"); // [v1.1] sound
+      sfx("land", __p.constrain(p.prevVy / 14, 0.35, 1)); // [v1.1] sound (louder for harder landings)
     }
     if (!p.grounded && p.prevVy > 2) {
       var impact = __p.constrain(p.prevVy * 3, 0, 50);
@@ -29022,6 +29079,7 @@ function program() {
   };
   var spikeSlots = [];
   var spawnSpikeWave = function spawnSpikeWave(count, targetY) {
+    sfx("spikeWave"); // [v1.2] sound
     for (var i = 0; i < count; i++) {
       if (spikeSlots.length === 0) {
         return;
@@ -29451,6 +29509,7 @@ function program() {
         // Start jump
         this.state = "jumping";
         this.vy = this.jumpPower;
+        sfxAt("boingJump", this.x, this.y); // [v1.2] sound
         this.chaseTime = 0;
         this.hasJumped = true;
       }
@@ -29611,6 +29670,9 @@ function program() {
     __p.line(this.x + this.size * 0.7, this.y + this.size * 0.65, this.x + this.size * 0.7 + legsAnim, this.y + this.size * 0.8);
   };
   Zapp.prototype.update = function () {
+    if (dtEvery(50) && this.alive !== false) {
+      sfxAt("zappCrackle", this.x + this.size / 2, this.y, 0.7); // [v1.2] sound: a faint buzz when you're near
+    }
     var legsTarget = this.legsScene; // two scenes
     var directionTarget = this.direction; // 0 is left, 1 is right
 
@@ -36926,6 +36988,9 @@ function program() {
       this.paralyzedFrames += DT;
       if (this.paralyzedFrames >= this.paralyzedDuration) {
         this.paralyzed = false;
+        if (this === p) {
+          sfx("unzap"); // [v1.2] sound
+        }
         this.paralyzedFrames = 0;
         this.spikeCooldown = 20; // brief grace after paralysis ends
       }
@@ -36945,6 +37010,9 @@ function program() {
       this.frozenFrames += DT;
       if (this.frozenFrames >= this.frozenDuration) {
         this.frozen = false;
+        if (this === p) {
+          sfx("thaw"); // [v1.2] sound
+        }
         this.frozenFrames = 0;
         this.spikeCooldown = 20; // brief grace after paralysis ends
       }
@@ -36973,6 +37041,9 @@ function program() {
       var buffer = 40;
       if (__p.round(this.x) - buffer <= mpLT && __p.round(this.x) + buffer >= mpLT && __p.round(this.y) - buffer <= this.launchTargetY && __p.round(this.y) + buffer >= this.launchTargetY) {
         this.launching = false; // end launch
+        if (this === p) {
+          sfx("launchLand"); // [v1.2] sound
+        }
       }
     }
 
@@ -38665,6 +38736,7 @@ function program() {
         this.minions[i].startFight();
       }
       this.spawnedMinions = true;
+      sfx("cloneSummon"); // [v1.2] sound
       this.returningToGround = false; // Initialize our descent flag
     }
 
@@ -38687,6 +38759,7 @@ function program() {
           bossGhosts.push(this.minions[gi]);
         }
         this.minions = [];
+        sfx("cloneVanish"); // [v1.2] sound
         this.returningToGround = true;
       }
     }
@@ -38706,6 +38779,9 @@ function program() {
     this.moving = false;
     this.vx = 0;
     spawnParticles(this.x, this.y + 50, 10, "smoke", 2); // (same grey puff as "dust", but never Party Dash confetti)
+    if (!this.isMinion || this.fade >= 1) {
+      sfxAt(this.isMinion ? "boingLand" : "bossHop", this.x, this.y, this.isMinion ? 0.6 : 1); // [v1.2] sound
+    }
     if (this.moveCount >= this.maxMoves) {
       if (this.printDebug) {
         __p.println("Movement phase complete.");
@@ -38806,6 +38882,12 @@ function program() {
     else if (this.currentAttack === "dive") {
       var outline;
       this.diveTime = 230;
+      if (this.attackTimer === DT) {
+        sfx("diveCharge", 1, { len: 3.8 }); // [v1.2] sound: the wind-up
+      }
+      if (dtCross(this.attackTimer, this.diveTime - 1)) {
+        sfx("diveSlam"); // [v1.2] sound
+      }
 
       // Pre-dive visuals and calculations
       if (this.attackTimer <= this.diveTime - 1) {
@@ -38985,6 +39067,7 @@ function program() {
     else if (this.currentAttack === "icicles") {
       //translate(random(-1, 1), random(-1, 1));
       if (dtEvery(25) && this.attackTimer < 480) {
+        sfx("icicleForm"); // [v1.2] sound
         bossIcicles.push({
           x: mpBossRandom(this.positions[0], this.positions[4]),
           y: this.initialY - 250,
@@ -39110,6 +39193,7 @@ function program() {
 
       // 2 Spawning
       if (dtEveryOn(this.attackTimer, 70) && this.attackTimer < 660) {
+        sfx("hazardFall"); // [v1.2] sound
         // Choose a random amount to spawn in this wave (e.g., 1 to 3 hazards)
         var spawnAmount = __p.floor(mpBossRandom(2, 4));
         for (var s = 0; s < spawnAmount; s++) {
@@ -39177,6 +39261,7 @@ function program() {
 
       // 2 Spawning
       if (dtEveryOn(this.attackTimer, 70) && this.attackTimer < 660) {
+        sfx("hazardFall"); // [v1.2] sound
         // Choose a random amount to spawn in this wave (e.g., 1 to 3 hazards)
         var spawnAmount = __p.floor(mpBossRandom(1, 4));
         for (var s = 0; s < spawnAmount; s++) {
@@ -39240,6 +39325,7 @@ function program() {
 
       // 1 Initialize target on frame 1 of each cycle
       if (dtEveryOn(this.attackTimer - 1, cycleLen)) {
+        sfx("laserCharge"); // [v1.2] sound
         this.laserTargetX = mpBossTarget(this).x; // [MP] the attack's target player
         this.laserTargetY = mpBossTarget(this).y;
       }
@@ -39264,6 +39350,9 @@ function program() {
 
       // 3 Fire Phase (Frames 81 to 105)
       else if (cycleTimer <= 105) {
+        if (cycleTimer - DT <= 80) {
+          sfx("laserFire"); // [v1.2] sound
+        }
         // Screen shake effect
         __p.translate(__p.random(-4, 4), __p.random(-4, 4));
 
@@ -39388,6 +39477,8 @@ function program() {
         }
 
         // Spawn one guard minion near the center stage
+        sfx("decayZone"); // [v1.2] sound
+        sfx("cloneSummon", 0.7);
         this.minions = [new Boss(this.positions[4], this.initialY, 5, [])];
         this.minions[0].isMinion = true;
         this.minions[0].fade = 0; // [BUGFIX] fades in instead of popping in
@@ -39454,6 +39545,7 @@ function program() {
 
         // Phases: "rising" -> "moving" -> "done"
         this.waveState = "rising";
+        sfx("poisonWave"); // [v1.2] sound
         if (this.printDebug) {
           __p.println("Poison Wave sequence initialized.");
         }
@@ -39562,6 +39654,9 @@ function program() {
     this.state = "vulnerable";
     this.invincible = false;
     this.vulnerableTimer = 140;
+    if (!this.isMinion) {
+      sfx("bossTired"); // [v1.2] sound: the opening
+    }
   };
   Boss.prototype.updateVulnerable = function () {
     this.vulnerableTimer -= DT;
@@ -39589,6 +39684,7 @@ function program() {
       if (this.printDebug) {
         __p.println("Player failed vulnerability.");
       }
+      sfx("bossRecover"); // [v1.2] sound
       this.prepareMoves();
       this.spawnedMinions = false;
       this.state = "moving";
@@ -40812,6 +40908,10 @@ function program() {
     __p.strokeWeight(3);
     __p.rect(curX, curY, btnW, btnH, s / 5);
 
+    // [v1.2] can't buy it: a soft "no"
+    if (target === 1 && MP.click && !skin.owned && (!canAfford || locked)) {
+      sfx("denied");
+    }
     // Buying
     if (target === 1 && __p.mouseIsPressed && canAfford && !skin.owned && !locked) {
       skin.owned = true;
@@ -41343,6 +41443,9 @@ function program() {
       this.paralyzedFrames += DT;
       if (this.paralyzedFrames >= this.paralyzedDuration) {
         this.paralyzed = false;
+        if (this === p) {
+          sfx("unzap"); // [v1.2] sound
+        }
         this.paralyzedFrames = 0;
         //this.spikeCooldown = 20; // brief grace after paralysis ends
       }
@@ -41710,8 +41813,12 @@ function program() {
   };
 
   // Controls the 5 attacks
+  var VORTEX_ATTACK_SOUNDS = { fireballs: "fireball", spikeWalls: "spikeWall", paralysisBeams: "laserCharge", thornShots: "thornShot", poisonSpray: "poisonSpray" };
   FinalPhase.triggerAttack = function (patternName) {
     this.currentAttackPattern = patternName;
+    if (VORTEX_ATTACK_SOUNDS[patternName]) {
+      sfx(VORTEX_ATTACK_SOUNDS[patternName]); // [v1.2] sound
+    }
     this.obstacleTimer = 0;
     this.obstacles = []; // Clear out old data from previous patterns safely
   };
@@ -41724,6 +41831,7 @@ function program() {
 
       // 1 Spawn 4 fireballs every 100 frames
       if (this.obstacleTimer - DT < 400 && dtEveryOn(this.obstacleTimer, 105)) {
+        sfx("fireball", 0.8); // [v1.2] sound
         // Pick a random target trajectory angle
         var travelAngle = __p.random(0, 360);
         // Target distance from center
@@ -41989,6 +42097,7 @@ function program() {
 
       // 1 spawns 1 every 100 frames
       if (this.obstacleTimer - DT < 301 && dtEveryOn(this.obstacleTimer - 1, 100)) {
+        sfx("thornShot"); // [v1.2] sound
         for (var i = 0; i < 1; i++) {
           // Spawn thorn directly at boss location
           // [BUGFIX] never on top of the player
@@ -42228,6 +42337,7 @@ function program() {
       // Vortex collapses periodically
       if (this.vortexStability <= 40) {
         this.currentState = "STABILIZE_VORTEX";
+        sfx("vortexAlarm"); // [v1.2] sound
         this.spawnTouchpoints();
       }
       this.updateAttack();
@@ -42262,6 +42372,8 @@ function program() {
           // 3 Collision logic remains exactly the same!
           if (checkCollision(p, tpHitbox)) {
             tp.isHit = true;
+            this.touchedCount = (this.touchedCount || 0) + 1;
+            sfx("touchpoint", 1, { n: this.touchedCount - 1 }); // [v1.2] each one plays the next note of the Dash motif
             spawnParticles(tp.x, tp.y, 40, "vortexEnergy", 10);
           }
         }
@@ -42270,6 +42382,8 @@ function program() {
       // Check if all are cleared...
       if (remainingTouchpoints === 0) {
         this.livesRemaining--;
+        this.touchedCount = 0;
+        sfx("vortexBreak"); // [v1.2] sound
         spawnParticles(this.x, this.y, 120, "majorBossDamage");
         if (this.livesRemaining <= 1) {
           this.currentState = "DEAD";
@@ -42280,6 +42394,9 @@ function program() {
         }
       }
       if (this.vortexStability <= 0) {
+        if (p.health > 0) {
+          sfx("vortexSwallow"); // [v1.2] sound
+        }
         p.lastHurtBy = "was swallowed by the vortex"; // [v5] for the multiplayer death message
         p.health = 0;
       }
@@ -44482,6 +44599,7 @@ function program() {
                         p.hurtFrames = 1;
                       } else {
                         p.lastHurtBy = "fell into poison"; // [v5] for the multiplayer death message
+                        sfx("poison"); // [v1.2] sound
                         p.health = 0;
                         unlockAchievement("Poisonous");
                       }
@@ -44578,6 +44696,9 @@ function program() {
                       }
                       if (!p.prevGrounded && p.prevVy > 2) {
                         spawnParticles(p.x, p.y + p.h / 2, p.prevVy / 2, "dust", 2.8);
+                        if (p.prevVy > 4) {
+                          sfx("land", __p.constrain(p.prevVy / 14, 0.35, 1)); // [v1.2] sound (louder for harder landings)
+                        }
                       }
                       p.grounded = true;
                       p.vy = 0;
@@ -44618,6 +44739,9 @@ function program() {
                         p.targetH = p.h - impact;
                       }
 
+                      if (!p.prevGrounded && p.prevVy > 4) {
+                        sfx("land", __p.constrain(p.prevVy / 14, 0.35, 1)); // [v1.2] sound
+                      }
                       // Set outputs for the obstacle
                       p.grounded = true;
                       p.vy = 0;
@@ -44664,6 +44788,9 @@ function program() {
                       }
                       if (!p.prevGrounded && p.prevVy > 2) {
                         spawnParticles(p.x, p.y + p.h / 2, p.prevVy / 2, "dust", 2.8);
+                        if (p.prevVy > 4) {
+                          sfx("land", __p.constrain(p.prevVy / 14, 0.35, 1)); // [v1.2] sound (louder for harder landings)
+                        }
                       }
                       p.grounded = true;
                       p.vy = 0;
@@ -44732,12 +44859,14 @@ function program() {
             DT = physDT;
             SIMT = __p.frameCount;
             var activeSignText = null;
+            dashSignShown = null; // [v1.2] (for the sign sound)
             for (var i = 0; i < signs.length; i++) {
               var s = signs[i];
 
               // Simple AABB check 
               if (p.x + p.w / 2 > s.x - s.w / 2 && p.x - p.w / 2 < s.x + s.w / 2 && p.y + p.h / 2 > s.y - s.h / 2 && p.y - p.h / 2 < s.y + s.h / 2) {
                 activeSignText = s.text;
+                dashSignShown = s.text;
                 break; // only show the first overlapping sign
               }
             }
@@ -44782,6 +44911,7 @@ function program() {
                 p.deathTriggered = false;
                 p.dead = false;
                 p.reset(lastCheckpoint.x, lastCheckpoint.y);
+                sfx("respawn"); // [v1.2] sound
 
                 // Reset the boss fight if going ([BUGFIX] also mid-intro, and clear leftover attacks)
                 if (bossFight || bossIntro) {
@@ -45007,7 +45137,7 @@ function program() {
               if (checkCollision(p, bulletHitbox)) {
                 p.hurtFrames = 20;
                 b.explosion = true;
-                sfx("bombExplode"); // [v1.1] sound
+                sfx("bulletPop"); // [v1.2] sound (a bullet, not a bomb)
               }
               if (b.explosion) {
                 spawnParticles(b.x + b.size / 2, b.y, 40, 'bullet', 2.5);
@@ -45075,6 +45205,7 @@ function program() {
 
               // Explodes when touches ground OR collison with player
               if (i.y >= currentBoss.initialY + 100) {
+                sfx("icicleShatter", 0.7); // [v1.2] sound
                 bossIcicles.splice(q, 1);
               }
               var iceHitbox = {
@@ -45541,6 +45672,7 @@ function program() {
               };
               if (checkDiamondHit(p, masterXHitbox) && p.health > 0 && !cutsceneIs && mpGate("victory")) {
                 recordLevelTime(15); // [v5] X-4's time (it never reaches the normal level end)
+                sfx("victoryCatch"); // [v1.2] sound
                 cutsceneIs = true;
                 cutsceneName = "victory";
               }
@@ -45808,6 +45940,9 @@ function program() {
               if (spot.fade >= 1 && !spot.dying && checkCollision(p, spotHitbox) !== null) {
                 if (this.printDebug) {
                   __p.println('decaying');
+                }
+                if (!p.isDecaying) {
+                  sfx("decay"); // [v1.2] sound
                 }
                 p.isDecaying = true;
                 //p.decayFrames = 0; // Resets the 3-second timer if hit again
@@ -46950,6 +47085,12 @@ function program() {
               if (dtCross(cFrames, 636)) {
                 ctOpacity = 0;
               }
+              if (dtCross(cFrames, 636) || dtCross(cFrames, 651)) {
+                sfx("cutWhoosh", 0.8); // [v1.2] sound: the ground slides in
+              }
+              if (dtCross(cFrames, 671) || dtCross(cFrames, 686)) {
+                sfx("cutImpact", 0.75); // [v1.2] sound: ...and slams into place
+              }
               __p.background(20); // almost black background
 
               __p.pushMatrix();
@@ -47622,6 +47763,9 @@ function program() {
 
             // Scene 7 - "The Sacrifice"
             else if (cFrames <= 1200) {
+              if (dtCross(cFrames, 1041)) {
+                sfx("cutImpact"); // [v1.2] sound
+              }
               worldBackground(-__p.frameCount / 3, 100, 4);
               cutsceneX[1] += 15 * DT;
               __p.translate(__p.random(-8, 8), __p.random(-8, 8));
@@ -47666,18 +47810,27 @@ function program() {
 
             // Scenes 9-11 - "An Unfriendly Greeting"
             else if (cFrames <= 1450) {
+              if (dtCross(cFrames, 1401)) {
+                sfx("cutWhoosh"); // [v1.2] sound: something huge swoops past
+              }
               worldBackground(-__p.frameCount / 3, 100, 4);
               __p.fill(150);
               __p.noStroke();
               __p.rect(-10, 450, 620, 250);
               masterX(300, -100, 1000);
             } else if (cFrames <= 1500) {
+              if (dtCross(cFrames, 1451)) {
+                sfx("cutWhoosh"); // [v1.2] sound
+              }
               worldBackground(-__p.frameCount / 3, 100, 4);
               __p.fill(150);
               __p.noStroke();
               __p.rect(-10, 450, 620, 250);
               masterX(0, 100, 1000);
             } else if (cFrames <= 1650) {
+              if (dtCross(cFrames, 1501)) {
+                sfx("cutImpact"); // [v1.2] sound: the MASTER X title slams in
+              }
               worldBackground(-__p.frameCount / 3, 100, 4);
               cutsceneY[0] = 0; // for next scene
 
@@ -47757,6 +47910,9 @@ function program() {
 
             // Scene 14 - "Into the Unkown"
             else if (cFrames <= 2150) {
+              if (dtCross(cFrames, 1951)) {
+                sfx("cutWhoosh"); // [v1.2] sound: pulled into the portal
+              }
               worldBackground(-__p.frameCount / 3, 100, 4);
               cutsceneX[0] += 1.5 * DT;
               cutsceneX[1] += 2 * DT;
@@ -47892,6 +48048,9 @@ function program() {
                 __p.ellipse(0 + i * 60, 300, 600, 800);
               }
             } else if (cFrames <= 320) {
+              if (dtCross(cFrames, 191)) {
+                sfx("cutWhoosh"); // [v1.2] sound: out through the portal
+              }
               worldBackground(__p.frameCount / 3, 100, 1);
               if (__p.round(cutsceneS) < 100) {
                 cutsceneS = __p.lerp(cutsceneS, 100, dtLerp(0.05));
@@ -47902,6 +48061,9 @@ function program() {
               __p.fill(150);
               __p.rect(50, 500, 400, 150, 20);
             } else if (cFrames <= 500) {
+              if (dtCross(cFrames, 321)) {
+                sfx("cutWhoosh", 0.8); // [v1.2] sound: Master X gives chase
+              }
               worldBackground(__p.frameCount / 3 + 100, 100, 1);
               areaXPortal(0, 270, 300, -__p.frameCount * 2);
               cutsceneX[0] += 5 * DT;
@@ -47956,6 +48118,9 @@ function program() {
               __p.line(p.x - p.w / 3, p.y - p.h / 2.5, p.x - p.w / 20, p.y - p.h / 4);
               __p.line(p.x + p.w / 2.5, p.y - p.h / 2.5, p.x + p.w / 10, p.y - p.h / 4);
             } else if (cFrames <= 800) {
+              if (dtCross(cFrames, 719)) {
+                sfx("cutImpact", 0.55); // [v1.2] sound: Dash lands
+              }
               worldBackground(__p.frameCount / 3 + 100, 100, 1);
               cutsceneX[0] = 0;
               cutsceneX[1] = 0;
@@ -48028,6 +48193,9 @@ function program() {
 
             // Scene 2 - "Impact"
             else if (cFrames <= 150) {
+              if (dtCross(cFrames, 31)) {
+                sfx("cutImpact"); // [v1.2] sound
+              }
               worldBackground(__p.frameCount / 3 + 100, 100, 1);
               cutsceneX[1] += cFrames / 25 * DT;
               var obj = {
@@ -48056,6 +48224,9 @@ function program() {
 
             // Scene 3 - "Sealed Evil"
             else if (cFrames <= 300) {
+              if (dtCross(cFrames, 151)) {
+                sfx("cutWhoosh"); // [v1.2] sound: sealed in the portal
+              }
               if (cutsceneS > 0) {
                 cutsceneS -= 0.007 * DT;
               }
@@ -48265,6 +48436,9 @@ function program() {
               p.vx = 5;
               worldBackground(__p.frameCount / 3, 100, 3);
               if (cFrames > 330) {
+                if (dtCross(cFrames, 331)) {
+                  sfx("cutWhoosh", 0.8); // [v1.2] sound: the portal opens
+                }
                 areaXPortal(250, 200, cutsceneS, -__p.frameCount);
                 cutsceneS = __p.lerp(cutsceneS, 90, dtLerp(0.1));
               }
@@ -48429,7 +48603,7 @@ function program() {
         var swY = yS + 3;
         if (!items[j].slider && worldMouseX > swX && worldMouseX < swX + items[j].sw.w && worldMouseY > swY && worldMouseY < swY + items[j].sw.h) {
           settings[items[j].key] = !settings[items[j].key];
-          sfx("toggle"); // [v1.1] sound
+          sfx("toggle", 1, { on: settings[items[j].key] }); // [v1.1] sound (up for on, down for off)
           if (items[j].key === "mobileControls") {
             try {
               window.localStorage.setItem("dashparkour-mobile", settings.mobileControls ? "1" : "0");
@@ -49824,6 +49998,7 @@ function program() {
             t: 0
           };
           MP.raceWinner = m.win;
+          sfx(m.win === MP.myId ? "raceWin" : "raceLose"); // [v1.2] sound
           if (m.win === MP.myId) {
             mpAwardRaceWin();
           }
@@ -50421,6 +50596,168 @@ function program() {
     fallback();
   };
   // ---------------- per-frame network tick ----------------
+  // ===== [v1.2] MUSIC: which song plays where (songs in audio/dash-music.js) =====
+  var AREA_TRACKS = ["", "area1", "area2", "area3", "areaX"];
+  var CUTSCENE_TRACKS = { intro: "prologue", "victory?": "cutPortal", masterX: "cutMasterX", intoArea1: "final2", victory: "ending" };
+  var BOSS_ATTACK_COLOURS = { laserCross: "laser", parkourFall: "fall", parkourFallX: "fall", decaySpots: "decay", poisonWave: "poison" };
+  var dashSnd = { levelEnd: false, gameOver: false };
+  var dashSignShown = null;
+  // Automated audio tests only (the page opened with ?audiotest): lets the test
+  // page read and set game state. Does nothing in normal play.
+  if (typeof location !== "undefined" && /[?&]audiotest\b/.test(location.search)) {
+    window.__dashEval = function (code) {
+      return eval(code);
+    };
+  }
+  var dashMusicTrack = function dashMusicTrack() {
+    if (loading || settings.playMusic === false) {
+      return "";
+    }
+    if (cutsceneIs) {
+      return CUTSCENE_TRACKS[cutsceneName] || "";
+    }
+    if (scene === "Shop") {
+      return "shop";
+    }
+    if (scene === "Play") {
+      return worldSubScreen >= 1 && worldSubScreen <= 4 ? AREA_TRACKS[worldSubScreen] : "title";
+    }
+    if (scene !== "game") {
+      return "title";
+    }
+    if (p && p.gameOver || levelEnd) {
+      return ""; // the game-over sting / level-complete jingle take over
+    }
+    if (currentLevel === 16 || finalBossPhase === 4) {
+      return "final3"; // the chase back through Area 1
+    }
+    if (currentLevel === 15) {
+      // X-4: Area X until the Parkour Master's arena rises, then his theme, then the vortex
+      return finalBossPhase === 3 ? "final2" : bossFight || bossIntro ? "final1" : "areaX";
+    }
+    if (bossFight || bossIntro) {
+      return "guard" + __p.constrain(world, 1, 3);
+    }
+    return AREA_TRACKS[world] || "area1";
+  };
+  var dashMusicTick = function dashMusicTick() {
+    window.dashMusic(dashMusicTrack());
+    // what the dynamic songs follow
+    var st = {};
+    if (cutsceneIs) {
+      st.cut = cutsceneName;
+      st.cf = __p.floor(cFrames / 15) * 15; // cutscene clock (frames), in quarter seconds
+    }
+    var b = scene === "game" && bosses[world - 1];
+    if (b && (bossFight || bossIntro) && !cutsceneIs) {
+      st.boss = bossIntro ? "intro" : b.dead || b.state === "dead" ? "dead" : b.state;
+      st.wave = b.wave;
+      if (st.boss === "attack") {
+        st.atk = BOSS_ATTACK_COLOURS[b.currentAttack] || b.currentAttack;
+        if (b.currentAttack === "dive") {
+          st.atkPhase = b.attackTimer <= (b.diveTime || 230) - 1 ? "charge" : "strike";
+        }
+      }
+    }
+    if (scene === "game" && currentLevel === 15 && finalBossPhase === 3 && !cutsceneIs) {
+      st.vortex = FinalPhase.livesRemaining;
+      st.vstate = FinalPhase.currentState;
+      st.stab = __p.round(FinalPhase.vortexStability / 10) * 10;
+    }
+    if (scene === "game" && (currentLevel === 16 || finalBossPhase === 4) && !cutsceneIs) {
+      st.chase = 1;
+    }
+    if (window.dashMusicState) {
+      window.dashMusicState(st);
+    }
+    // jingles: level complete (or a boss beaten), game over
+    var ended = scene === "game" && levelEnd;
+    if (ended && !dashSnd.levelEnd) {
+      sfx(currentLevel % 4 === 3 ? "bossFanfare" : "levelComplete");
+    }
+    dashSnd.levelEnd = ended;
+    var over = scene === "game" && p && p.gameOver;
+    if (over && !dashSnd.gameOver) {
+      sfx("gameOver");
+    }
+    dashSnd.gameOver = !!over;
+  };
+  // [v1.2] sounds that follow the game's state: getting hurt, lava, music
+  var dashHurtKind = function dashHurtKind(by) {
+    by = by || "";
+    if (/spike|thorn|prick|impale/.test(by)) {
+      return "spike";
+    }
+    if (/crush|flatten|boss/.test(by)) {
+      return "crush";
+    }
+    return "hit";
+  };
+  var dashSoundTick = function dashSoundTick() {
+    if (scene === "game" && p && !p.dead) {
+      var lost = MP.lastHp === undefined ? 0 : MP.lastHp - p.health;
+      if (lost > 0 && !gamePaused && !cutsceneIs) {
+        if (p.lastHurtBy === "burned in lava") {
+          sfx("burn"); // (repeats a few times a second while you're in the lava)
+        } else if (lost > 4) {
+          sfx("hurt", __p.constrain(lost / 30, 0.4, 1), { kind: dashHurtKind(p.lastHurtBy) });
+          dashSnd.drain = 0;
+        } else {
+          // steady damage (lasers, decay, boss contact...): a soft hurt every 12 HP, never every frame
+          dashSnd.drain = (dashSnd.drain || 0) + lost;
+          if (dashSnd.drain >= 12) {
+            dashSnd.drain = 0;
+            sfx("hurt", 0.35, { kind: dashHurtKind(p.lastHurtBy) });
+          }
+        }
+      }
+      MP.lastHp = p.health;
+    } else {
+      MP.lastHp = undefined;
+    }
+    // things noticed from one frame to the next
+    window.__dashSfxOn = settings.soundEffects !== false;
+    // low graphics = probably a slower device: the music engine drops its heaviest extras too
+    var liteAudio = settings.fancyGraphics === false;
+    if (window.DashAudio && window.DashAudio.setLite && !!window.DashAudio.lite !== liteAudio) {
+      window.DashAudio.setLite(liteAudio);
+    }
+    var E = dashSnd;
+    if (scene === "game" && E.scene !== "game" && !cutsceneIs) {
+      sfx("levelStart");
+    }
+    E.scene = scene;
+    if (transitionActive && !E.wipe && settings.sceneTransitions) {
+      sfx("sceneWipe");
+    }
+    E.wipe = transitionActive;
+    if (qMenuActive !== !!E.pause) {
+      sfx(qMenuActive ? "pauseOpen" : "pauseClose");
+    }
+    E.pause = qMenuActive;
+    var signNow = scene === "game" && typeof dashSignShown !== "undefined" ? dashSignShown : null;
+    if (signNow && signNow !== E.sign) {
+      sfx("sign");
+    }
+    E.sign = signNow;
+    var exiting = scene === "game" && levelEnd && lvlEndScene === 2;
+    if (exiting && !E.exit) {
+      sfx("levelExit");
+    }
+    E.exit = exiting;
+    var banner = scene === "game" && bossIntro && bossFloatY <= -350 && bossIntroFrames < 370;
+    if (banner && !E.banner) {
+      sfx("bossBanner");
+    }
+    E.banner = banner;
+    if (E.res !== undefined && settings.renderScale !== E.res) {
+      sfx("slider", 1, { x: (settings.renderScale - 50) / 50 });
+    }
+    E.res = settings.renderScale;
+    if (window.dashMusic) {
+      dashMusicTick(); // which song plays where, and what the dynamic songs should follow
+    }
+  };
   var mpTick = function mpTick() {
     mobileTick(); // [v1.1]
     if (MP.active || scene === "Multiplayer") {
@@ -50448,6 +50785,7 @@ function program() {
       MP.focus = null;
     }
     MP.focusSeen = false;
+    dashSoundTick(); // [v1.2] (single player too: this used to sit below the return)
     if (!MP.active) {
       return;
     }
@@ -50509,14 +50847,6 @@ function program() {
     }
     mpBossPull(); // [v1.1] Linked: a teammate reached the boss
     // [v1.1] sounds that follow the game's state: getting hurt, countdown beeps, music
-    if (scene === "game" && p && !p.dead) {
-      if (MP.lastHp !== undefined && p.health < MP.lastHp - 4 && !gamePaused) {
-        sfx("hurt", __p.constrain((MP.lastHp - p.health) / 30, 0.4, 1));
-      }
-      MP.lastHp = p.health;
-    } else {
-      MP.lastHp = undefined;
-    }
     if (MP.active && MP.hold && MP.countSes === MP.session && MP.countEnd) {
       var beep = __p.max(1, __p.ceil((MP.countEnd - Date.now()) / 1000));
       if (beep !== MP.lastBeep) {
@@ -50528,10 +50858,6 @@ function program() {
       if (MP.goFlash > 0) {
         sfx("countGo");
       }
-    }
-    if (window.dashMusic) {
-      var track = scene !== "game" ? "menu" : finalBossPhase === 3 && currentLevel === 15 ? "final" : bossFight || bossIntro ? "boss" : "level";
-      window.dashMusic(settings.playMusic !== false && !loading ? track : "");
     }
     // [v1.1] Emotional Support: play a multiplayer game
     if (MP.active && scene === "game" && mpCount() > 1 && !achievementStates.emotionalSupport) {

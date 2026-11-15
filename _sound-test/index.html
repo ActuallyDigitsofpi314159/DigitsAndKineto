@@ -1,0 +1,201 @@
+<!doctype html>
+<!--
+  DASH Parkour sound test (for the team; not part of the website).
+  The folder name starts with "_", so GitHub Pages (Jekyll) does not publish it.
+  Open it through a local server from the repository folder:
+      python3 -m http.server 8000      ->  http://localhost:8000/_sound-test/
+  It plays the game's own audio engine: dash-parkour/audio/*.js
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DASH Parkour Sound Test</title>
+<style>
+  :root { --bg:#fdffff; --ink:#111; --muted:#555; --red:#e00000; --card:#fff; --line:#000; --soft:#f2f7fa; --on:#00a0dc; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0d1117; --ink:#eef; --muted:#9aa; --card:#161b22; --line:#3a4350; --soft:#1c2430; --on:#38bdf8; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 "Trebuchet MS", Arial, sans-serif; }
+  header { padding:20px 16px 8px; max-width:1100px; margin:auto; }
+  h1 { margin:0; font-size:30px; letter-spacing:2px; color:var(--red); }
+  h1 span { color:var(--ink); font-size:16px; letter-spacing:6px; margin-left:8px; }
+  .sub { color:var(--muted); margin:6px 0 0; }
+  main { max-width:1100px; margin:auto; padding:8px 16px 40px; display:grid; gap:16px; }
+  section { background:var(--card); border:3px solid var(--line); border-radius:16px; padding:14px 16px; }
+  h2 { margin:0 0 10px; font-size:18px; }
+  .songs { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; }
+  .song { border:2px solid var(--line); border-radius:12px; padding:10px; background:var(--soft); }
+  .song b { display:block; }
+  .song small { color:var(--muted); display:block; min-height:2.6em; }
+  .song.playing { border-color:var(--red); box-shadow:0 0 0 3px #e0000033; }
+  .song.missing { opacity:.55; }
+  button { font:inherit; border:2px solid var(--line); background:var(--card); color:var(--ink); border-radius:9px; padding:5px 10px; cursor:pointer; margin:3px 4px 0 0; }
+  button:hover { border-color:var(--red); }
+  button.on { background:var(--on); color:#fff; border-color:var(--on); }
+  .row { display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
+  .row label { color:var(--muted); margin-right:6px; min-width:84px; }
+  #now { font-weight:700; }
+  #controls .row { margin:6px 0; }
+  .sfx { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:6px; }
+  .sfx h3 { grid-column:1/-1; margin:10px 0 0; font-size:14px; color:var(--muted); }
+  .sfx button { width:100%; text-align:left; margin:0; }
+  #log { font:12px ui-monospace, Menlo, monospace; color:var(--muted); max-height:140px; overflow:auto; white-space:pre-wrap; }
+  .note { color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>DASH<span>SOUND TEST</span></h1>
+  <p class="sub">Every song and sound effect in DASH Parkour, played by the game's own engine. Press any button to start audio.</p>
+</header>
+<main>
+  <section>
+    <h2>Soundtrack</h2>
+    <div class="songs" id="songs"></div>
+  </section>
+  <section id="controls">
+    <h2>Now playing: <span id="now">nothing</span></h2>
+    <div class="row"><label>Sections</label><span id="sections" class="row"></span></div>
+    <div class="row" id="bossRow"><label>Boss</label><span id="boss" class="row"></span></div>
+    <div class="row" id="atkRow"><label>Attack</label><span id="atk" class="row"></span></div>
+    <div class="row" id="vortexRow"><label>Vortex</label><span id="vortex" class="row"></span></div>
+    <div class="row"><label>Game</label><button id="pause">Pause menu</button><button id="render">Download 90 s as WAV</button></div>
+    <p class="note">Boss controls send the same states the game sends; layer changes wait for the next beat, as in the game.</p>
+    <div id="log"></div>
+  </section>
+  <section>
+    <h2>Sound effects</h2>
+    <div class="sfx" id="sfx"></div>
+  </section>
+</main>
+<script src="../dash-parkour/audio/dash-audio.js"></script>
+<script src="../dash-parkour/audio/dash-music.js"></script>
+<script src="../dash-parkour/audio/dash-sfx.js"></script>
+<script>
+(function () {
+  var A = window.DashAudio;
+  var SONGS = [
+    ['title', 'Title Theme', 'C major. The main Dash theme.'],
+    ['area1', 'Area 1', 'F major. A brand-new adventure.'],
+    ['area2', 'Area 2', 'B minor to D major. Area 1\'s tune, more tense.'],
+    ['area3', 'Area 3', 'D minor. Cinematic, unresolved.'],
+    ['areaX', 'Area X', 'C Phrygian. Cold empty halls; the motif at its darkest.'],
+    ['guard1', 'Guard Boss: Diamond', 'F# minor, dynamic layers.'],
+    ['guard2', 'Guard Boss: Emerald', 'Same piece, + string ostinato.'],
+    ['guard3', 'Guard Boss: Ruby', 'Same piece, + choir, faster hats.'],
+    ['final1', 'Final Boss: Stage 1', 'The Parkour Master. Guard theme in C, darker; waves 4-5 add a layer.'],
+    ['final2', 'Final Boss: Stage 2', 'The vortex. Grows and rises in key with each life; the hero motif at the last stabilization (lives 2 + stabilize).'],
+    ['final3', 'Final Boss: Mini-Stage 3', 'The chase back through Area 1: a dark race in F minor, up a half step each lap.'],
+    ['shop', 'Shop', 'B-flat major, swung. The motif hides at the end of each phrase.'],
+    ['prologue', 'Prologue (intro story)', 'Cutscene'],
+    ['cutPortal', 'The Portal (after the Ruby Guard)', 'Cutscene'],
+    ['cutMasterX', 'Master X (reveal)', 'Cutscene'],
+    ['ending', 'Ending', 'Cutscene']
+  ];
+  var SFX_GROUPS = {
+    'Menus and shop': ['click', 'hover', 'toggle', 'slider', 'sceneWipe', 'pauseOpen', 'pauseClose', 'levelStart', 'achievement', 'buy', 'equip', 'voucher', 'denied'],
+    'Dash': ['jump', 'land', 'trampoline', 'launcher', 'launchLand', 'hurt', 'burn', 'poison', 'zap', 'unzap', 'freeze', 'thaw', 'decay', 'death', 'respawn', 'checkpoint', 'sign'],
+    'Level flow': ['levelComplete', 'levelExit', 'gameOver', 'bossFanfare'],
+    'Enemies': ['boingJump', 'boingLand', 'zappCrackle'],
+    'Guards': ['bossRumble', 'bossBanner', 'bossHop', 'bossShoot', 'bulletPop', 'diveCharge', 'diveSlam', 'bombThrow', 'bombExplode', 'icicleForm', 'icicleShatter', 'spikeWave', 'bossTired', 'bossRecover', 'bossHit', 'bossDefeat'],
+    'Parkour Master': ['cloneSummon', 'cloneVanish', 'laserCharge', 'laserFire', 'hazardFall', 'decayZone', 'poisonWave'],
+    'Vortex (Master X)': ['fireball', 'spikeWall', 'vortexZap', 'thornShot', 'poisonSpray', 'vortexAlarm', 'touchpoint', 'vortexBreak', 'vortexSwallow'],
+    'Cutscenes': ['cutImpact', 'cutWhoosh', 'victoryCatch'],
+    'Multiplayer': ['playerJoin', 'playerLeave', 'chat', 'countBeep', 'countGo', 'raceWin', 'raceLose'],
+    'Admin tools': ['adminToggle', 'teleportOut', 'teleportIn', 'strikeLock', 'strikeFire', 'strikeRing', 'skullBurst']
+  };
+  var $ = function (id) { return document.getElementById(id); };
+  var state = {}, playing = '', touchN = 0;
+  function log(s) { var l = $('log'); l.textContent = s + '\n' + l.textContent.slice(0, 4000); }
+  A.log = function (type, info) { if (type === 'section' || type === 'cue' || type === 'music') log(type + ': ' + (info.name || '')); };
+
+  // songs
+  SONGS.forEach(function (s) {
+    var d = document.createElement('div');
+    var have = !!window.DASH_SONGS[s[0]];
+    d.className = 'song' + (have ? '' : ' missing'); d.id = 'song-' + s[0];
+    d.innerHTML = '<b>' + s[1] + '</b><small>' + s[2] + (have ? '' : ' (not composed yet)') + '</small>';
+    var b = document.createElement('button'); b.textContent = 'Play'; b.disabled = !have;
+    b.onclick = function () { play(s[0]); };
+    var st = document.createElement('button'); st.textContent = 'Stop';
+    st.onclick = function () { play(''); };
+    d.appendChild(b); d.appendChild(st);
+    $('songs').appendChild(d);
+  });
+  function play(name) {
+    state = {}; A.state(state);
+    if (A.wanted === name) A.music('');
+    A.music(name); playing = name;
+    document.querySelectorAll('.song').forEach(function (e) { e.classList.toggle('playing', e.id === 'song-' + name); });
+    $('now').textContent = name ? (SONGS.filter(function (s) { return s[0] === name; })[0] || [0, name])[1] : 'nothing';
+    buildControls(name);
+  }
+  function setState(patch) { for (var k in patch) { if (patch[k] === null) delete state[k]; else state[k] = patch[k]; } A.state(JSON.parse(JSON.stringify(state))); markButtons(); }
+  function btn(parent, label, fn, key, val) {
+    var b = document.createElement('button'); b.textContent = label; b.onclick = fn;
+    if (key) { b.dataset.key = key; b.dataset.val = val; }
+    $(parent).appendChild(b); return b;
+  }
+  function markButtons() {
+    document.querySelectorAll('#controls button[data-key]').forEach(function (b) { b.classList.toggle('on', String(state[b.dataset.key]) === b.dataset.val); });
+  }
+  function buildControls(name) {
+    ['sections', 'boss', 'atk', 'vortex'].forEach(function (id) { $(id).innerHTML = ''; });
+    var song = window.DASH_SONGS[name];
+    $('bossRow').style.display = $('atkRow').style.display = 'none';
+    $('vortexRow').style.display = 'none';
+    if (!song) return;
+    Object.keys(song.sections).forEach(function (sn) { btn('sections', sn, function () { if (A.current) A.current.go(sn, 'bar'); }); });
+    if (/^guard|^final1/.test(name)) {
+      $('bossRow').style.display = $('atkRow').style.display = '';
+      ['intro', 'moving', 'attack', 'vulnerable', 'dead'].forEach(function (b) { btn('boss', b, function () { setState({ boss: b, atk: b === 'attack' ? (state.atk || 'bombs') : null, atkPhase: null }); }, 'boss', b); });
+      var atks = name === 'final1' ? ['laser', 'fall', 'decay', 'poison'] : ['bullets', 'dive', 'bombs', 'icicles', 'spikes'];
+      atks.forEach(function (a) {
+        btn('atk', a, function () {
+          setState({ boss: 'attack', atk: a, atkPhase: a === 'dive' ? 'charge' : null });
+          if (a === 'dive') setTimeout(function () { if (state.atk === 'dive') setState({ atkPhase: 'strike' }); }, 3800);
+        }, 'atk', a);
+      });
+      if (name === 'final1') ['wave 1', 'wave 4'].forEach(function (w) { btn('boss', w, function () { setState({ wave: +w.slice(5) }); }); });
+    }
+    if (name === 'final2') {
+      $('vortexRow').style.display = '';
+      [5, 4, 3, 2].forEach(function (l) { btn('vortex', 'lives ' + l, function () { setState({ vortex: l, vstate: state.vstate || 'SURVIVAL' }); }, 'vortex', l); });
+      ['SURVIVAL', 'STABILIZE_VORTEX'].forEach(function (v) { btn('vortex', v.toLowerCase(), function () { setState({ vstate: v }); }, 'vstate', v); });
+      btn('vortex', 'stability low', function () { setState({ stab: 40 }); });
+      btn('vortex', 'stability full', function () { setState({ stab: 100 }); });
+      btn('vortex', 'cutscene: into Area 1', function () { setState({ cut: 'intoArea1', cf: 0 }); });
+    }
+    markButtons();
+  }
+  // effects
+  Object.keys(SFX_GROUPS).forEach(function (g) {
+    var h = document.createElement('h3'); h.textContent = g; $('sfx').appendChild(h);
+    SFX_GROUPS[g].forEach(function (n) {
+      var b = document.createElement('button'); b.textContent = n; b.disabled = !window.DASH_SFX[n];
+      b.onclick = function () {
+        var opt = {};
+        if (n === 'touchpoint') opt.n = touchN++;
+        if (n === 'toggle') opt.on = (touchN++ % 2) === 0;
+        if (n === 'diveCharge') opt.len = 3.8;
+        if (n === 'hurt') opt.kind = ['hit', 'spike', 'crush'][touchN++ % 3];
+        if (!A.sfx(n, 1, opt)) setTimeout(function () { A.sfx(n, 1, opt); }, 150);
+      };
+      $('sfx').appendChild(b);
+    });
+  });
+  var paused = false;
+  $('pause').onclick = function () { paused = !paused; A.pause(paused); this.classList.toggle('on', paused); };
+  $('render').onclick = function () {
+    if (!playing) return;
+    var b = this; b.disabled = true; b.textContent = 'Rendering...';
+    A.render(playing, 90, [], { state: state }).then(function (buf) {
+      var a = document.createElement('a'); a.href = URL.createObjectURL(A.toWav(buf)); a.download = 'dash-' + playing + '.wav'; a.click();
+      b.disabled = false; b.textContent = 'Download 90 s as WAV';
+    });
+  };
+  buildControls('');
+})();
+</script>
+</body>
+</html>

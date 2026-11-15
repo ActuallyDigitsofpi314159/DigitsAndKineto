@@ -27,11 +27,12 @@ The site is plain HTML, CSS and JavaScript with no build step: every page is a s
   - `ads.js` + `ads.css`: the ad spots (see "Ads" below)
   - `touch-controls.js`: the on-screen joystick, jump button and drag-to-look shared by the 3D games (Path of Light, Maze Man 2, Generic Platformer). The stick stays fixed in the bottom-left corner.
   - `no-zoom.js`: stops phones from zooming the page during a game; every playable game includes it
-  - `game-audio.js`: music and sound effects for Wumpus Hunt, Maze Man 2, Path of Light and Generic Platformer (not DASH Parkour, which has its own). Everything is synthesized live from original note patterns in the file, so there are no sound files. Music and effects can each be turned off: in the pause menu (Maze Man 2, Generic Platformer) or on the title screen and with the M key (Wumpus Hunt, Path of Light). The choice is saved per game in the browser (localStorage key `dk-audio:<game>`).
+  - `game-audio.js`: music and sound effects for Wumpus Hunt, Maze Man 2, Path of Light and Generic Platformer (not DASH Parkour, which has its own in `dash-parkour/audio/`: see `dash-parkour/audio/README.md`, and the full list in `games/dash-parkour/AUDIO.md`). Everything is synthesized live from original note patterns in the file, so there are no sound files. Music and effects can each be turned off: in the pause menu (Maze Man 2, Generic Platformer) or on the title screen and with the M key (Wumpus Hunt, Path of Light). The choice is saved per game in the browser (localStorage key `dk-audio:<game>`).
   - `img/`: images used by pages
 - `games/`: one folder per game, plus `games.js` (the homepage game list)
 - `updates/`: `posts.js` (all posts) and `images/` (post pictures)
 - `website-art/`: original art and design outlines (banner, logo, PDF outlines). Pages don't load these files.
+- `_sound-test/`: the DASH Parkour sound test (every song, boss state and sound effect). It's for the team: Jekyll skips folders starting with `_`, so it isn't published. Open it through a local server from the repo root (`python3 -m http.server 8000`, then `localhost:8000/_sound-test/`).
   - `scary-larry/`: the Maze Man 2 Larry (also DASH Parkour's Scary Larry skin) saved as stand-alone drawing code for later use
 - `logo.svg`: the DK logo (header, About page, browser tab icon)
 - Browser tab icons: every page uses `logo.svg` unless it sets its own. Wumpus Hunt and Maze Man 2 draw theirs from the game's own sprite code (the Wumpus, Larry), Generic Platformer and Path of Light use `assets/img/favicon-generic.svg` and `assets/img/favicon-path-of-light.svg`, and DASH Parkour has its icon built in.
