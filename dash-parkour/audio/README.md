@@ -32,6 +32,7 @@ Four ideas tie the whole soundtrack together.
 | **Area 2** (`area2`) | B minor to D major, 150 | Area 1's tune turned minor over a 16th-note string ostinato. In **A2** the tune returns in D major with Area 1's horn line. **B** is the motif in stretto (guitar, with the glockenspiel a bar behind). **C** climbs by half steps back into the tune. |
 | **Area 3** (`area3`) | D minor, 128 | The intro plays the dash cell at half speed on horns. **A** is the motif on brass, and every phrase stops on the dominant, so it never comes home. **B** borrows Area X's chord loop (i, ♭VI, iv, V) and the X figure in the low strings. The **bridge** passes through E♭ (Area X's flat second). |
 | **Area X** (`areaX`) | C Phrygian, 72 | Built like Maze Man 2's "cold empty halls": a low drone, a slow minor pad and a few cold bells far apart. The bells play the motif twice as slow in Phrygian, and the choir sings the X figure. In **B** the drone slides from C to D♭ over a slow heartbeat. |
+| **ECH0 Chase** (`ech0`) | C Phrygian, 144 | Area X at double speed for the X-3 race: the same chord loop and bell line, now a nervous run. A racing double heartbeat, a ticking 16th clock, the X figure as a pulsing bass, and trembling strings. When ECH0 gets close, taiko, snare and a high choir come in, and they fade away as Dash pulls ahead. |
 | **Shop** (`shop`) | B♭ major, 100, swung | Its own lounge tune on vibraphone, electric piano, upright bass and brushes. The motif only slips in at the end of each phrase (bar 1 after A, bar 2 after B). |
 | **Guard Boss** (`guard1`, `guard2`, `guard3`) | F♯ minor, 164 / 168 / 172 | The Guards' motif is the riff (bass and power-chord guitars). **A** is the Dash motif in F♯ minor on guitar, the hero fighting back. **B** is a heroic brass tune from the dash cell, stretched out. When the Guard tires, the band drops out and bells play the dash cell. Emerald adds a string ostinato; Ruby adds choir and 16th hats. The defeat rings out on an F♯ major chord. |
 | **Final Stage 1** (`final1`) | C minor, 176 | The Guard theme moved a tritone (F♯ to C) and darkened with an organ. The intro uses Area X's drone, bells and X figure. **A** has the Dash motif in Phrygian. **B** has the X figure on brass and choir. Waves 4 and 5 add choir, timpani and 16th strings. |
@@ -41,6 +42,7 @@ Four ideas tie the whole soundtrack together.
 **How the songs connect.**
 - **Title and Area 1:** the Adventure Tune links them.
 - **Area 1, Area 2, Stage 3:** Area 2 and Stage 3 turn Area 1's tune minor.
+- **Area X and ECH0 Chase:** the same song, the chase twice as fast.
 - **Area 3 and Area X:** they share a chord loop and the X figure.
 - **Guards and Stage 1:** Stage 1 is the same theme a tritone away.
 - **Area X and Stages 1–2:** both stages use the X figure, the drone and Phrygian.
@@ -61,7 +63,7 @@ The cutscene cues reuse all of these.
 - **Cutscene cues** have one section per scene, sized from the scene's frame times. They follow the cutscene clock and jump ahead if they fall behind the picture.
 - **Two audio contexts.** Music and menu sounds run in one context; game sounds run in the other, which freezes when the game is paused. Pausing muffles the music.
 - **Lite mode.** The game's "Low graphics" setting also switches on lite mode, which drops the heaviest extra parts for slower devices.
-- **Testing.** The sound-test page (`_sound-test/`, run a local server from the repo root) plays every song, section, boss state and effect, and can save any song as a WAV. Jekyll skips underscore folders, so it isn't published on the site.
+- **Testing.** The sound-test page (`_sound-test/`, run a local server from the repo root) plays every song, section, boss state and effect, and can save any song as a WAV. `export-music.py` there exports the whole soundtrack as WAV/MP3. Jekyll skips underscore folders, so it isn't published on the site.
 
 **To add or change a song:**
 1. Write it in `dash-music.js` with `song(name, {...})`.

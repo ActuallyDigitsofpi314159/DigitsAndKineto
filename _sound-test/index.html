@@ -80,6 +80,7 @@
     ['area2', 'Area 2', 'B minor to D major. Area 1\'s tune, more tense.'],
     ['area3', 'Area 3', 'D minor. Cinematic, unresolved.'],
     ['areaX', 'Area X', 'C Phrygian. Cold empty halls; the motif at its darkest.'],
+    ['ech0', 'ECH0 Chase (X-3)', 'Area X at double speed: racing heartbeat, ticking clock. ECH0 close adds a layer.'],
     ['guard1', 'Guard Boss: Diamond', 'F# minor, dynamic layers.'],
     ['guard2', 'Guard Boss: Emerald', 'Same piece, + string ostinato.'],
     ['guard3', 'Guard Boss: Ruby', 'Same piece, + choir, faster hats.'],
@@ -157,6 +158,11 @@
         }, 'atk', a);
       });
       if (name === 'final1') ['wave 1', 'wave 4'].forEach(function (w) { btn('boss', w, function () { setState({ wave: +w.slice(5) }); }); });
+    }
+    if (name === 'ech0') {
+      $('vortexRow').style.display = '';
+      btn('vortex', 'ECH0 far', function () { setState({ ech0: 'far' }); }, 'ech0', 'far');
+      btn('vortex', 'ECH0 near', function () { setState({ ech0: 'near' }); }, 'ech0', 'near');
     }
     if (name === 'final2') {
       $('vortexRow').style.display = '';

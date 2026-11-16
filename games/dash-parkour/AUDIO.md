@@ -12,12 +12,13 @@ How the music is built, and which motifs each song uses, is described in
 | File | Type | What it holds |
 |---|---|---|
 | `dash-parkour/audio/dash-audio.js` | Engine | Synth instruments, mixer, music player, `window.DashAudio` |
-| `dash-parkour/audio/dash-music.js` | Songs | All 16 songs and cutscene cues (`window.DASH_SONGS`) and the motifs (`window.DASH_MOTIFS`) |
+| `dash-parkour/audio/dash-music.js` | Songs | All 17 songs and cutscene cues (`window.DASH_SONGS`) and the motifs (`window.DASH_MOTIFS`) |
 | `dash-parkour/audio/dash-sfx.js` | Sound effects | All 86 effects (`window.DASH_SFX`) |
 | `dash-parkour/index.html` | Triggers | `dashMusicTrack()` picks the song, `dashMusicTick()` sends the game state, `sfx()` / `sfxAt()` play effects |
 | `dash-parkour/Dash Main Motif.mid` | Source | The Dash motif (used in every song) |
 | `dash-parkour/Boss battle motif.mid` | Source | The Guards' motif |
 | `_sound-test/index.html` | Team tool | Plays every song, boss state and effect. Not published on the site |
+| `_sound-test/export.html`, `export-music.py` | Team tool | Renders the whole soundtrack to numbered WAV / MP3 files for the OST |
 
 A recording can replace any synthesized sound. Paste a DK Converter object
 into the `DASH_SOUNDS` or `DASH_MUSIC` slots at the top of `index.html`.
@@ -34,7 +35,8 @@ cutscene scene by scene, then hold a quiet loop.
 | `area1` | Loop | Area 1 levels (1-1 to 1-3), 1-4 before the fight, Area 1 on the map | intro → A → A2 → B → C → (A) |
 | `area2` | Loop | Area 2 levels, 2-4 before the fight, Area 2 on the map | intro → A (minor) → A2 (major) → B → C → (A) |
 | `area3` | Loop | Area 3 levels, 3-4 before the fight, Area 3 on the map | intro → A → B → A2 → bridge → (A) |
-| `areaX` | Loop | Area X levels X-1 to X-3, X-4 before the Parkour Master's arena rises, Area X on the map | intro → A → B → A2 → (A) |
+| `areaX` | Loop | Area X levels X-1 and X-2, X-4 before the Parkour Master's arena rises, Area X on the map | intro → A → B → A2 → (A) |
+| `ech0` | Dynamic | X-3, the race against ECH0 | intro → A → B → A2 → (A).<br>**Layers:** `close` (taiko, snare, high choir) while ECH0 is within 600 px of Dash. |
 | `shop` | Loop | The shop | intro → A → B → (A); swung |
 | `guard1` | Dynamic | Diamond Guard fight (1-4), from the moment the arena rises | **Sections:** intro (arena rising) → introLoop (waits for the fight) → A ↔ B → end (defeat chord).<br>**Layers:** `groove`, `riff`, `lead` (off while the Guard is tired), `vuln` (the opening), `attack` and one colour per attack (`atk_bullets`, `atk_bombs`, `atk_icicles`, `atk_spikes`).<br>**One-shots:** a riser and strike for the dive, and a crash when the band comes back. |
 | `guard2` | Dynamic | Emerald Guard fight (2-4) | As `guard1`, 168 BPM, plus `emerald` (string ostinato) |
@@ -172,3 +174,12 @@ All in `dash-sfx.js`. Every effect has a minimum gap so it can't machine-gun.
 | `teleportOut` / `teleportIn` | Game | Beaming away / arriving | |
 | `strikeLock` / `strikeFire` / `strikeRing` | Game | Orbital strike: target lock, fire, ears ringing | `strikeRing` is quieter farther away |
 | `skullBurst` | Game | Someone caught by a strike explodes | Slightly different each time |
+
+## Exporting the soundtrack
+
+`python3 _sound-test/export-music.py` renders every song with the game's engine in
+headless Chrome and saves numbered 44.1 kHz WAV and 320 kbps MP3 files into
+`ost-export/` (git-ignored). Use `--format wav` or `--format mp3` for one format,
+and `--out <folder>` to save the files somewhere else. Loops play twice and fade out.
+Boss songs play a scripted fight that ends with the defeat. Cutscene cues play
+straight through.

@@ -133,6 +133,7 @@ var DASH_MUSIC = {
   title: null,          // title screen, map, settings, achievements, runs
   shop: null,
   area1: null, area2: null, area3: null, areaX: null,
+  ech0: null,           // X-3: the race against ECH0
   guard1: null, guard2: null, guard3: null,   // the Diamond / Emerald / Ruby Guard
   final1: null,         // the Parkour Master
   final2: null,         // the vortex (Master X)
@@ -50631,6 +50632,9 @@ function program() {
     if (currentLevel === 16 || finalBossPhase === 4) {
       return "final3"; // the chase back through Area 1
     }
+    if (currentLevel === 14) {
+      return "ech0"; // X-3: the race against ECH0
+    }
     if (currentLevel === 15) {
       // X-4: Area X until the Parkour Master's arena rises, then his theme, then the vortex
       return finalBossPhase === 3 ? "final2" : bossFight || bossIntro ? "final1" : "areaX";
@@ -50666,6 +50670,9 @@ function program() {
     }
     if (scene === "game" && (currentLevel === 16 || finalBossPhase === 4) && !cutsceneIs) {
       st.chase = 1;
+    }
+    if (scene === "game" && currentLevel === 14 && ECH0 !== null && p && !cutsceneIs) {
+      st.ech0 = p.x - ECH0.x < 600 ? "near" : "far"; // the chase music tightens when ECH0 is close
     }
     if (window.dashMusicState) {
       window.dashMusicState(st);

@@ -1,0 +1,214 @@
+<!doctype html>
+<!--
+  DASH Parkour soundtrack export (for the team; not part of the website).
+  Renders every song with the game's own engine (offline, faster than real
+  time) and saves it as WAV and/or MP3, numbered in soundtrack order.
+
+  Easiest: run the script from the repository folder, it does everything:
+      python3 _sound-test/export-music.py            (WAV + MP3 into ./ost-export)
+      python3 _sound-test/export-music.py --format mp3 --out ~/Desktop/DASH-OST
+
+  Or by hand: python3 -m http.server 8000  ->  http://localhost:8000/_sound-test/export.html
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DASH Soundtrack Export</title>
+<style>
+  :root { --bg:#fdffff; --ink:#111; --muted:#555; --red:#e00000; --card:#fff; --line:#000; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0d1117; --ink:#eef; --muted:#9aa; --card:#161b22; --line:#3a4350; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 "Trebuchet MS", Arial, sans-serif; }
+  main { max-width:900px; margin:auto; padding:20px 16px 40px; }
+  h1 { margin:0 0 6px; color:var(--red); letter-spacing:2px; }
+  section { background:var(--card); border:3px solid var(--line); border-radius:16px; padding:14px 16px; margin-top:14px; }
+  button, select { font:inherit; border:2px solid var(--line); background:var(--card); color:var(--ink); border-radius:9px; padding:5px 10px; cursor:pointer; }
+  table { width:100%; border-collapse:collapse; }
+  td { padding:4px 6px; border-top:1px solid var(--line); vertical-align:top; }
+  td.s { color:var(--muted); white-space:nowrap; }
+  a { color:var(--red); margin-right:8px; }
+  .note { color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>DASH SOUNDTRACK EXPORT</h1>
+  <p class="note">Every song rendered by the game's engine: loops play twice and fade out, boss songs play a scripted fight that ends with the defeat, cutscene cues play through.</p>
+  <section>
+    <label>Format <select id="fmt"><option value="both">WAV + MP3</option><option value="wav">WAV only</option><option value="mp3">MP3 only</option></select></label>
+    <button id="go">Render all</button>
+    <span id="status" class="note"></span>
+  </section>
+  <section><table id="list"></table></section>
+</main>
+<script src="../dash-parkour/audio/dash-audio.js"></script>
+<script src="../dash-parkour/audio/dash-music.js"></script>
+<script src="../dash-parkour/audio/dash-sfx.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+<script>
+(function () {
+  var A = window.DashAudio, SONGS = window.DASH_SONGS;
+  var RATE = 44100, MP3_KBPS = 320, LOOP_FADE = 10, MAX_LOOP_SECONDS = 330;
+  var params = new URLSearchParams(location.search);
+  var AUTO = params.has('auto'); // run by export-music.py: files are posted back to the script
+
+  // soundtrack order
+  var TRACKS = [
+    ['prologue', 'Prologue'],
+    ['title', 'Title Theme'],
+    ['area1', 'Area 1'],
+    ['shop', 'Shop'],
+    ['guard1', 'Guard Boss - Diamond'],
+    ['area2', 'Area 2'],
+    ['guard2', 'Guard Boss - Emerald'],
+    ['area3', 'Area 3'],
+    ['guard3', 'Guard Boss - Ruby'],
+    ['cutPortal', 'The Portal'],
+    ['areaX', 'Area X'],
+    ['ech0', 'ECH0 Chase'],
+    ['final1', 'Final Boss - The Parkour Master'],
+    ['cutMasterX', 'Master X'],
+    ['final2', 'Final Boss - The Vortex'],
+    ['final3', 'Final Boss - The Chase'],
+    ['ending', 'Ending']
+  ].filter(function (t) { return SONGS[t[0]]; });
+
+  function secLen(song, s) { return s.len * 60 / song.bpm / song.spb; }
+  // intro (sections before the loop) and one full pass of the loop, following each "next"
+  function loopInfo(song) {
+    var order = [], name = song.start;
+    while (typeof name === 'string' && song.sections[name] && order.indexOf(name) < 0) { order.push(name); name = song.sections[name].next; }
+    var at = typeof name === 'string' ? order.indexOf(name) : order.length, intro = 0, loop = 0;
+    order.forEach(function (n, i) { if (i < at) intro += secLen(song, song.sections[n]); else loop += secLen(song, song.sections[n]); });
+    return { intro: intro, loop: loop, ends: typeof name !== 'string' };
+  }
+  // a scripted boss fight: moving, attacks, openings, then the defeat
+  function bossScript(name, intro) {
+    var atks = name === 'final1' ? ['laser', 'fall', 'decay', 'poison'] : ['bullets', 'bombs', 'icicles', 'spikes'];
+    var sc = [{ at: 0, state: { boss: 'intro', wave: 1 } }], t = intro + 0.1, wave = 1;
+    function st(s, len) { s.wave = wave; sc.push({ at: t, state: s }); t += len; }
+    atks.forEach(function (a, i) {
+      if (name === 'final1' && i === 2) wave = 4; // the second half: waves 4-5 add a layer
+      st({ boss: 'moving' }, 9);
+      st({ boss: 'attack', atk: a }, 12);
+      st({ boss: 'moving' }, 6);
+      st({ boss: 'vulnerable' }, 7);
+    });
+    st({ boss: 'moving' }, 8);
+    st({ boss: 'dead' }, 0);
+    return { script: sc, seconds: t + 12, trim: true };
+  }
+  function vortexScript() {
+    var sc = [], t = 0;
+    function st(s, len) { sc.push({ at: t, state: s }); t += len; }
+    st({ vortex: 5, vstate: 'SURVIVAL', stab: 100 }, 26);
+    st({ vortex: 5, vstate: 'STABILIZE_VORTEX', stab: 100 }, 10);
+    st({ vortex: 4, vstate: 'SURVIVAL', stab: 100 }, 24);
+    st({ vortex: 4, vstate: 'STABILIZE_VORTEX', stab: 100 }, 10);
+    st({ vortex: 3, vstate: 'SURVIVAL', stab: 40 }, 24);
+    st({ vortex: 3, vstate: 'STABILIZE_VORTEX', stab: 100 }, 10);
+    st({ vortex: 2, vstate: 'SURVIVAL', stab: 100 }, 24);
+    st({ vortex: 2, vstate: 'STABILIZE_VORTEX', stab: 100 }, 40); // the hero's theme
+    for (var cf = 0; cf <= 960; cf += 15) sc.push({ at: t + cf / 60, state: { cut: 'intoArea1', cf: cf } }); // the escape
+    return { script: sc, seconds: t + 22, fade: 5 };
+  }
+  function ech0Script(info) {
+    var sc = [], seconds = Math.min(MAX_LOOP_SECONDS, info.intro + 2 * info.loop) + LOOP_FADE;
+    for (var t = 0, near = false; t < seconds; t += near ? 10 : 16, near = !near) sc.push({ at: t, state: { ech0: near ? 'near' : 'far' } });
+    return { script: sc, seconds: seconds, fade: LOOP_FADE };
+  }
+  function plan(name) {
+    var song = SONGS[name], info = loopInfo(song);
+    if (/^guard|^final1$/.test(name)) return bossScript(name, info.intro);
+    if (name === 'final2') return vortexScript();
+    if (name === 'ech0') return ech0Script(info);
+    if (song.cue) { // scenes in order, the hold loop once, then fade
+      var hold = song.sections.hold ? secLen(song, song.sections.hold) : 0;
+      return { script: [], seconds: info.intro + info.loop + hold + 4, fade: 4, trim: !song.sections.hold };
+    }
+    if (info.ends) return { script: [], seconds: info.intro + info.loop + 6, trim: true };
+    var loops = info.intro + 2 * info.loop <= MAX_LOOP_SECONDS ? 2 : 1;
+    return { script: [], seconds: info.intro + loops * info.loop + LOOP_FADE, fade: LOOP_FADE };
+  }
+
+  function finish(buf, pl) {
+    var ch = [], c, i, n = buf.length;
+    for (c = 0; c < buf.numberOfChannels; c++) ch.push(buf.getChannelData(c));
+    if (pl.trim) { // cut the silence after a song that ends
+      var last = 0;
+      for (c = 0; c < ch.length; c++) for (i = n - 1; i > last; i--) if (Math.abs(ch[c][i]) > 0.0003) { last = i; break; }
+      n = Math.min(n, last + Math.round(RATE * 0.5));
+    }
+    if (pl.fade) {
+      var f = Math.round(pl.fade * RATE);
+      for (c = 0; c < ch.length; c++) for (i = Math.max(0, n - f); i < n; i++) { var x = (n - i) / f; ch[c][i] *= x * x; }
+    }
+    var out = new AudioBuffer({ numberOfChannels: ch.length, length: n, sampleRate: RATE });
+    for (c = 0; c < ch.length; c++) out.copyToChannel(ch[c].subarray(0, n), c);
+    return out;
+  }
+  function toMp3(buf) {
+    var enc = new lamejs.Mp3Encoder(2, RATE, MP3_KBPS), parts = [], B = 1152;
+    var L = buf.getChannelData(0), R = buf.getChannelData(buf.numberOfChannels > 1 ? 1 : 0);
+    var l16 = new Int16Array(B), r16 = new Int16Array(B);
+    for (var i = 0; i < L.length; i += B) {
+      var m = Math.min(B, L.length - i);
+      for (var j = 0; j < m; j++) {
+        var a = Math.max(-1, Math.min(1, L[i + j])), b = Math.max(-1, Math.min(1, R[i + j]));
+        l16[j] = a < 0 ? a * 0x8000 : a * 0x7fff; r16[j] = b < 0 ? b * 0x8000 : b * 0x7fff;
+      }
+      var d = enc.encodeBuffer(l16.subarray(0, m), r16.subarray(0, m));
+      if (d.length) parts.push(new Uint8Array(d));
+    }
+    var e = enc.flush(); if (e.length) parts.push(new Uint8Array(e));
+    return new Blob(parts, { type: 'audio/mpeg' });
+  }
+  function save(file, blob, cell) {
+    if (AUTO) return fetch('/__save?name=' + encodeURIComponent(file), { method: 'POST', body: blob }).then(function (r) { if (!r.ok) throw new Error('save failed: ' + file); });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file; a.textContent = file.split('.').pop().toUpperCase();
+    cell.appendChild(a); a.click();
+    return new Promise(function (res) { setTimeout(res, 400); });
+  }
+  function report(msg) { $('status').textContent = msg; if (AUTO) fetch('/__log', { method: 'POST', body: msg }).catch(function () {}); }
+  function $(id) { return document.getElementById(id); }
+
+  TRACKS.forEach(function (t, i) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + (i + 1) + '</td><td>' + t[1] + '</td><td class="s" id="st-' + t[0] + '"></td><td id="dl-' + t[0] + '"></td>';
+    $('list').appendChild(tr);
+  });
+
+  function run() {
+    var fmt = params.get('format') || $('fmt').value;
+    if (fmt !== 'wav' && !window.lamejs) { report('The MP3 encoder did not load (offline?). Use WAV.'); if (AUTO) fetch('/__done?error=1', { method: 'POST' }); return; }
+    $('go').disabled = true;
+    // the script loads a fresh page for each track (?i=N): long runs in one page get very slow
+    var i = AUTO ? +(params.get('i') || 0) : 0;
+    (function next() {
+      if (i >= TRACKS.length) { report('Done: ' + TRACKS.length + ' tracks.'); if (AUTO) fetch('/__done', { method: 'POST' }); return; }
+      if (AUTO && i !== +(params.get('i') || 0)) { params.set('i', i); location.replace('?' + params.toString()); return; }
+      var t = TRACKS[i], num = String(i + 1).padStart(2, '0'), base = num + ' - ' + t[1];
+      var pl = plan(t[0]), t0 = performance.now();
+      report('Rendering ' + base + ' (' + Math.round(pl.seconds) + ' s)...');
+      $('st-' + t[0]).textContent = 'rendering...';
+      A.render(t[0], pl.seconds, pl.script, { rate: RATE }).then(function (raw) {
+        var buf = finish(raw, pl), jobs = [], cell = $('dl-' + t[0]);
+        var len = buf.length / RATE, peak = 0, ch = buf.getChannelData(0);
+        for (var k = 0; k < ch.length; k += 7) peak = Math.max(peak, Math.abs(ch[k]));
+        $('st-' + t[0]).textContent = Math.floor(len / 60) + ':' + String(Math.round(len % 60)).padStart(2, '0') + ' (peak ' + (20 * Math.log10(peak || 1e-9)).toFixed(1) + ' dB)';
+        var chain = Promise.resolve();
+        if (fmt !== 'mp3') chain = chain.then(function () { return save(base + '.wav', A.toWav(buf), cell); });
+        if (fmt !== 'wav') chain = chain.then(function () { return save(base + '.mp3', toMp3(buf), cell); });
+        return chain.then(function () { report(base + ': ' + len.toFixed(1) + ' s, rendered in ' + ((performance.now() - t0) / 1000).toFixed(1) + ' s'); });
+      }).then(function () { i++; setTimeout(next, 30); }, function (e) {
+        report('Failed on ' + base + ': ' + e); if (AUTO) fetch('/__done?error=1', { method: 'POST' });
+      });
+    })();
+  }
+  $('go').onclick = run;
+  if (AUTO) setTimeout(run, 100);
+})();
+</script>
+</body>
+</html>

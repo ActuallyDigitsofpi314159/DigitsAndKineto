@@ -963,6 +963,75 @@
   })();
 
   /* ================================================================
+     5b. ECH0 CHASE (X-3): Area X's music, twice as fast and anxious.
+        C Phrygian, 144 BPM (double Area X, so its bell line and chord
+        loop come back at a run). A racing double heartbeat, a ticking
+        16th clock, the X figure as a pulsing bass ostinato and trembling
+        strings. When ECH0 gets close (state.ech0 = 'near') a "close"
+        layer adds taiko, snare and a high choir; it fades when you
+        pull away.
+     ================================================================ */
+  (function () {
+    var k = K('C4', 'phrygian'), kx = K('C4', 'minor');
+    var PA = prog('Cm | Ab | Fm | Db | Cm | Ab | Fm:2 Db:2 | G');
+    var PB = prog('Cm | Cm | Db | Db | Bbm | Bbm | Gsus4 | G');
+    // Area X's bell line, unchanged: at double tempo it becomes a nervous run
+    var bellA = bars('1:4 2:2 3:4 .:6', '4:4 3:2 2:2 3:2 2:4 .:2', '1:4 1:2 6,:4 .:2 6,:4', '2:2 .:2 1:2 2:2 3:4 .:2 2:2',
+      '.:16', '.:16', '.:8 5:2 6:2 5:4', '.:16');
+    var boxB = bars(".:8 1':2 1':1 6:2 .:3", '.:16', ".:8 2':1 .:1 1':1 2':1 3':2 .:1 2':1", '.:16',
+      "4':2 4':1 2':2 .:3 .:8", '.:16', ".:8 5:4 1':4", 'B4:8 .:8');
+    var oohX = bars('1:8 b2:8', '5:8 #4:8', '1:8 b2:8', '5:8 #4:8', '1:8 b2:8', '5:8 #4:8', '.:16', '#7,:16');
+    function pulse(P, extra) { // the engine of every section
+      var n = P.len / 16;
+      return [
+        part('drone', bass(P, 'R---------------', { lo: 36 }), { vol: 0.55 }),
+        part('bass', xOst(P, { lo: 36, u: 2 }), { vol: 0.5, lp: 1400 }),
+        part('sub', bass(P, 'R-------R-------', { lo: 24 }), { vol: 0.35 }),
+        part('trem', pad(P, { lo: 55, hi: 70, n: 3 }), { vol: 0.28, rev: 0.5 }),
+        part('stac', arp(P, '0 1 2 1', { lo: 60, hi: 75, n: 3, u: 1, v: 0.5 }), { vol: 0.22, pan: 0.3, lite: false }),
+        part('kick', rep(drum('x..x....x..x....', { v: 0.75 }), n), { vol: 0.6 }),
+        part('hat', rep(drum('xoxoxoxoxoxoxoxo', { v: 0.5 }), n), { vol: 0.25 }),
+        part('rim', rep(drum('....x.......x...', { v: 0.55 }), n), { vol: 0.25, rev: 0.4 }),
+        // close layer: ECH0 is right behind you
+        part('taiko', rep(drum('x...x...x...x.x.', { v: 0.7 }), n), { vol: 0.5, rev: 0.4, layer: 'close' }),
+        part('snare', rep(drum('....x.......x.xx', { v: 0.6 }), n), { vol: 0.35, layer: 'close' }),
+        part('choir', pad(P, { lo: 67, hi: 82, n: 3 }), { vol: 0.25, rev: 0.6, layer: 'close' })
+      ].concat(extra || []);
+    }
+    var intro = section(2, [
+      part('drone', mel(k, '1,,:32'), { vol: 0.6 }),
+      part('hat', rep(drum('xoxoxoxoxoxoxoxo', { v: 0.5 }), 2), { vol: 0.25 }),
+      part('kick', cat(drum('x...............'), drum('x..x....x..x.x.x')), { vol: 0.6 }),
+      part('bell', mel(kx, '1:4 b2:4 5:4 #4:4 | 1:4 b2:4 5:4 #4:4', { oct: 1, v: 0.7 }), { vol: 0.55, rev: 0.6, dly: 0.25 }),
+      part('riser', drum('x', { u: 32 }), { vol: 0.4 })
+    ], { next: 'A' });
+    var A = section(8, pulse(PA, [
+      part('bell', mel(k, bellA, { oct: 1, v: 0.75 }), { vol: 0.75, rev: 0.55, dly: 0.2, name: 'lead' }),
+      part('ooh', mel(kx, oohX), { vol: 0.4, rev: 0.6 })
+    ]), { next: 'B' });
+    var B = section(8, pulse(PB, [
+      part('musicbox', mel(k, boxB, { v: 0.65 }), { vol: 0.62, rev: 0.55, dly: 0.25, name: 'lead' }),
+      part('ooh', mel(k, 'Eb4:32 F4:32 F4:32 D4:32'), { vol: 0.4, rev: 0.6 }),
+      part('snare', crescendo(cat(rest(96), rep(drum('x.x.x.x.x.x.x.x.'), 1), drum('xxxxxxxxxxxxxxxx')), 0.3, 1.1), { vol: 0.4 })
+    ]), { next: 'A2' });
+    var A2 = section(8, pulse(PA, [
+      part('bell', mel(k, bellA, { oct: 1, v: 0.75 }), { vol: 0.75, rev: 0.55, dly: 0.2, name: 'lead' }),
+      part('celesta', mel(k, bellA, { oct: 2, v: 0.45 }), { vol: 0.3, rev: 0.6 }),
+      part('ooh', mel(kx, oohX), { vol: 0.45, rev: 0.6 }),
+      part('strings', mel(kx, bars('1:16', 'b2:16', '5,:16', '#4,:16', '1:16', 'b2:16', '5,:8 b6,:8', '#7,:16'), { oct: -1, v: 0.6 }), { vol: 0.35, rev: 0.4 }),
+      part('crash', cat(drum('x'), rest(127)), { vol: 0.4, rev: 0.3 })
+    ]), { next: 'A' });
+    song('ech0', {
+      bpm: 144, start: 'intro', sections: { intro: intro, A: A, B: B, A2: A2 }, gain: 0.9, fadeIn: 0.4,
+      layers: { close: 0 },
+      react: function (st, old, P) {
+        var near = st.ech0 === 'near';
+        if (near !== ((old || {}).ech0 === 'near')) P.setLayer('close', near ? 1 : 0, 'beat', near ? 0.05 : 1.5);
+      }
+    });
+  })();
+
+  /* ================================================================
      10. SHOP: B-flat major, 100 BPM, swung. Chill lounge: electric
          piano, vibraphone, upright bass, brushes. Its own tune; the
          Dash motif only slips in at the end of each phrase (vibes).

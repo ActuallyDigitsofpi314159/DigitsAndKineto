@@ -510,531 +510,6 @@ function dkPlayAudio(name, audioData, volume, afterStart, playbackSpeed) {
 }
 // DK AUDIO SUPPORT END
 
-// DK MIDI SUPPORT START
-// Plays MIDI songs made by DK Converter with a small built-in synthesizer
-// (no sound files needed). Notes are handed to the browser a little ahead of
-// time, so playback stays smooth even when draw() is slow.
-var dkMidiState = null;
-var dkMidiOut = null;
-var dkMidiTones = null;
-var dkMidiNoise = null;
-var dkMidiVoices = [];
-var dkMidiMaster = 1;
-
-function dkMidiReader(bytes) {
-    var reader = { bytes: bytes, at: 0 };
-    reader.next = function() {
-        var value = 0;
-        var scale = 1;
-        var b;
-        do {
-            if (reader.at >= bytes.length) {
-                dkThrow("DK MIDI: the song data ended early.");
-            }
-            b = bytes[reader.at];
-            reader.at++;
-            value += (b % 128) * scale;
-            scale *= 128;
-        } while (b >= 128);
-        return value;
-    };
-    return reader;
-}
-
-function dkMidiDecode(dat) {
-    if (dat._song) {
-        return dat._song;
-    }
-    var bytes = dkDecodeZstdBytes(dat, dat.l);
-    var reader = dkMidiReader(bytes);
-    if (reader.next() !== 1) {
-        dkThrow("DK MIDI: unknown song format. Convert the file again.");
-    }
-    var song = {
-        bpm: reader.next(),
-        length: reader.next() / 1000,
-        count: reader.next(),
-        start: [],
-        len: [],
-        pitch: [],
-        velocity: [],
-        channel: [],
-        family: []
-    };
-    var count = song.count;
-    var time = 0;
-    var i;
-    for (i = 0; i < count; i++) {
-        time += reader.next();
-        song.start[i] = time / 1000;
-    }
-    for (i = 0; i < count; i++) {
-        song.len[i] = reader.next() / 1000;
-    }
-    var at = reader.at;
-    for (i = 0; i < count; i++) {
-        song.pitch[i] = bytes[at + i];
-        song.velocity[i] = bytes[at + count + i] / 127;
-        song.channel[i] = bytes[at + count * 2 + i] % 16;
-        song.family[i] = Math.floor(bytes[at + count * 2 + i] / 16);
-    }
-    if (at + count * 3 !== bytes.length) {
-        dkThrow("DK MIDI: the song data has the wrong size.");
-    }
-    for (i = 0; i < count; i++) {
-        song.length = Math.max(song.length, song.start[i] + song.len[i]);
-    }
-    dat._song = song;
-    return song;
-}
-
-function dkMidiSetup() {
-    if (dkMidiOut) {
-        return;
-    }
-    /* jshint ignore:start */
-    var ctx = dkAudioContext;
-    var squash = ctx.createDynamicsCompressor();
-    squash.threshold.value = -15;
-    squash.ratio.value = 6;
-    squash.connect(ctx.destination);
-    dkMidiOut = ctx.createGain();
-    dkMidiOut.gain.value = dkMidiMaster;
-    dkMidiOut.connect(squash);
-    // each instrument family is a mix of harmonics (h = 1, 2, 3, ...)
-    var tone = function(strength) {
-        var real = new Float32Array(32);
-        var imag = new Float32Array(32);
-        var h;
-        for (h = 1; h < 32; h++) {
-            imag[h] = strength(h);
-        }
-        return ctx.createPeriodicWave(real, imag);
-    };
-    dkMidiTones = [
-        tone(function(h) { return Math.pow(h, -1.6); }),                       // 0 keys
-        tone(function(h) { return h === 1 || h === 2 || h === 4 || h === 8 ? 1 / Math.sqrt(h) : h % 2 ? 0.25 / h : 0; }), // 1 organ
-        tone(function(h) { return Math.pow(h, -2.2); }),                       // 2 bass
-        tone(function(h) { return Math.pow(h, -1.25) * (h % 2 ? 1 : 0.7); }), // 3 pad
-        tone(function(h) { return h % 2 ? 1 / h : 0.18 / h; }),                // 4 lead
-        tone(function(h) { return Math.pow(h, -1.35); })                       // 5 pluck
-    ];
-    var rate = ctx.sampleRate;
-    dkMidiNoise = ctx.createBuffer(1, Math.floor(rate * 0.5), rate);
-    var samples = dkMidiNoise.getChannelData(0);
-    var n;
-    for (n = 0; n < samples.length; n++) {
-        samples[n] = Math.random() * 2 - 1;
-    }
-    /* jshint ignore:end */
-}
-
-// how each instrument family fades in and out: attack, level after the attack, sustain level, release
-var DK_MIDI_SHAPES = [
-    [0.004, 0.7, 0.25, 0.05],  // keys
-    [0.012, 0.85, 0.8, 0.05],  // organ
-    [0.006, 0.75, 0.45, 0.06], // bass
-    [0.12, 0.8, 0.7, 0.3],     // pad
-    [0.012, 0.8, 0.7, 0.08],   // lead
-    [0.003, 0.5, 0.04, 0.08]   // pluck
-];
-
-function dkMidiDrum(pitch, when, power, out) {
-    /* jshint ignore:start */
-    var ctx = dkAudioContext;
-    var gain = ctx.createGain();
-    gain.connect(out);
-    var end = when + 0.12;
-    var source;
-    if (pitch === 35 || pitch === 36) { // bass drum
-        source = ctx.createOscillator();
-        source.frequency.setValueAtTime(150, when);
-        source.frequency.exponentialRampToValueAtTime(42, when + 0.12);
-        gain.gain.setValueAtTime(power * 1.6, when);
-        end = when + 0.22;
-    } else if ((pitch >= 41 && pitch <= 50 && pitch !== 42 && pitch !== 44 && pitch !== 46 && pitch !== 49) || pitch === 37) { // toms, rim
-        source = ctx.createOscillator();
-        var top = pitch === 37 ? 800 : 90 + (pitch - 41) * 22;
-        source.frequency.setValueAtTime(top, when);
-        source.frequency.exponentialRampToValueAtTime(top * 0.55, when + 0.15);
-        gain.gain.setValueAtTime(power, when);
-        end = when + (pitch === 37 ? 0.05 : 0.2);
-    } else { // snares, hi-hats, cymbals and everything else: filtered noise
-        source = ctx.createBufferSource();
-        source.buffer = dkMidiNoise;
-        source.loop = true;
-        var colour = ctx.createBiquadFilter();
-        var cymbal = pitch === 49 || pitch === 51 || pitch === 52 || pitch === 55 || pitch === 57 || pitch === 59;
-        var hat = pitch === 42 || pitch === 44 || pitch === 46;
-        colour.type = hat || cymbal ? "highpass" : "bandpass";
-        colour.frequency.value = hat ? 7000 : cymbal ? 5000 : 1800;
-        source.connect(colour);
-        colour.connect(gain);
-        gain.gain.setValueAtTime(power * (hat ? 0.5 : cymbal ? 0.45 : 0.9), when);
-        end = when + (pitch === 46 ? 0.3 : hat ? 0.06 : cymbal ? 0.9 : 0.16);
-    }
-    if (source.frequency) {
-        source.connect(gain);
-    }
-    gain.gain.exponentialRampToValueAtTime(0.0001, end);
-    source.start(when);
-    source.stop(end + 0.02);
-    return { source: source, gain: gain, end: end + 0.02 };
-    /* jshint ignore:end */
-}
-
-function dkMidiVoice(song, index, when, volume, out) {
-    /* jshint ignore:start */
-    var ctx = dkAudioContext;
-    var power = song.velocity[index] * 0.32 * volume;
-    if (song.channel[index] === 9) {
-        return dkMidiDrum(song.pitch[index], when, power, out);
-    }
-    var family = Math.min(song.family[index], DK_MIDI_SHAPES.length - 1);
-    var shape = DK_MIDI_SHAPES[family];
-    var len = Math.max(song.len[index], 0.05);
-    var osc = ctx.createOscillator();
-    osc.setPeriodicWave(dkMidiTones[family]);
-    osc.frequency.value = 440 * Math.pow(2, (song.pitch[index] - 69) / 12);
-    var warmth = ctx.createBiquadFilter();
-    warmth.type = "lowpass";
-    warmth.Q.value = 0.5;
-    var bright = family === 2 ? 500 : 900;
-    warmth.frequency.setValueAtTime(bright + power * 2400, when);
-    warmth.frequency.exponentialRampToValueAtTime(family === 2 ? 300 : 500, when + len + shape[3]);
-    var gain = ctx.createGain();
-    var peak = Math.max(power, 0.0001);
-    var attack = Math.min(shape[0], len * 0.5);
-    gain.gain.setValueAtTime(0.0001, when);
-    gain.gain.linearRampToValueAtTime(peak, when + attack);
-    gain.gain.exponentialRampToValueAtTime(Math.max(peak * shape[1], 0.0001), when + attack + Math.min(0.12, len * 0.5));
-    gain.gain.exponentialRampToValueAtTime(Math.max(peak * shape[2], 0.0001), when + len);
-    gain.gain.exponentialRampToValueAtTime(0.0001, when + len + shape[3]);
-    osc.connect(warmth);
-    warmth.connect(gain);
-    gain.connect(out);
-    osc.start(when);
-    osc.stop(when + len + shape[3] + 0.02);
-    return { source: osc, gain: gain, end: when + len + shape[3] + 0.02 };
-    /* jshint ignore:end */
-}
-
-function dkMidiPump(state) {
-    if (dkMidiState !== state) {
-        return;
-    }
-    /* jshint ignore:start */
-    var ctx = dkAudioContext;
-    var now = ctx.currentTime;
-    var song = state.song;
-    var live = [];
-    var v;
-    for (v = 0; v < dkMidiVoices.length; v++) {
-        if (dkMidiVoices[v].end > now) {
-            live.push(dkMidiVoices[v]);
-        } else {
-            try { dkMidiVoices[v].gain.disconnect(); } catch (e) {}
-        }
-    }
-    dkMidiVoices = live;
-    var guard = 0;
-    while (guard < 4) {
-        guard++;
-        var horizon = now - state.startTime + 0.6;
-        while (state.next < song.count && song.start[state.next] <= horizon) {
-            var when = state.startTime + song.start[state.next];
-            // notes that are already late are skipped, and at most 64 sound at once
-            if (when > now - 0.05 && dkMidiVoices.length < 64) {
-                dkMidiVoices.push(dkMidiVoice(song, state.next, Math.max(when, now), state.volume, state.out));
-            }
-            state.next++;
-        }
-        if (state.next < song.count || !state.repeat || song.length <= 0 || horizon < song.length) {
-            break;
-        }
-        state.startTime += song.length; // loop: the next round starts right where this one ends
-        state.next = 0;
-    }
-    if (!state.repeat && state.next >= song.count && now > state.startTime + song.length + 0.4) {
-        dkMidiState = null;
-        return;
-    }
-    // a silent "timer" tone: when it ends, schedule the next few notes
-    var tick = ctx.createOscillator();
-    var hush = ctx.createGain();
-    hush.gain.value = 0;
-    tick.connect(hush);
-    hush.connect(ctx.destination);
-    tick.onended = function() {
-        hush.disconnect();
-        dkMidiPump(state);
-    };
-    tick.start(now);
-    tick.stop(now + 0.2);
-    /* jshint ignore:end */
-}
-
-// Plays a song. volume 0-1 (default 0.8); repeat true = loop forever;
-// startAt = seconds into the song to start from (default 0).
-function dkPlayMidi(name, dat, volume, repeat, startAt) {
-    dkStopMidi();
-    if (dkAudioContext.resume) {
-        dkAudioContext.resume();
-    }
-    dkMidiSetup();
-    var song = dkMidiDecode(dat);
-    var state = {
-        name: name,
-        song: song,
-        volume: volume === undefined ? 0.8 : volume,
-        repeat: repeat === true,
-        next: 0,
-        startTime: 0,
-        out: null
-    };
-    startAt = Math.max(0, startAt || 0);
-    /* jshint ignore:start */
-    state.out = dkAudioContext.createGain();
-    state.out.connect(dkMidiOut);
-    state.startTime = dkAudioContext.currentTime + 0.08 - startAt;
-    /* jshint ignore:end */
-    while (state.next < song.count && song.start[state.next] < startAt) {
-        state.next++;
-    }
-    dkMidiState = state;
-    dkMidiPump(state);
-}
-
-function dkStopMidi() {
-    var state = dkMidiState;
-    dkMidiState = null;
-    /* jshint ignore:start */
-    var v;
-    for (v = 0; v < dkMidiVoices.length; v++) {
-        try { dkMidiVoices[v].source.stop(0); } catch (e) {}
-        try { dkMidiVoices[v].gain.disconnect(); } catch (e) {}
-    }
-    if (state && state.out) {
-        try { state.out.disconnect(); } catch (e) {}
-    }
-    /* jshint ignore:end */
-    dkMidiVoices = [];
-}
-
-function dkMidiPlaying() {
-    return dkMidiState !== null;
-}
-
-// seconds into the playing song (0 when nothing is playing)
-function dkMidiTime() {
-    if (!dkMidiState) {
-        return 0;
-    }
-    var t = dkAudioContext.currentTime - dkMidiState.startTime;
-    if (t < 0 && dkMidiState.repeat) {
-        t += dkMidiState.song.length; // just before a loop starts over
-    }
-    return Math.max(0, Math.min(t, dkMidiState.song.length));
-}
-
-// length in seconds of the playing song, or of a song's data
-function dkMidiLength(dat) {
-    if (dat) {
-        return dkMidiDecode(dat).length;
-    }
-    return dkMidiState ? dkMidiState.song.length : 0;
-}
-
-// master MIDI volume, 0-1
-function dkMidiVolume(amount) {
-    dkMidiMaster = Math.max(0, amount);
-    /* jshint ignore:start */
-    if (dkMidiOut) {
-        dkMidiOut.gain.value = dkMidiMaster;
-    }
-    /* jshint ignore:end */
-}
-// DK MIDI SUPPORT END
-
-// DK SVG SUPPORT START
-// Draws vector pictures made by DK Converter. The shapes are redrawn sharply
-// for each size you ask for (and remembered), so they never look blurry.
-function dkDecodeSVG(dat) {
-    var bytes = dkDecodeZstdBytes(dat, dat.l);
-    var reader = dkMidiReader(bytes);
-    var zigzag = function() {
-        var value = reader.next();
-        return value % 2 ? -(value + 1) / 2 : value / 2;
-    };
-    if (reader.next() !== 1) {
-        dkThrow("DK SVG: unknown drawing format. Convert the file again.");
-    }
-    var q = reader.next();
-    var drawing = {
-        w: reader.next() / q,
-        h: reader.next() / q,
-        colors: [],
-        items: [],
-        sizes: []
-    };
-    var colorCount = reader.next();
-    var i;
-    var k;
-    var at;
-    for (i = 0; i < colorCount; i++) {
-        at = reader.at;
-        drawing.colors[i] = "rgba(" + bytes[at] + "," + bytes[at + 1] + "," +
-            bytes[at + 2] + "," + (bytes[at + 3] / 255) + ")";
-        reader.at = at + 4;
-    }
-    var itemCount = reader.next();
-    for (i = 0; i < itemCount; i++) {
-        var item = { flags: reader.next(), fillColor: -1, strokeColor: -1, lineWidth: 1, miter: 4, dashes: null, dashOffset: 0 };
-        if (item.flags % 2 === 1) {
-            item.fillColor = reader.next();
-        }
-        if (Math.floor(item.flags / 2) % 2 === 1) {
-            item.strokeColor = reader.next();
-            item.lineWidth = reader.next() / q;
-        }
-        if (Math.floor(item.flags / 128) % 2 === 1) {
-            item.miter = reader.next() / 100;
-        }
-        if (Math.floor(item.flags / 256) % 2 === 1) {
-            var dashCount = reader.next();
-            item.dashes = [];
-            for (k = 0; k < dashCount; k++) {
-                item.dashes[k] = reader.next() / q;
-            }
-            item.dashOffset = zigzag() / q;
-        }
-        item.steps = reader.next();
-        drawing.items[i] = item;
-    }
-    // step kinds for every shape come first, then all the points
-    var kindsAt = reader.at;
-    var stepTotal = 0;
-    for (i = 0; i < itemCount; i++) {
-        stepTotal += drawing.items[i].steps;
-    }
-    reader.at = kindsAt + stepTotal;
-    var penX = 0;
-    var penY = 0;
-    var kindIndex = kindsAt;
-    for (i = 0; i < itemCount; i++) {
-        var kinds = [];
-        var points = [];
-        for (k = 0; k < drawing.items[i].steps; k++) {
-            var kind = bytes[kindIndex];
-            kindIndex++;
-            kinds[k] = kind;
-            var pointCount = kind === 2 ? 3 : kind === 3 ? 0 : 1;
-            var p;
-            for (p = 0; p < pointCount; p++) {
-                penX += zigzag();
-                penY += zigzag();
-                points.push(penX / q, penY / q);
-            }
-        }
-        drawing.items[i].kinds = kinds;
-        drawing.items[i].points = points;
-    }
-    if (reader.at !== bytes.length) {
-        dkThrow("DK SVG: the drawing data has the wrong size.");
-    }
-    return drawing;
-}
-
-function dkRenderSVG(drawing, pixelWidth, pixelHeight) {
-    /* jshint ignore:start */
-    var img = createGraphics(pixelWidth, pixelHeight, JAVA2D);
-    var snapshot = img.get();
-    if (!snapshot || !snapshot.sourceImg ||
-        typeof snapshot.sourceImg.getContext !== "function") {
-        dkThrow("DK SVG: canvas snapshot unavailable.");
-    }
-    var ctx = snapshot.sourceImg.getContext("2d");
-    var caps = ["butt", "round", "square"];
-    var joins = ["miter", "round", "bevel"];
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, pixelWidth, pixelHeight);
-    ctx.setTransform(pixelWidth / drawing.w, 0, 0, pixelHeight / drawing.h, 0, 0);
-    var i;
-    for (i = 0; i < drawing.items.length; i++) {
-        var item = drawing.items[i];
-        var pts = item.points;
-        var at = 0;
-        var k;
-        ctx.beginPath();
-        for (k = 0; k < item.kinds.length; k++) {
-            var kind = item.kinds[k];
-            if (kind === 0) {
-                ctx.moveTo(pts[at], pts[at + 1]);
-                at += 2;
-            } else if (kind === 1) {
-                ctx.lineTo(pts[at], pts[at + 1]);
-                at += 2;
-            } else if (kind === 2) {
-                ctx.bezierCurveTo(pts[at], pts[at + 1], pts[at + 2], pts[at + 3], pts[at + 4], pts[at + 5]);
-                at += 6;
-            } else {
-                ctx.closePath();
-            }
-        }
-        if (item.fillColor >= 0) {
-            ctx.fillStyle = drawing.colors[item.fillColor];
-            ctx.fill(Math.floor(item.flags / 4) % 2 === 1 ? "evenodd" : "nonzero");
-        }
-        if (item.strokeColor >= 0) {
-            ctx.lineWidth = item.lineWidth;
-            ctx.lineCap = caps[Math.floor(item.flags / 8) % 4] || "butt";
-            ctx.lineJoin = joins[Math.floor(item.flags / 32) % 4] || "miter";
-            ctx.miterLimit = item.miter;
-            if (ctx.setLineDash) {
-                ctx.setLineDash(item.dashes || []);
-                ctx.lineDashOffset = item.dashOffset;
-            }
-            ctx.strokeStyle = drawing.colors[item.strokeColor];
-            ctx.stroke();
-        }
-    }
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    img.image(snapshot, 0, 0);
-    return img;
-    /* jshint ignore:end */
-}
-
-// Draws the picture with its top-left corner at (x, y). size 1 = its natural
-// size, 2 = twice as big, and so on.
-function dkDrawSVG(x, y, size, dat) {
-    if (!dat._drawing) {
-        dat._drawing = dkDecodeSVG(dat);
-    }
-    var drawing = dat._drawing;
-    if (size === undefined) {
-        size = 1;
-    }
-    var pixelWidth = Math.max(1, Math.min(4096, Math.round(drawing.w * size)));
-    var pixelHeight = Math.max(1, Math.min(4096, Math.round(drawing.h * size)));
-    var picture = null;
-    var i;
-    for (i = 0; i < drawing.sizes.length; i++) {
-        if (drawing.sizes[i].w === pixelWidth && drawing.sizes[i].h === pixelHeight) {
-            picture = drawing.sizes[i].img;
-        }
-    }
-    if (!picture) {
-        picture = dkRenderSVG(drawing, pixelWidth, pixelHeight);
-        drawing.sizes.push({ w: pixelWidth, h: pixelHeight, img: picture });
-        if (drawing.sizes.length > 4) {
-            drawing.sizes.shift();
-        }
-    }
-    image(picture, x, y, pixelWidth, pixelHeight);
-}
-// DK SVG SUPPORT END
-
-
 // WARNING: LEAVE CLOSED [
 var DK_ALPHABET = __DK_ALPHABET__;
 var DK_ALPHABET_INDEX = {};
@@ -2398,6 +1873,530 @@ function drawHugePixelArt(
         frame
     );
 }
+
+// DK MIDI SUPPORT START
+// Plays MIDI songs made by DK Converter with a small built-in synthesizer
+// (no sound files needed). Notes are handed to the browser a little ahead of
+// time, so playback stays smooth even when draw() is slow.
+var dkMidiState = null;
+var dkMidiOut = null;
+var dkMidiTones = null;
+var dkMidiNoise = null;
+var dkMidiVoices = [];
+var dkMidiMaster = 1;
+
+function dkMidiReader(bytes) {
+    var reader = { bytes: bytes, at: 0 };
+    reader.next = function() {
+        var value = 0;
+        var scale = 1;
+        var b;
+        do {
+            if (reader.at >= bytes.length) {
+                dkThrow("DK MIDI: the song data ended early.");
+            }
+            b = bytes[reader.at];
+            reader.at++;
+            value += (b % 128) * scale;
+            scale *= 128;
+        } while (b >= 128);
+        return value;
+    };
+    return reader;
+}
+
+function dkMidiDecode(dat) {
+    if (dat._song) {
+        return dat._song;
+    }
+    var bytes = dkDecodeZstdBytes(dat, dat.l);
+    var reader = dkMidiReader(bytes);
+    if (reader.next() !== 1) {
+        dkThrow("DK MIDI: unknown song format. Convert the file again.");
+    }
+    var song = {
+        bpm: reader.next(),
+        length: reader.next() / 1000,
+        count: reader.next(),
+        start: [],
+        len: [],
+        pitch: [],
+        velocity: [],
+        channel: [],
+        family: []
+    };
+    var count = song.count;
+    var time = 0;
+    var i;
+    for (i = 0; i < count; i++) {
+        time += reader.next();
+        song.start[i] = time / 1000;
+    }
+    for (i = 0; i < count; i++) {
+        song.len[i] = reader.next() / 1000;
+    }
+    var at = reader.at;
+    for (i = 0; i < count; i++) {
+        song.pitch[i] = bytes[at + i];
+        song.velocity[i] = bytes[at + count + i] / 127;
+        song.channel[i] = bytes[at + count * 2 + i] % 16;
+        song.family[i] = Math.floor(bytes[at + count * 2 + i] / 16);
+    }
+    if (at + count * 3 !== bytes.length) {
+        dkThrow("DK MIDI: the song data has the wrong size.");
+    }
+    for (i = 0; i < count; i++) {
+        song.length = Math.max(song.length, song.start[i] + song.len[i]);
+    }
+    dat._song = song;
+    return song;
+}
+
+function dkMidiSetup() {
+    if (dkMidiOut) {
+        return;
+    }
+    /* jshint ignore:start */
+    var ctx = dkAudioContext;
+    var squash = ctx.createDynamicsCompressor();
+    squash.threshold.value = -15;
+    squash.ratio.value = 6;
+    squash.connect(ctx.destination);
+    dkMidiOut = ctx.createGain();
+    dkMidiOut.gain.value = dkMidiMaster;
+    dkMidiOut.connect(squash);
+    // each instrument family is a mix of harmonics (h = 1, 2, 3, ...)
+    var tone = function(strength) {
+        var real = new Float32Array(32);
+        var imag = new Float32Array(32);
+        var h;
+        for (h = 1; h < 32; h++) {
+            imag[h] = strength(h);
+        }
+        return ctx.createPeriodicWave(real, imag);
+    };
+    dkMidiTones = [
+        tone(function(h) { return Math.pow(h, -1.6); }),                       // 0 keys
+        tone(function(h) { return h === 1 || h === 2 || h === 4 || h === 8 ? 1 / Math.sqrt(h) : h % 2 ? 0.25 / h : 0; }), // 1 organ
+        tone(function(h) { return Math.pow(h, -2.2); }),                       // 2 bass
+        tone(function(h) { return Math.pow(h, -1.25) * (h % 2 ? 1 : 0.7); }), // 3 pad
+        tone(function(h) { return h % 2 ? 1 / h : 0.18 / h; }),                // 4 lead
+        tone(function(h) { return Math.pow(h, -1.35); })                       // 5 pluck
+    ];
+    var rate = ctx.sampleRate;
+    dkMidiNoise = ctx.createBuffer(1, Math.floor(rate * 0.5), rate);
+    var samples = dkMidiNoise.getChannelData(0);
+    var n;
+    for (n = 0; n < samples.length; n++) {
+        samples[n] = Math.random() * 2 - 1;
+    }
+    /* jshint ignore:end */
+}
+
+// how each instrument family fades in and out: attack, level after the attack, sustain level, release
+var DK_MIDI_SHAPES = [
+    [0.004, 0.7, 0.25, 0.05],  // keys
+    [0.012, 0.85, 0.8, 0.05],  // organ
+    [0.006, 0.75, 0.45, 0.06], // bass
+    [0.12, 0.8, 0.7, 0.3],     // pad
+    [0.012, 0.8, 0.7, 0.08],   // lead
+    [0.003, 0.5, 0.04, 0.08]   // pluck
+];
+
+function dkMidiDrum(pitch, when, power, out) {
+    /* jshint ignore:start */
+    var ctx = dkAudioContext;
+    var gain = ctx.createGain();
+    gain.connect(out);
+    var end = when + 0.12;
+    var source;
+    if (pitch === 35 || pitch === 36) { // bass drum
+        source = ctx.createOscillator();
+        source.frequency.setValueAtTime(150, when);
+        source.frequency.exponentialRampToValueAtTime(42, when + 0.12);
+        gain.gain.setValueAtTime(power * 1.6, when);
+        end = when + 0.22;
+    } else if ((pitch >= 41 && pitch <= 50 && pitch !== 42 && pitch !== 44 && pitch !== 46 && pitch !== 49) || pitch === 37) { // toms, rim
+        source = ctx.createOscillator();
+        var top = pitch === 37 ? 800 : 90 + (pitch - 41) * 22;
+        source.frequency.setValueAtTime(top, when);
+        source.frequency.exponentialRampToValueAtTime(top * 0.55, when + 0.15);
+        gain.gain.setValueAtTime(power, when);
+        end = when + (pitch === 37 ? 0.05 : 0.2);
+    } else { // snares, hi-hats, cymbals and everything else: filtered noise
+        source = ctx.createBufferSource();
+        source.buffer = dkMidiNoise;
+        source.loop = true;
+        var colour = ctx.createBiquadFilter();
+        var cymbal = pitch === 49 || pitch === 51 || pitch === 52 || pitch === 55 || pitch === 57 || pitch === 59;
+        var hat = pitch === 42 || pitch === 44 || pitch === 46;
+        colour.type = hat || cymbal ? "highpass" : "bandpass";
+        colour.frequency.value = hat ? 7000 : cymbal ? 5000 : 1800;
+        source.connect(colour);
+        colour.connect(gain);
+        gain.gain.setValueAtTime(power * (hat ? 0.5 : cymbal ? 0.45 : 0.9), when);
+        end = when + (pitch === 46 ? 0.3 : hat ? 0.06 : cymbal ? 0.9 : 0.16);
+    }
+    if (source.frequency) {
+        source.connect(gain);
+    }
+    gain.gain.exponentialRampToValueAtTime(0.0001, end);
+    source.start(when);
+    source.stop(end + 0.02);
+    return { source: source, gain: gain, end: end + 0.02 };
+    /* jshint ignore:end */
+}
+
+function dkMidiVoice(song, index, when, volume, out) {
+    /* jshint ignore:start */
+    var ctx = dkAudioContext;
+    var power = song.velocity[index] * 0.32 * volume;
+    if (song.channel[index] === 9) {
+        return dkMidiDrum(song.pitch[index], when, power, out);
+    }
+    var family = Math.min(song.family[index], DK_MIDI_SHAPES.length - 1);
+    var shape = DK_MIDI_SHAPES[family];
+    var len = Math.max(song.len[index], 0.05);
+    var osc = ctx.createOscillator();
+    osc.setPeriodicWave(dkMidiTones[family]);
+    osc.frequency.value = 440 * Math.pow(2, (song.pitch[index] - 69) / 12);
+    var warmth = ctx.createBiquadFilter();
+    warmth.type = "lowpass";
+    warmth.Q.value = 0.5;
+    var bright = family === 2 ? 500 : 900;
+    warmth.frequency.setValueAtTime(bright + power * 2400, when);
+    warmth.frequency.exponentialRampToValueAtTime(family === 2 ? 300 : 500, when + len + shape[3]);
+    var gain = ctx.createGain();
+    var peak = Math.max(power, 0.0001);
+    var attack = Math.min(shape[0], len * 0.5);
+    gain.gain.setValueAtTime(0.0001, when);
+    gain.gain.linearRampToValueAtTime(peak, when + attack);
+    gain.gain.exponentialRampToValueAtTime(Math.max(peak * shape[1], 0.0001), when + attack + Math.min(0.12, len * 0.5));
+    gain.gain.exponentialRampToValueAtTime(Math.max(peak * shape[2], 0.0001), when + len);
+    gain.gain.exponentialRampToValueAtTime(0.0001, when + len + shape[3]);
+    osc.connect(warmth);
+    warmth.connect(gain);
+    gain.connect(out);
+    osc.start(when);
+    osc.stop(when + len + shape[3] + 0.02);
+    return { source: osc, gain: gain, end: when + len + shape[3] + 0.02 };
+    /* jshint ignore:end */
+}
+
+function dkMidiPump(state) {
+    if (dkMidiState !== state) {
+        return;
+    }
+    /* jshint ignore:start */
+    var ctx = dkAudioContext;
+    var now = ctx.currentTime;
+    var song = state.song;
+    var live = [];
+    var v;
+    for (v = 0; v < dkMidiVoices.length; v++) {
+        if (dkMidiVoices[v].end > now) {
+            live.push(dkMidiVoices[v]);
+        } else {
+            try { dkMidiVoices[v].gain.disconnect(); } catch (e) {}
+        }
+    }
+    dkMidiVoices = live;
+    var guard = 0;
+    while (guard < 4) {
+        guard++;
+        var horizon = now - state.startTime + 0.6;
+        while (state.next < song.count && song.start[state.next] <= horizon) {
+            var when = state.startTime + song.start[state.next];
+            // notes that are already late are skipped, and at most 64 sound at once
+            if (when > now - 0.05 && dkMidiVoices.length < 64) {
+                dkMidiVoices.push(dkMidiVoice(song, state.next, Math.max(when, now), state.volume, state.out));
+            }
+            state.next++;
+        }
+        if (state.next < song.count || !state.repeat || song.length <= 0 || horizon < song.length) {
+            break;
+        }
+        state.startTime += song.length; // loop: the next round starts right where this one ends
+        state.next = 0;
+    }
+    if (!state.repeat && state.next >= song.count && now > state.startTime + song.length + 0.4) {
+        dkMidiState = null;
+        return;
+    }
+    // a silent "timer" tone: when it ends, schedule the next few notes
+    var tick = ctx.createOscillator();
+    var hush = ctx.createGain();
+    hush.gain.value = 0;
+    tick.connect(hush);
+    hush.connect(ctx.destination);
+    tick.onended = function() {
+        hush.disconnect();
+        dkMidiPump(state);
+    };
+    tick.start(now);
+    tick.stop(now + 0.2);
+    /* jshint ignore:end */
+}
+
+function dkStopMidi() {
+    var state = dkMidiState;
+    dkMidiState = null;
+    /* jshint ignore:start */
+    var v;
+    for (v = 0; v < dkMidiVoices.length; v++) {
+        try { dkMidiVoices[v].source.stop(0); } catch (e) {}
+        try { dkMidiVoices[v].gain.disconnect(); } catch (e) {}
+    }
+    if (state && state.out) {
+        try { state.out.disconnect(); } catch (e) {}
+    }
+    /* jshint ignore:end */
+    dkMidiVoices = [];
+}
+
+// Plays a song. volume 0-1 (default 0.8); repeat true = loop forever;
+// startAt = seconds into the song to start from (default 0).
+function dkPlayMidi(name, dat, volume, repeat, startAt) {
+    dkStopMidi();
+    if (dkAudioContext.resume) {
+        dkAudioContext.resume();
+    }
+    dkMidiSetup();
+    var song = dkMidiDecode(dat);
+    var state = {
+        name: name,
+        song: song,
+        volume: volume === undefined ? 0.8 : volume,
+        repeat: repeat === true,
+        next: 0,
+        startTime: 0,
+        out: null
+    };
+    startAt = Math.max(0, startAt || 0);
+    /* jshint ignore:start */
+    state.out = dkAudioContext.createGain();
+    state.out.connect(dkMidiOut);
+    state.startTime = dkAudioContext.currentTime + 0.08 - startAt;
+    /* jshint ignore:end */
+    while (state.next < song.count && song.start[state.next] < startAt) {
+        state.next++;
+    }
+    dkMidiState = state;
+    dkMidiPump(state);
+}
+
+function dkMidiPlaying() {
+    return dkMidiState !== null;
+}
+
+// seconds into the playing song (0 when nothing is playing)
+function dkMidiTime() {
+    if (!dkMidiState) {
+        return 0;
+    }
+    var t = dkAudioContext.currentTime - dkMidiState.startTime;
+    if (t < 0 && dkMidiState.repeat) {
+        t += dkMidiState.song.length; // just before a loop starts over
+    }
+    return Math.max(0, Math.min(t, dkMidiState.song.length));
+}
+
+// length in seconds of the playing song, or of a song's data
+function dkMidiLength(dat) {
+    if (dat) {
+        return dkMidiDecode(dat).length;
+    }
+    return dkMidiState ? dkMidiState.song.length : 0;
+}
+
+// master MIDI volume, 0-1
+function dkMidiVolume(amount) {
+    dkMidiMaster = Math.max(0, amount);
+    /* jshint ignore:start */
+    if (dkMidiOut) {
+        dkMidiOut.gain.value = dkMidiMaster;
+    }
+    /* jshint ignore:end */
+}
+// DK MIDI SUPPORT END
+
+// DK SVG SUPPORT START
+// Draws vector pictures made by DK Converter. The shapes are redrawn sharply
+// for each size you ask for (and remembered), so they never look blurry.
+function dkDecodeSVG(dat) {
+    var bytes = dkDecodeZstdBytes(dat, dat.l);
+    var reader = dkMidiReader(bytes);
+    var zigzag = function() {
+        var value = reader.next();
+        return value % 2 ? -(value + 1) / 2 : value / 2;
+    };
+    if (reader.next() !== 1) {
+        dkThrow("DK SVG: unknown drawing format. Convert the file again.");
+    }
+    var q = reader.next();
+    var drawing = {
+        w: reader.next() / q,
+        h: reader.next() / q,
+        colors: [],
+        items: [],
+        sizes: []
+    };
+    var colorCount = reader.next();
+    var i;
+    var k;
+    var at;
+    for (i = 0; i < colorCount; i++) {
+        at = reader.at;
+        drawing.colors[i] = "rgba(" + bytes[at] + "," + bytes[at + 1] + "," +
+            bytes[at + 2] + "," + (bytes[at + 3] / 255) + ")";
+        reader.at = at + 4;
+    }
+    var itemCount = reader.next();
+    for (i = 0; i < itemCount; i++) {
+        var item = { flags: reader.next(), fillColor: -1, strokeColor: -1, lineWidth: 1, miter: 4, dashes: null, dashOffset: 0 };
+        if (item.flags % 2 === 1) {
+            item.fillColor = reader.next();
+        }
+        if (Math.floor(item.flags / 2) % 2 === 1) {
+            item.strokeColor = reader.next();
+            item.lineWidth = reader.next() / q;
+        }
+        if (Math.floor(item.flags / 128) % 2 === 1) {
+            item.miter = reader.next() / 100;
+        }
+        if (Math.floor(item.flags / 256) % 2 === 1) {
+            var dashCount = reader.next();
+            item.dashes = [];
+            for (k = 0; k < dashCount; k++) {
+                item.dashes[k] = reader.next() / q;
+            }
+            item.dashOffset = zigzag() / q;
+        }
+        item.steps = reader.next();
+        drawing.items[i] = item;
+    }
+    // step kinds for every shape come first, then all the points
+    var kindsAt = reader.at;
+    var stepTotal = 0;
+    for (i = 0; i < itemCount; i++) {
+        stepTotal += drawing.items[i].steps;
+    }
+    reader.at = kindsAt + stepTotal;
+    var penX = 0;
+    var penY = 0;
+    var kindIndex = kindsAt;
+    for (i = 0; i < itemCount; i++) {
+        var kinds = [];
+        var points = [];
+        for (k = 0; k < drawing.items[i].steps; k++) {
+            var kind = bytes[kindIndex];
+            kindIndex++;
+            kinds[k] = kind;
+            var pointCount = kind === 2 ? 3 : kind === 3 ? 0 : 1;
+            var p;
+            for (p = 0; p < pointCount; p++) {
+                penX += zigzag();
+                penY += zigzag();
+                points.push(penX / q, penY / q);
+            }
+        }
+        drawing.items[i].kinds = kinds;
+        drawing.items[i].points = points;
+    }
+    if (reader.at !== bytes.length) {
+        dkThrow("DK SVG: the drawing data has the wrong size.");
+    }
+    return drawing;
+}
+
+function dkRenderSVG(drawing, pixelWidth, pixelHeight) {
+    /* jshint ignore:start */
+    var img = createGraphics(pixelWidth, pixelHeight, JAVA2D);
+    var snapshot = img.get();
+    if (!snapshot || !snapshot.sourceImg ||
+        typeof snapshot.sourceImg.getContext !== "function") {
+        dkThrow("DK SVG: canvas snapshot unavailable.");
+    }
+    var ctx = snapshot.sourceImg.getContext("2d");
+    var caps = ["butt", "round", "square"];
+    var joins = ["miter", "round", "bevel"];
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, pixelWidth, pixelHeight);
+    ctx.setTransform(pixelWidth / drawing.w, 0, 0, pixelHeight / drawing.h, 0, 0);
+    var i;
+    for (i = 0; i < drawing.items.length; i++) {
+        var item = drawing.items[i];
+        var pts = item.points;
+        var at = 0;
+        var k;
+        ctx.beginPath();
+        for (k = 0; k < item.kinds.length; k++) {
+            var kind = item.kinds[k];
+            if (kind === 0) {
+                ctx.moveTo(pts[at], pts[at + 1]);
+                at += 2;
+            } else if (kind === 1) {
+                ctx.lineTo(pts[at], pts[at + 1]);
+                at += 2;
+            } else if (kind === 2) {
+                ctx.bezierCurveTo(pts[at], pts[at + 1], pts[at + 2], pts[at + 3], pts[at + 4], pts[at + 5]);
+                at += 6;
+            } else {
+                ctx.closePath();
+            }
+        }
+        if (item.fillColor >= 0) {
+            ctx.fillStyle = drawing.colors[item.fillColor];
+            ctx.fill(Math.floor(item.flags / 4) % 2 === 1 ? "evenodd" : "nonzero");
+        }
+        if (item.strokeColor >= 0) {
+            ctx.lineWidth = item.lineWidth;
+            ctx.lineCap = caps[Math.floor(item.flags / 8) % 4] || "butt";
+            ctx.lineJoin = joins[Math.floor(item.flags / 32) % 4] || "miter";
+            ctx.miterLimit = item.miter;
+            if (ctx.setLineDash) {
+                ctx.setLineDash(item.dashes || []);
+                ctx.lineDashOffset = item.dashOffset;
+            }
+            ctx.strokeStyle = drawing.colors[item.strokeColor];
+            ctx.stroke();
+        }
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    img.image(snapshot, 0, 0);
+    return img;
+    /* jshint ignore:end */
+}
+
+// Draws the picture with its top-left corner at (x, y). size 1 = its natural
+// size, 2 = twice as big, and so on.
+function dkDrawSVG(x, y, size, dat) {
+    if (!dat._drawing) {
+        dat._drawing = dkDecodeSVG(dat);
+    }
+    var drawing = dat._drawing;
+    if (size === undefined) {
+        size = 1;
+    }
+    var pixelWidth = Math.max(1, Math.min(4096, Math.round(drawing.w * size)));
+    var pixelHeight = Math.max(1, Math.min(4096, Math.round(drawing.h * size)));
+    var picture = null;
+    var i;
+    for (i = 0; i < drawing.sizes.length; i++) {
+        if (drawing.sizes[i].w === pixelWidth && drawing.sizes[i].h === pixelHeight) {
+            picture = drawing.sizes[i].img;
+        }
+    }
+    if (!picture) {
+        picture = dkRenderSVG(drawing, pixelWidth, pixelHeight);
+        drawing.sizes.push({ w: pixelWidth, h: pixelHeight, img: picture });
+        if (drawing.sizes.length > 4) {
+            drawing.sizes.shift();
+        }
+    }
+    image(picture, x, y, pixelWidth, pixelHeight);
+}
+// DK SVG SUPPORT END
 // ]
 
 
