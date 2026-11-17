@@ -21,5 +21,6 @@ window.DK_GAMES = {
         'maze-man-2',
         'wumpus-hunt',
         'generic',
+        { placeholder: true, title: 'Funny Physics 3D' }
     ]
 };
