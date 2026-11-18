@@ -923,31 +923,61 @@ function onKeyPressed(k) {
   }
 }
 
+function batAt(x, y) { for (let b = 0; b < numOfBats; b++) if (batLocX[b] === x && batLocY[b] === y) return b; return -1; }
 function onHazard(x, y) {
-  return wumpusAt(x, y) >= 0 || isPit(x, y) ||
-    (x === batLocX[0] && y === batLocY[0]) || (x === batLocX[1] && y === batLocY[1]);
+  return wumpusAt(x, y) >= 0 || isPit(x, y) || batAt(x, y) >= 0;
+}
+
+// True when every room that isn't a pitfall connects to every other one.
+// That means no wumpus can be walled in by pitfalls (corner, edge or anywhere),
+// and neither the player nor a bat drop can end up stuck in a sealed-off pocket.
+// (A wumpus standing in the way can always be shot first, so wumpi count as open rooms.)
+function pitsLeaveMapConnected() {
+  const total = N * N - pitX.length;
+  let sx = 0, sy = 0;
+  for (let x = 1; x <= N && !sx; x++) for (let y = 1; y <= N; y++) if (!isPit(x, y)) { sx = x; sy = y; break; }
+  const seen = {}, stack = [[sx, sy]];
+  seen[sx + "," + sy] = true;
+  let count = 0;
+  while (stack.length) {
+    const c = stack.pop();
+    count++;
+    const nb = [[c[0] + 1, c[1]], [c[0] - 1, c[1]], [c[0], c[1] + 1], [c[0], c[1] - 1]];
+    for (let k = 0; k < 4; k++) {
+      const nx = nb[k][0], ny = nb[k][1], key = nx + "," + ny;
+      if (nx < 1 || nx > N || ny < 1 || ny > N || seen[key] || isPit(nx, ny)) continue;
+      seen[key] = true;
+      stack.push([nx, ny]);
+    }
+  }
+  return count === total;
 }
 
 // Re-places the wumpi, pits, bats and player for the current mode
 function newRound() {
   N = mode === "mega" ? 9 : 6;
   const nW = mode === "mega" ? 2 : 1, nP = mode === "mega" ? 3 : 1;
-  wumpX = []; wumpY = []; wumpAlive = []; pitX = []; pitY = [];
-  for (let k = 0; k < nW; k++) {
-    let x, y;
-    do { x = rr(); y = rr(); } while (wumpusAt(x, y) >= 0);
-    wumpX.push(x); wumpY.push(y); wumpAlive.push(true);
-  }
-  for (let k = 0; k < nP; k++) {
-    let x, y;
-    do { x = rr(); y = rr(); } while (wumpusAt(x, y) >= 0 || isPit(x, y));
-    pitX.push(x); pitY.push(y);
-  }
-  numOfBats = floor(random(1, 3));
+  // Re-roll the layout until the pitfalls don't seal anything off (almost always the first try)
+  let layoutTries = 0;
+  do {
+    wumpX = []; wumpY = []; wumpAlive = []; pitX = []; pitY = [];
+    for (let k = 0; k < nW; k++) {
+      let x, y;
+      do { x = rr(); y = rr(); } while (wumpusAt(x, y) >= 0);
+      wumpX.push(x); wumpY.push(y); wumpAlive.push(true);
+    }
+    for (let k = 0; k < nP; k++) {
+      let x, y;
+      do { x = rr(); y = rr(); } while (wumpusAt(x, y) >= 0 || isPit(x, y));
+      pitX.push(x); pitY.push(y);
+    }
+    layoutTries++;
+  } while (!pitsLeaveMapConnected() && layoutTries < 500);
+  numOfBats = mode === "mega" ? 4 : floor(random(1, 3));
   batLocX = []; batLocY = [];
-  for (let b = 0; b < 2; b++) {
+  for (let b = 0; b < numOfBats; b++) {
     let bx, by;
-    do { bx = rr(); by = rr(); } while (isPit(bx, by));
+    do { bx = rr(); by = rr(); } while (isPit(bx, by) || batAt(bx, by) >= 0);
     batLocX.push(bx); batLocY.push(by);
   }
   resetRooms();
@@ -1180,10 +1210,6 @@ function sceneGame() {
         bat(bx * 65 - 38, by * 65 - 30, 20);
       }
       setAlpha(1);
-    }
-    if (isPit(batLocX[b], batLocY[b])) {
-      batLocX = [rr(), rr()];
-      batLocY = [rr(), rr()];
     }
     if (playerLocX === batLocX[b] && playerLocY === batLocY[b] && rooms[playerLocX][playerLocY].stepCount > 1) {
       batAnim = true;
@@ -1565,7 +1591,7 @@ function sceneInstruction() {
   const modeInfo = [
     ["NORMAL", "The classic hunt. Worth 1 streak point."],
     ["BLINDFOLDED", "You can only see the room you're standing in. Unlocks after you win Normal. Worth 2 points."],
-    ["MEGA MODE", "A 9x9 map with two Wumpi and three Pitfalls. Hunt them both, but one miss and you're dead. Worth 3 points."],
+    ["MEGA MODE", "A 9x9 map with two Wumpi, three Pitfalls, and four Bats. Hunt them both, but one miss and you're dead. Worth 3 points."],
     ["PREDATOR", "Blindfolded, and the Wumpus moves one space every time you do. You can see the four rooms around you, and red means he's two (or fewer) spaces away. Worth 2 points."]
   ];
   let my = 1565;

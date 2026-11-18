@@ -2693,12 +2693,15 @@ function nextGeneratedSuffix() {
 
 // raw bytes -> { literal, rawLength, characters } (Zstandard, then Base-K text)
 async function packForKhanAcademy(raw, onProgress) {
+    // Read the length first: the Zstandard worker takes ownership of raw's buffer,
+    // which empties raw (its length becomes 0) once compression starts.
+    const rawLength = raw.length;
     const compressed = await compressBytesWithZstd(raw, fraction => onProgress && onProgress(fraction * 0.6));
     if (conversionCancelled) throw new DOMException('Conversion cancelled.', 'AbortError');
     const text = await encodeBytes(compressed.bytes, fraction => onProgress && onProgress(0.6 + fraction * 0.4));
     return {
-        literal: `{s:${JSON.stringify(text)},n:${compressed.bytes.length},p:${compressed.padding},l:${raw.length}}`,
-        rawLength: raw.length,
+        literal: `{s:${JSON.stringify(text)},n:${compressed.bytes.length},p:${compressed.padding},l:${rawLength}}`,
+        rawLength,
         characters: text.length
     };
 }
@@ -3112,7 +3115,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const isSVG = !!file && isSVGFileName(file);
         updateColorCapOptions();
         updateUtilityCode(pixelArtInput.checked, capColorsInput.checked);
-        imageVideoOptions.hidden = isAudio || isMIDI;
+        // SVGs stay sharp at any size (the draw function takes a size), so no resolution cap
+        imageVideoOptions.hidden = isAudio || isMIDI || isSVG;
         imageQualityOptions.hidden = isAudio || isMIDI;
         gifFrameOptions.hidden = !isGIF && !isVideo;
         mediaAudioOptions.hidden = !isVideo && !isAudio;
@@ -3129,7 +3133,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (imageQualityHelp) {
             imageQualityHelp.textContent = isSVG
-                ? 'Higher keeps points more exactly (100 = 1/32 pixel) but makes the code longer. 40-60 looks the same as the original for most drawings. Max Output Resolution sets the size at size 1.'
+                ? 'Higher keeps points more exactly (100 = 1/32 pixel) but makes the code longer. 40-60 looks the same as the original for most drawings. Size 1 is the SVG\'s own size; pass any size to scale it.'
                 : imageQualityHelpText;
         }
         imageQualityInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -3203,7 +3207,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ));
             return;
         }
-        if (!isAudio && !isMIDI && maxDimension !== null &&
+        if (!isAudio && !isMIDI && !isSVG && maxDimension !== null &&
             (!Number.isSafeInteger(maxDimension) || maxDimension < 1)) {
             reportError(new Error('Max output resolution must be a positive whole number.'));
             return;
@@ -3274,7 +3278,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isMIDI) {
                 await processMIDI(file);
             } else if (isSVG) {
-                await processSVG(file, maxDimension, settings);
+                await processSVG(file, null, settings);
             } else if (isAudio) {
                 await processAudio(file, settings);
             } else if (isVideo) {

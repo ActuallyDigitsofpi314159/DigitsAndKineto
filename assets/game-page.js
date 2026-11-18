@@ -31,11 +31,11 @@
         return;
     }
 
-    document.title = game.title + ' — DK Digital';
+    document.title = game.title + ' | DK Digital';
     document.body.style.setProperty('--game-color', game.color);
 
     var shareUrl = window.location.href.split('#')[0];
-    var shareText = game.title + ' — ' + game.shortDescription;
+    var shareText = game.title + ': ' + game.shortDescription;
     var canNativeShare = typeof navigator.share === 'function';
 
     document.body.insertAdjacentHTML('afterbegin',

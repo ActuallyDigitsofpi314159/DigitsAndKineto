@@ -2378,8 +2378,13 @@ function dkDrawSVG(x, y, size, dat) {
     if (size === undefined) {
         size = 1;
     }
-    var pixelWidth = Math.max(1, Math.min(4096, Math.round(drawing.w * size)));
-    var pixelHeight = Math.max(1, Math.min(4096, Math.round(drawing.h * size)));
+    var drawWidth = Math.max(1, Math.round(drawing.w * size));
+    var drawHeight = Math.max(1, Math.round(drawing.h * size));
+    // Very large sizes are rendered at most 4096 pixels on a side (keeping the
+    // shape) and then stretched to fit, so they don't run out of memory.
+    var fit = Math.min(1, 4096 / Math.max(drawWidth, drawHeight));
+    var pixelWidth = Math.max(1, Math.round(drawWidth * fit));
+    var pixelHeight = Math.max(1, Math.round(drawHeight * fit));
     var picture = null;
     var i;
     for (i = 0; i < drawing.sizes.length; i++) {
@@ -2394,7 +2399,7 @@ function dkDrawSVG(x, y, size, dat) {
             drawing.sizes.shift();
         }
     }
-    image(picture, x, y, pixelWidth, pixelHeight);
+    image(picture, x, y, drawWidth, drawHeight);
 }
 // DK SVG SUPPORT END
 // ]

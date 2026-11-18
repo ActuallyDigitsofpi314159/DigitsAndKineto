@@ -28553,6 +28553,11 @@ function program() {
     for (var j = 0; j < localVerts.length; j++) {
       var vx = localVerts[j].x;
       var vy = localVerts[j].y;
+      if (thorn.centered) {
+        // [BUGFIX] final boss thorns turn around their middle (see drawThornSprite)
+        vx -= halfBase;
+        vy -= triHeight * 2 / 3;
+      }
       var rx = vx * __p.cos(thorn.r) - vy * __p.sin(thorn.r);
       var ry = vx * __p.sin(thorn.r) + vy * __p.cos(thorn.r);
       triVerts.push({
@@ -28581,6 +28586,11 @@ function program() {
     __p.pushMatrix();
     __p.translate(thorn.x, thorn.y);
     __p.rotate(thorn.r);
+    if (thorn.centered) {
+      // [BUGFIX] Turn around the triangle's middle, not its corner: turning around
+      // the corner swung the whole thorn sideways every time it changed direction.
+      __p.translate(-20, -40 / 3);
+    }
     __p.noStroke();
     __p.fill(70);
     __p.triangle(thorn.w - 20, thorn.h, thorn.w + 20, thorn.h, thorn.w, thorn.h - 20);
@@ -42114,7 +42124,8 @@ function program() {
           var angleSpeedY = __p.random(2.5, 4.5);
 
           // NEW: Calculate initial angle based on the starting velocity vector (converted to degrees)
-          var startingAngle = Math.atan2(angleSpeedY, angleSpeedX) * 180 / Math.PI;
+          // [BUGFIX] +90 like after a bounce (the tip points along -y), so the first bounce doesn't snap 90 degrees extra
+          var startingAngle = Math.atan2(angleSpeedY, angleSpeedX) * 180 / Math.PI + 90;
           this.obstacles.push({
             type: "pongThorn",
             x: spawnX,
@@ -42122,7 +42133,8 @@ function program() {
             vx: angleSpeedX,
             vy: angleSpeedY,
             r: startingAngle,
-            // Updated from random(360) to match direction
+            targetR: startingAngle,
+            centered: true,
             size: 50,
             fade: 0 // [BUGFIX] fades in (harmless) before it starts moving
           });
@@ -42149,23 +42161,36 @@ function program() {
         // Track if a bounce happens so we can update the angle
         var didBounce = false;
 
-        // Pong Ball Wall Bounce Check (Left / Right Screen Boundaries)
-        if (thorn.x < 10 || thorn.x > 590) {
-          thorn.vx *= -1;
-          thorn.x = __p.constrain(thorn.x, 25, 575);
+        // Pong Ball Wall Bounce Check. [BUGFIX] Bounce right at the edge and always
+        // head back inward (it used to teleport 15 px in, and could flip twice).
+        var edge = 20;
+        if (thorn.x < edge) {
+          thorn.x = edge;
+          thorn.vx = Math.abs(thorn.vx);
+          didBounce = true;
+        } else if (thorn.x > 600 - edge) {
+          thorn.x = 600 - edge;
+          thorn.vx = -Math.abs(thorn.vx);
+          didBounce = true;
+        }
+        if (thorn.y < edge) {
+          thorn.y = edge;
+          thorn.vy = Math.abs(thorn.vy);
+          didBounce = true;
+        } else if (thorn.y > 600 - edge) {
+          thorn.y = 600 - edge;
+          thorn.vy = -Math.abs(thorn.vy);
           didBounce = true;
         }
 
-        // Pong Ball Wall Bounce Check (Top / Bottom Canvas Boundaries)
-        if (thorn.y < 10 || thorn.y > 590) {
-          thorn.vy *= -1;
-          thorn.y = __p.constrain(thorn.y, 25, 575);
-          didBounce = true;
-        }
-
-        // NEW: If the thorn bounced off a wall, recalculate its angle to face the new direction
+        // After a bounce, face the new direction. [BUGFIX] Turn there quickly by the
+        // short way round instead of snapping (the snap looked like the thorn glitched).
         if (didBounce) {
-          thorn.r = Math.atan2(thorn.vy, thorn.vx) * 180 / Math.PI + 90;
+          thorn.targetR = Math.atan2(thorn.vy, thorn.vx) * 180 / Math.PI + 90;
+        }
+        if (thorn.targetR !== undefined) {
+          var turn = ((thorn.targetR - thorn.r) % 360 + 540) % 360 - 180;
+          thorn.r += Math.abs(turn) < 1 ? turn : turn * __p.min(1, 0.35 * DT);
         }
 
         // Execute custom collision via our refactored OBB helper
@@ -47083,7 +47108,7 @@ function program() {
 
             // Scene 4 (ground + lava crashes into place)
             if (cFrames > 635 && cFrames <= 750) {
-              if (dtCross(cFrames, 636)) {
+              if (cFrames - DT <= 635) { // [BUGFIX] reset on this scene's first frame: waiting for 636 let a frame between 635 and 636 show the last scene's values (the white flash)
                 ctOpacity = 0;
               }
               if (dtCross(cFrames, 636) || dtCross(cFrames, 651)) {
@@ -47147,7 +47172,7 @@ function program() {
 
             // Scene 5 "The hardest parkour couse..."
             if (cFrames > 750 && cFrames <= 1125) {
-              if (dtCross(cFrames, 751)) {
+              if (cFrames - DT <= 750) { // [BUGFIX] reset on this scene's first frame: waiting for 751 let a frame between 750 and 751 show the last scene's values (the white flash)
                 ctOpacity2 = 0;
               }
 
@@ -47328,7 +47353,7 @@ function program() {
 
             // Scene 8 "The world's greatest players tried
             if (cFrames > 1685 && cFrames <= 2030) {
-              if (dtCross(cFrames, 1686)) {
+              if (cFrames - DT <= 1685) { // [BUGFIX] reset on this scene's first frame: waiting for 1686 let a frame between 1685 and 1686 show the last scene's values (the white flash)
                 cutsceneY[0] = 380;
                 cutsceneY[1] = 380;
                 cutsceneY[2] = 380;
@@ -47539,7 +47564,7 @@ function program() {
 
             // Scene 12 "Can he complete it?"
             if (cFrames > 2680 && cFrames <= 2950) {
-              if (dtCross(cFrames, 2681)) {
+              if (cFrames - DT <= 2680) { // [BUGFIX] reset on this scene's first frame: waiting for 2681 let a frame between 2680 and 2681 show the last scene's values (the white flash)
                 ctOpacity = 255;
               }
 
