@@ -2,7 +2,8 @@
  *
  * Everything is synthesized live with Web Audio from the note patterns below
  * (original pieces written for these games), so there are no sound files and
- * nothing copyrighted.
+ * nothing copyrighted. The one borrowed tune, Wumpus Hunt's 'wumpus-eaten', is from
+ * the original Hunt the Wumpus (not under copyright) and is credited in the game.
  *
  *   DKAudio.init('wumpus-hunt');      // once; loads that game's saved on/off settings
  *   DKAudio.music('wumpus-cave');     // start / switch song (null = silence)
@@ -100,17 +101,55 @@
   ['touchstart', 'touchend', 'pointerdown', 'pointerup', 'mousedown', 'click', 'keydown'].forEach(function (name) {
     window.addEventListener(name, unlock, { capture: true, passive: true });
   });
+  // promise-safe: a refused resume() / suspend() must not throw an unhandled error
+  function quietly(fn) {
+    try { var p = fn(); if (p && p.catch) p.catch(function () {}); } catch (e) { /* ignore */ }
+  }
+  function wake() {
+    if (!ctx || document.hidden || ctx.state === 'running' || ctx.state === 'closed') return;
+    quietly(function () { return ctx.resume(); });
+    watch.ct = -1; // the clock was frozen while hidden: that isn't "stuck"
+  }
   // no music from a background tab
   document.addEventListener('visibilitychange', function () {
     if (!ctx) return;
-    if (document.hidden) ctx.suspend();
-    else ctx.resume();
+    if (document.hidden) quietly(function () { return ctx.suspend(); });
+    else wake();
   });
-  // coming back to the page from the back/forward cache
-  window.addEventListener('pageshow', function () { if (ctx && !document.hidden) ctx.resume(); });
+  // coming back to the page from the back/forward cache, or to the window
+  window.addEventListener('pageshow', wake);
+  window.addEventListener('focus', wake);
+
+  // Watchdog. Switching tabs or apps (or ChromeOS taking the speakers away) can
+  // leave the sound asleep, and a stuck output device can stop the audio clock
+  // although the context says it is running: the song then plays its first note
+  // and nothing more. Every half second: wake a sleeping context while the page is
+  // visible, and if the clock hasn't moved for 2 s, make a new context and carry on.
+  var watch = { ct: -1, still: 0, at: 0, rebuilds: 0, rebuiltAt: 0 };
+  setInterval(function () {
+    var now = Date.now(), dt = watch.at ? (now - watch.at) / 1000 : 0;
+    watch.at = now;
+    if (!ctx || !gestured || document.hidden) { watch.ct = -1; return; }
+    if (ctx.state !== 'running') { wake(); return; }
+    if (ctx.currentTime !== watch.ct) { watch.ct = ctx.currentTime; watch.still = 0; return; }
+    watch.still += dt;
+    if (watch.still > 2 && watch.rebuilds < 3 && now - watch.rebuiltAt > 10000) {
+      watch.rebuilds++; watch.rebuiltAt = now; watch.still = 0; watch.ct = -1;
+      var old = ctx;
+      if (current) { clearTimeout(current.timer); current = null; }
+      ctx = null;
+      quietly(function () { return old.close(); });
+      if (!ensure()) return;
+      wake();
+      if (wantedSong && settings.music && ctx.state === 'running') startSong(wantedSong); // (else onstatechange does)
+    }
+  }, 500);
 
   /* ------------------------------------------------------------ building blocks */
 
+  // The piano's lowest C is C1 (its octave 0 only has A0 to B0), so the Wumpus death
+  // tune plays in octave 1. Change this one number to move it.
+  var WUMPUS_TUNE_OCTAVE = 1;
   var NOTE_INDEX = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
   function noteFreq(name) {
     var m = /^([A-G])([#b]?)(-?\d)$/.exec(name);
@@ -238,6 +277,24 @@
         o.frequency.exponentialRampToValueAtTime(35, t + d + 0.12);
         o.start(t + d); o.stop(env(g.gain, t + d, vol * (i ? 0.7 : 1), 0.004, 0, 0.18));
       });
+    },
+    // a low piano note: a hammer thump plus a stack of slightly stretched overtones
+    // that fade faster the higher they are. The overtones carry the pitch, so even a
+    // note this deep is heard on laptop and phone speakers.
+    lowpiano: function (f, t, dur, vol, out) {
+      var g = gainNode(out, 0), lp = filter('lowpass', 2400, 0.5, g);
+      var end = t + Math.max(0.6, dur) + 1.2;
+      for (var n = 1; n <= 14; n++) {
+        var pg = gainNode(lp, 0), o = osc(n === 1 ? 'triangle' : 'sine', f * n * (1 + 0.0004 * n * n), t, pg);
+        env(pg.gain, t, 1 / Math.pow(n, 0.7), 0.004, 0, Math.max(0.25, 2.4 / Math.sqrt(n)));
+        o.start(t); o.stop(end);
+      }
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(vol, t + 0.004);
+      g.gain.setValueAtTime(vol, t + Math.max(0.05, dur - 0.08));
+      g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.05, dur - 0.08) + 0.35); // key let go: damper down
+      var thump = gainNode(out, 0);
+      noise(t, filter('lowpass', 900, 0.7, thump)).stop(env(thump.gain, t, vol * 0.35, 0.002, 0, 0.06));
     },
     drip: function (f, t, dur, vol, out) { // water drop in a cave
       var g = gainNode(out, 0), o = osc('sine', f, t, g);
@@ -374,7 +431,13 @@
     if (state.start + state.nextStep * state.stepTime < now - 0.5) { // woke up from a long sleep: jump ahead
       state.nextStep = Math.ceil((now - state.start) / state.stepTime);
     }
-    while (state.start + state.nextStep * state.stepTime < now + 0.3) {
+    // look further ahead when the timer has been running late (a slow computer or a
+    // busy game frame), so notes aren't dropped for arriving too late
+    var wall = Date.now(), gap = state.lastPump ? (wall - state.lastPump) / 1000 : 0.09;
+    state.lastPump = wall;
+    if (!document.hidden) state.lateMax = Math.max(gap, (state.lateMax || 0) * 0.97);
+    var ahead = Math.max(0.3, Math.min(1.2, (state.lateMax || 0) * 1.3 + 0.05));
+    while (state.start + state.nextStep * state.stepTime < now + ahead) {
       var stepIndex = state.nextStep;
       var at = state.start + stepIndex * state.stepTime;
       for (var p = 0; p < state.parts.length; p++) {
@@ -443,6 +506,19 @@
     pitfall: function (t, o, v) { sweep('sine', 700, 60, t, 1.6, 0.25 * v, o); noiseHit('bandpass', 800, t, 1.4, 0.12 * v, o, 0.6); },
     bats: function (t, o, v) { for (var i = 0; i < 8; i++) noiseHit('bandpass', 1200 + Math.random() * 600, t + i * 0.07, 0.05, 0.22 * v, o, 2); },
     lose: function (t, o, v) { notes('pluck', ['E4', 'D#4', 'D4', 'C#4'], 0.22, 0.3 * v, o, t); },
+    // Wumpus Hunt: the tune when the Wumpus eats you. From the original Hunt the Wumpus
+    // (not under copyright; credited on the game-over screen). Low piano.
+    'wumpus-eaten': function (t, o, v) {
+      var oct = WUMPUS_TUNE_OCTAVE, q = 0.46, duh = 0.32, da = 0.12; // a beat, a quicker "duh", the quick "da"
+      // dum dum dum duh, da-duh da-duh da-duh: C C C D#, C#-D, C-C#, B-C
+      // (the B is the one just below the last C, so it leads up into it)
+      var tune = [['C', q], ['C', q], ['C', q], ['D#', duh], ['C#', da], ['D', duh], ['C', da], ['C#', duh], ['B', da, -1], ['C', 0.6]];
+      var at = t;
+      tune.forEach(function (n) {
+        INSTRUMENTS.lowpiano(noteFreq(n[0] + (oct + (n[2] || 0))), at, n[1] * 0.92, 0.38 * v, o);
+        at += n[1];
+      });
+    },
     whoosh: function (t, o, v) { noiseHit('bandpass', 700, t, 0.5, 0.18 * v, o, 0.7); },
     jumpscare: function (t, o, v) {
       noiseHit('highpass', 900, t, 1.1, 0.7 * v, o);

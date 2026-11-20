@@ -35988,8 +35988,15 @@ function program() {
       this.life -= 5 * DT;
     } else if (this.type === "pi") {
       var piOwner = this.boss && this.boss.x !== undefined ? this.boss : p; // [v1.1] another player's Dash in multiplayer
-      var dx = piOwner.x - this.x;
-      var dy = piOwner.y - this.y;
+      // [v1.4] the digits move relative to their Dash, so a running (or dashing) Dash
+      // carries them along: they used to fly at a fixed speed in the world and got
+      // left behind as soon as Dash moved faster than they could
+      if (this.ox === undefined) {
+        this.ox = this.x - piOwner.x;
+        this.oy = this.y - piOwner.y;
+      }
+      var dx = -this.ox;
+      var dy = -this.oy;
       var dSq = dx * dx + dy * dy;
       var distance = __p.sqrt(dSq);
 
@@ -36010,9 +36017,11 @@ function program() {
         if (speed * DT >= distance - 8) {
           this.life = -1;
         } else {
-          // MOVE CONSTANTLY
-          this.x += dx / distance * speed * DT;
-          this.y += dy / distance * speed * DT;
+          // MOVE CONSTANTLY (towards Dash, wherever Dash is now)
+          this.ox += dx / distance * speed * DT;
+          this.oy += dy / distance * speed * DT;
+          this.x = piOwner.x + this.ox;
+          this.y = piOwner.y + this.oy;
           // MAP OPACITY DIRECTLY TO DISTANCE (only while still alive: mapping it after
           // the kill above brought the particle back to full life, so it sat on the
           // player forever and they piled up)
@@ -48602,6 +48611,11 @@ function program() {
           updateBossBlink(bossBlinks[i]);
         }
 
+        // [v1.4] the touch buttons (MENU, CHAT) go under the transition, not over it
+        __p.pushStyle();
+        mobileDraw(); // [v1.1] touch buttons
+        __p.popStyle();
+
         // Transition
         if (transitionActive) {
           transitionY += transitionSpeed * DT; // move the transition
@@ -48635,9 +48649,6 @@ function program() {
           __p.rect(-10 - widePad, -10, 700 + widePad * 2, fadeIntoGame + 350);
         }
       }
-      __p.pushStyle();
-      mobileDraw(); // [v1.1] touch buttons
-      __p.popStyle();
       __p.pushStyle();
       mpDrawOverlay(); // [MP] chat, notices, race results
       __p.popStyle();
@@ -48964,6 +48975,9 @@ function program() {
     MP.raceDecided = false;
     MP.finished = false;
     MP.spectating = false;
+    if (typeof ADM !== "undefined") {
+      ADM.spectate = false; // [v1.4] (a new party starts playing)
+    }
     dashTint = null;
     if (wasActive && reason) {
       mpToast(reason);
@@ -49003,6 +49017,7 @@ function program() {
       dm: p.admDoom !== undefined && p.admDoom !== null ? 1 : 0,
       id: MP.myId,
       in: inLevel && !MP.spectating ? 1 : 0,
+      spc: MP.spectating ? 1 : 0, // [v1.4] watching, not playing (gates and bosses leave them out)
       ses: MP.session,
       lv: currentLevel,
       fb: finalBossPhase,
@@ -49047,11 +49062,14 @@ function program() {
   };
   // Gates: in Linked mode a checkpoint, launcher, boss or finish only fires once
   // every player in this level has reached it.
+  // [v1.4] Spectators aren't playing, so they're left out: a launcher, checkpoint,
+  // boss or finish used to wait for them for ever. Every game leaves out the same
+  // players (they say so in their state), so bosses still pick the same target.
   var mpPlayersInLevel = function mpPlayersInLevel() {
-    var ids = [MP.myId];
+    var ids = MP.spectating ? [] : [MP.myId];
     for (var k in MP.players) {
       var pl = MP.players[k];
-      if (pl.id !== MP.myId && pl.st && pl.st.ses === MP.session && pl.st.lv === currentLevel) {
+      if (pl.id !== MP.myId && pl.st && pl.st.ses === MP.session && pl.st.lv === currentLevel && !pl.st.spc) {
         ids.push(pl.id);
       }
     }
@@ -49719,7 +49737,7 @@ function program() {
     var rows = [];
     for (var k in MP.players) {
       var pl = MP.players[k];
-      if (pl.spec) {
+      if (pl.spec || (pl.id === MP.myId ? MP.spectating : pl.st && pl.st.spc)) {
         continue; // [v1.3] spectators are not in the race
       }
       var st = pl.id === MP.myId ? mpCurrentState() : pl.st;
@@ -49786,7 +49804,13 @@ function program() {
       MP.myHits = 0;
       // everyone waits at the start until all players have loaded, then a
       // shared 3-2-1 countdown starts the level for all at the same moment
-      MP.hold = mpCount() > 1 && !MP.spectating;
+      // [v1.4] Digitsofpi or Kineto chose to spectate: they watch this level too
+      if (admOn() && ADM.spectate) {
+        MP.spectating = true;
+        MP.specId = -1;
+      }
+      // (a spectating host still holds, so it runs everyone's 3-2-1 countdown)
+      MP.hold = mpCount() > 1 && (!MP.spectating || MP.isHost);
       MP.readySent = false;
       MP.holdSince = Date.now();
       MP.raceOutT = 0;
@@ -49950,6 +49974,44 @@ function program() {
     cam.targetX = snap.x - 300;
     cam.targetY = snap.y + (snap.ay !== undefined && lvl && lvl.arenaY !== undefined ? lvl.arenaY - snap.ay : 0) - 300;
   };
+  // [v1.4] Digitsofpi and Kineto can spectate (or stop) whenever they like: the Q
+  // menu's Spectate switch, the - key, or /spectate in chat. In a level it starts at
+  // once; on the map it applies from the next level. Stopping drops Dash in where
+  // the player being watched is.
+  var mpDevSpectate = function mpDevSpectate(on) {
+    if (!admOn()) {
+      return;
+    }
+    if (!MP.active) {
+      ADM.spectate = false;
+      mpChatLine("", "Spectating is for multiplayer games.", -1);
+      return;
+    }
+    ADM.spectate = !!on;
+    if (scene !== "game") {
+      mpChatLine("", on ? "You'll spectate from the next level." : "You'll play the next level.", -1);
+      return;
+    }
+    if (on && !MP.spectating) {
+      MP.spectating = true;
+      MP.specId = -1;
+      mpChatLine("", "Spectating. Click or press LEFT / RIGHT to watch someone else.", -1);
+    } else if (!on && MP.spectating) {
+      var pl = MP.players[MP.specId];
+      var snap = pl && (mpSample(pl) || pl.st);
+      MP.spectating = false;
+      MP.hold = false;
+      if (snap && p) {
+        p.x = snap.x;
+        p.y = snap.y + (snap.ay !== undefined && lvl && lvl.arenaY !== undefined ? lvl.arenaY - snap.ay : 0);
+        p.vy = 0;
+        if (p.vx !== undefined) {
+          p.vx = 0;
+        }
+      }
+      mpChatLine("", "Playing again.", -1);
+    }
+  };
   var mpHoldUpdate = function mpHoldUpdate() {
     var saved = {},
       k;
@@ -49971,6 +50033,9 @@ function program() {
       case "hi":
         // host: a joiner introduced itself
         pl = mpAddPlayer(fromId, String(m.n || "Player").slice(0, 16), MP.players[fromId] ? MP.players[fromId].color : mpFreeColor(), m.sk | 0);
+        if (mpDevName(pl)) {
+          mpAssignColors(); // [v1.4] Digitsofpi red, Kineto blue
+        }
         mpChatLine("", mpShownName(pl) + " joined the game", -1);
         sfx("playerJoin"); // [v1.1] sound
         mpSendRoster();
@@ -50194,6 +50259,44 @@ function program() {
         return;
     }
   };
+  // [v1.4] Digitsofpi is always red and Kineto always blue, wherever they are in the
+  // party. When one of them joins (or leaves), everyone else gets the colours that are
+  // left, in the order they joined. (Their names are protected by a passcode.)
+  var MP_DEV_COLORS = { digitsofpi: 0, kineto: 1 };
+  var mpDevName = function mpDevName(pl) {
+    var n = String(pl && pl.name || "").toLowerCase();
+    return MP_DEV_COLORS[n] !== undefined ? n : "";
+  };
+  var mpAssignColors = function mpAssignColors() {
+    var ids = [],
+      taken = {},
+      k;
+    for (k in MP.players) {
+      ids.push(MP.players[k].id);
+    }
+    ids.sort(function (a, b) {
+      return a - b;
+    });
+    var rest = [];
+    for (var i = 0; i < ids.length; i++) {
+      var pl = MP.players[ids[i]],
+        dc = MP_DEV_COLORS[mpDevName(pl)];
+      if (dc !== undefined && !taken[dc]) {
+        pl.color = dc;
+        taken[dc] = true;
+      } else {
+        rest.push(pl);
+      }
+    }
+    var c = 0;
+    for (var j = 0; j < rest.length; j++) {
+      while (taken[c] && c < MP_COLORS.length) {
+        c++;
+      }
+      rest[j].color = c % MP_COLORS.length;
+      taken[c] = true;
+    }
+  };
   var mpFreeColor = function mpFreeColor() {
     for (var c = 1; c < MP_COLORS.length; c++) {
       var used = false;
@@ -50234,6 +50337,10 @@ function program() {
   //   /kick NAME   out of this game         /ban NAME   out of all multiplayer
   //   /unban NAME  lets them back in        (bans and others' parties: server mode)
   var mpCommand = function mpCommand(msg) {
+    if (/^\/spec(tate)?\s*$/i.test(msg) && admOn()) {
+      mpDevSpectate(!ADM.spectate); // [v1.4]
+      return true;
+    }
     var m = /^\/(kick|ban|unban)\b\s*(.*)$/i.exec(msg);
     if (!m) {
       return false;
@@ -50304,7 +50411,11 @@ function program() {
         t: "sys",
         x: pl.name + (pl.kicked ? " was removed by the host" : " left the game")
       });
+      var wasDev = !!mpDevName(pl);
       delete MP.players[id];
+      if (wasDev) {
+        mpAssignColors(); // [v1.4] the others move back up
+      }
       mpSendRoster();
     }
   };
@@ -50410,6 +50521,7 @@ function program() {
     MP.screen = "host";
     MP.players = {};
     mpAddPlayer(0, MP.fields.name || "Host", 0, currentSkin);
+    mpAssignColors(); // [v1.4] (Kineto hosting is blue)
     mpChatHint();
   };
   var mpMakeInvite = function mpMakeInvite(opt) {
@@ -50437,8 +50549,13 @@ function program() {
     var wantLan = MP.lanMode || !!(opt && opt.lan);
     var ready = opt && opt.lan ? mpTryUnlockLocal() : MP.lanMode && !MP.localUnlocked ? mpUnlockQuietly() : Promise.resolve(true);
     ready.then(function () {
+      // [v1.4] opt.both: the party server carries the code, so its length doesn't
+      // matter: send the local address as well as the public one, every time. The
+      // server's "same Wi-Fi" guess can be wrong (one device reaching it over IPv6,
+      // the other over IPv4), and a player on the host's Wi-Fi who only got the
+      // public address was stuck at "Almost there" on routers that can't loop back.
       return window.DashNet.createInvite(slot, {
-        noRawLocal: !wantLan
+        noRawLocal: !wantLan && !(opt && opt.both)
       });
     }).then(function (r) {
       if (MP.invite !== inv) {
@@ -51062,7 +51179,8 @@ function program() {
       if (MP.isHost && MP.readySent && MP.countSes !== MP.session) {
         var allIn = true;
         for (var pk in MP.players) {
-          if (!MP.readyIds[MP.players[pk].id] && !MP.players[pk].spec) {
+          var rp = MP.players[pk];
+          if (!MP.readyIds[rp.id] && !rp.spec && !(rp.st && rp.st.spc) && rp.id !== MP.myId) {
             allIn = false;
           }
         }
@@ -51355,8 +51473,7 @@ function program() {
     __p.rect(x, y, 31, 15, 5);
     __p.noStroke();
     __p.fill(255);
-    __p.textFont(mpSans);
-    __p.textSize(10.5);
+    __p.textFont(mpSans, 10.5);
     __p.textAlign(__p.CENTER, __p.CENTER);
     __p.text("DEV", x + 15.5, y + 7.5);
     __p.popStyle();
@@ -51517,7 +51634,7 @@ function program() {
   // Only characters the font has are drawn; anything else is left out.
   var mpArcSafe = function mpArcSafe(str) {
     var out = "";
-    str = String(str);
+    str = String(str).replace(/[\u2018\u2019]/g, "'"); // [v1.4] curly apostrophes (party server names) draw as '
     for (var i = 0; i < str.length; i++) {
       var ch = str.charAt(i);
       if (arcGlyphWidths[ch] !== undefined && ch !== "\n") {
@@ -51722,16 +51839,9 @@ function program() {
       mpParagraph("Multiplayer needs WebRTC, which this browser or page does not allow. Try a recent Chrome, Edge or Firefox.", 40, y, 520, 17);
       return;
     }
-    if (MP.screen === "home" && mpServerOn()) {
-      srvDrawHome(y); // [v1.1 beta] party list
-      return;
-    }
-    if (MP.screen === "create") {
-      srvDrawCreate(y);
-      return;
-    }
-    if (MP.screen === "browse") {
-      srvDrawBrowse(y);
+    // [v1.4] party server: the lobby (party list + CREATE PARTY) is the first screen
+    if (mpServerOn() && (MP.screen === "home" || MP.screen === "browse" || MP.screen === "create")) {
+      srvDrawLobby(y);
       return;
     }
     if (MP.screen === "home" || MP.screen === "codes") {
@@ -51979,10 +52089,12 @@ function program() {
     return out;
   };
   var mpDrawOverlay = function mpDrawOverlay() {
-    __p.textFont(mpSans);
-    // chat (Minecraft style, bottom-left); long messages wrap onto more rows
-    __p.textFont(mpSans);
-    __p.textSize(15);
+    // chat (Minecraft style, bottom-left); long messages wrap onto more rows.
+    // [v1.4] The size goes in the textFont call: textFont(mpSans) alone brings back
+    // the 16px font while Processing still thinks the size is 15, so the next
+    // textSize(15) did nothing and rows were drawn wider than they were measured
+    // (the chat ran out of its box).
+    __p.textFont(mpSans, 15);
     var boxW = 420,
       rowH = 21;
     var inputRows = [];
@@ -52052,8 +52164,7 @@ function program() {
           drawIdleCrown(nx + 7, ly - 6, 14);
           nx += 18;
         }
-        __p.textFont(mpSans);
-        __p.textSize(15);
+        __p.textFont(mpSans, 15);
         __p.textAlign(__p.LEFT, __p.BOTTOM);
         __p.noStroke();
         __p.fill(c[0], c[1], c[2], R.a);
@@ -52111,8 +52222,7 @@ function program() {
     if (MP.toastT > 0 && MP.toast) {
       var ta = __p.constrain(MP.toastT * 8, 0, 255);
       var slide = (1 - __p.constrain((240 - MP.toastT) / 12, 0, 1)) * -30; // drops in
-      __p.textFont(mpSans);
-      __p.textSize(15);
+      __p.textFont(mpSans, 15);
       var tlines = mpTextWrap(MP.toast, __p.min(460, wideW - 120), 0);
       var tw = 0;
       for (var tl = 0; tl < tlines.length; tl++) {
@@ -52220,12 +52330,24 @@ function program() {
       if (mobileIsBox(e.target) && e.key !== "Enter" && e.key !== "Escape") {
         return; // [v1.1] the phone keyboard types into a real text box (see mobile.js)
       }
+      // [v1.4] the game repeats a held key itself (below), so the system's repeats are
+      // ignored: some computers don't send them (a Mac holding a letter, for one)
+      if (e.repeat) {
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "Backspace" && (e.ctrlKey || e.altKey || e.metaKey)) {
+        // Ctrl+Backspace (Alt on a Mac) deletes a word, Cmd+Backspace the whole line
+        var wk = { key: "Backspace", word: !e.metaKey, line: e.metaKey };
+        editKey(wk);
+        holdKey(e.code, wk);
+        e.preventDefault();
+        return;
+      }
       if (e.ctrlKey || e.metaKey || e.altKey) {
         return; // let Ctrl+V / Ctrl+C reach the browser
       }
       var target = MP.chatOpen ? "chat" : MP.focus;
-      var val = target === "chat" ? MP.chatText : MP.fields[target];
-      var maxLen = target === "name" ? 16 : target === "chat" ? 200 : target === "pass" ? 24 : 200;
       if (e.key === "Escape") {
         if (MP.chatOpen) {
           MP.chatOpen = false;
@@ -52258,21 +52380,45 @@ function program() {
         } else {
           MP.focus = null;
         }
-      } else if (e.key === "Backspace") {
-        if (target === "invite" || target === "reply") {
-          val = String(val).replace(/[^0-9a-z]/gi, "").slice(0, -1); // the space comes back by itself
+      } else if (e.key === "Backspace" || e.key.length === 1) {
+        var k1 = { key: e.key };
+        editKey(k1);
+        holdKey(e.code, k1); // held down: it repeats
+      }
+      e.preventDefault();
+    }, true);
+    // One key's worth of typing into the chat or the field being typed in.
+    var editKey = function editKey(k) {
+      var target = MP.chatOpen ? "chat" : MP.focus;
+      if (!target) {
+        return false;
+      }
+      var val = String((target === "chat" ? MP.chatText : MP.fields[target]) || "");
+      var maxLen = target === "name" ? 16 : target === "chat" ? 200 : target === "pass" ? 24 : 200;
+      var code = target === "invite" || target === "reply";
+      var before = val;
+      if (k.key === "Backspace") {
+        if (code) {
+          val = val.replace(/[^0-9a-z]/gi, ""); // the dashes come back by themselves
+        }
+        if (k.line) {
+          val = "";
+        } else if (k.word) {
+          // spaces before the cursor, then one word (or one run of punctuation)
+          val = val.replace(/\s+$/, "");
+          val = code ? val.slice(0, -4) : val.replace(/([A-Za-z0-9_\u00c0-\uffff]+|[^A-Za-z0-9_\u00c0-\uffff\s]+)$/, "");
         } else {
           val = val.slice(0, -1);
         }
-      } else if (e.key.length === 1 && val.length < maxLen && (target === "chat" || mpArcSafe(e.key) === e.key)) {
-        val += e.key; // ([v1.1] fields are drawn in ArcDash: only letters it has can be typed)
+      } else if (k.key.length === 1 && val.length < maxLen && (target === "chat" || mpArcSafe(k.key) === k.key)) {
+        val += k.key; // ([v1.1] fields are drawn in ArcDash: only letters it has can be typed)
       }
-      if (target === "invite" || target === "reply") {
+      if (code) {
         val = mpFormatCode(val);
       }
       if (target === "chat") {
         MP.chatText = val;
-      } else if (target) {
+      } else {
         MP.fields[target] = val;
         if (target === "name") {
           try {
@@ -52280,8 +52426,39 @@ function program() {
           } catch (err) {}
         }
       }
-      e.preventDefault();
-    }, true);
+      return val !== before;
+    };
+    // [v1.4] A held key repeats: after 0.42 s, then 25 times a second, until it is
+    // let go, the typing stops or another key is pressed.
+    var held = null;
+    var letGoKey = function letGoKey() {
+      if (held) {
+        clearTimeout(held.timer);
+        held = null;
+      }
+    };
+    var holdKey = function holdKey(code, k) {
+      letGoKey();
+      var h = held = {
+        code: code,
+        k: k,
+        target: MP.chatOpen ? "chat" : MP.focus
+      };
+      var again = function () {
+        if (held !== h) {
+          return;
+        }
+        if (!typing() || (MP.chatOpen ? "chat" : MP.focus) !== h.target) {
+          letGoKey();
+          return;
+        }
+        editKey(h.k);
+        h.timer = setTimeout(again, 40);
+      };
+      h.timer = setTimeout(again, 420);
+    };
+    window.addEventListener("blur", letGoKey);
+    document.addEventListener("visibilitychange", letGoKey);
     var lastTouchAt = 0;
     window.addEventListener("touchstart", function () {
       lastTouchAt = Date.now();
@@ -52317,6 +52494,9 @@ function program() {
       }
     }, true);
     window.addEventListener("keyup", function (e) {
+      if (held && (e.code === held.code || e.key === "Control" || e.key === "Alt" || e.key === "Meta")) {
+        letGoKey(); // [v1.4] the held key (or Ctrl for a held Ctrl+Backspace) was let go
+      }
       if (typing()) {
         e.stopImmediatePropagation();
       }
@@ -52534,10 +52714,14 @@ function program() {
     }
   };
   // ---- the toggles (Q menu rows, and number keys 1 to 0) ----
-  var ADM_TOGGLES = [["fly", "Fly", "1"], ["noclip", "Noclip", "2"], ["freecam", "Freecam", "3"], ["invincible", "Invincible", "4"], ["airJump", "Air jump", "5"], ["invert", "Flip gravity", "6"], ["strike", "Orbital strike", "7"], ["teleport", "Click to teleport", "8"], ["slowmo", "Slow motion", "9"], ["rainbow", "Rainbow trail", "0"]];
+  var ADM_TOGGLES = [["fly", "Fly", "1"], ["noclip", "Noclip", "2"], ["freecam", "Freecam", "3"], ["invincible", "Invincible", "4"], ["airJump", "Air jump", "5"], ["invert", "Flip gravity", "6"], ["strike", "Orbital strike", "7"], ["teleport", "Click to teleport", "8"], ["slowmo", "Slow motion", "9"], ["rainbow", "Rainbow trail", "0"], ["spectate", "Spectate", "-"]]; // [v1.4] Spectate: multiplayer only
   var admToggle = function admToggle(key, viaKey) {
     sfx("adminToggle"); // [v1.1] sound
-    ADM[key] = !ADM[key];
+    if (key === "spectate") {
+      mpDevSpectate(!ADM.spectate); // [v1.4]
+    } else {
+      ADM[key] = !ADM[key];
+    }
     ADM.pop[key] = 1;
     if (key === "strike" && ADM.strike) {
       ADM.teleport = false;
@@ -52576,7 +52760,10 @@ function program() {
     if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || !admOn() || scene !== "game" || MP.chatOpen || MP.focus || MP.modal) {
       return;
     }
-    var idx = "1234567890".indexOf(e.key);
+    var idx = "1234567890-".indexOf(e.key);
+    if (e.key === "-" && !MP.active) {
+      return;
+    }
     if (idx >= 0 && idx < ADM_TOGGLES.length) {
       admToggle(ADM_TOGGLES[idx][0], true);
     }
@@ -52608,10 +52795,12 @@ function program() {
     arcSize(9);
     arcAlign(__p.LEFT);
     admArcText("ADMIN", qx + 30, 327);
-    for (var i = 0; i < ADM_TOGGLES.length; i++) {
+    var rowsShown = MP.active ? ADM_TOGGLES.length : ADM_TOGGLES.length - 1;
+    var rowGap = rowsShown > 10 ? 23 : 25;
+    for (var i = 0; i < rowsShown; i++) {
       var key = ADM_TOGGLES[i][0];
       var on = ADM[key] ? 1 : 0;
-      var y = 338 + i * 25;
+      var y = 338 + i * rowGap;
       var hov = worldMouseX > qx + 24 && worldMouseX < qx + 276 && worldMouseY > y && worldMouseY < y + 22;
       // animation state: knob position, hover glow and a flash when switched
       var a = ADM.anim[key] === undefined ? on : ADM.anim[key];
@@ -54271,6 +54460,12 @@ function program() {
     }
     return d;
   })();
+  // [v1.4] Names sent to the party server: older servers drop ' from names (so
+  // "Kineto's party" was listed as "Kinetos party"), so it goes as a curly one,
+  // which every server keeps and the game draws as '.
+  var srvTxt = function srvTxt(s) {
+    return String(s || "").replace(/'/g, "\u2019");
+  };
   var srvUrl = function srvUrl(path) {
     return String(window.dashServerMode.url).replace(/\/+$/, "") + path;
   };
@@ -54334,9 +54529,12 @@ function program() {
     var j = MP.join;
     j.server = true;
     j.party = party.name;
+    j.partyRef = party; // [v1.4] (to ask again if the link doesn't open)
+    j.pass = pass || "";
+    j.key = key || "";
     j.status = "asking";
     srvFetch("POST", "/api/parties/" + encodeURIComponent(party.id) + "/join", {
-      name: MP.fields.name || "Player",
+      name: srvTxt(MP.fields.name || "Player"),
       pass: pass || "",
       key: key || "",
       dev: SRV.dev
@@ -54437,6 +54635,22 @@ function program() {
         j.error = e.message;
       });
     }
+    // [v1.4] stuck at "Almost there" (the link never opened): ask to join again, once.
+    // A fresh request gets a fresh code from the host, with both of its addresses.
+    if (j.status === "reply" && !s.replyAt) {
+      s.replyAt = __p.millis();
+    }
+    if (j.status === "reply" && s.replyAt && __p.millis() - s.replyAt > 25000 && !j.retried && !MP.active && j.partyRef) {
+      try {
+        j.pc.close();
+      } catch (e) {}
+      SRV.join = null;
+      srvAskJoin(j.partyRef, j.pass, j.key);
+      if (MP.join) {
+        MP.join.retried = true;
+      }
+      return;
+    }
     if (__p.millis() - s.at > 75000 && !MP.active && j.status !== "refused") {
       j.status = "refused";
       j.error = "The host didn't connect in time. They may be away from their game, or this network blocks direct links. Try again.";
@@ -54457,11 +54671,11 @@ function program() {
     }
     SRV.creating = true;
     srvFetch("POST", "/api/parties", {
-      name: name,
+      name: srvTxt(name),
       priv: SRV.priv,
       pass: SRV.priv ? String(MP.fields.ppass).slice(0, 24) : "",
       max: SRV.max,
-      host: MP.fields.name || "Host",
+      host: srvTxt(MP.fields.name || "Host"),
       dev: SRV.dev
     }).then(function (r) {
       SRV.creating = false;
@@ -54488,11 +54702,11 @@ function program() {
     }
     pt.reregistering = true;
     srvFetch("POST", "/api/parties", {
-      name: pt.name,
+      name: srvTxt(pt.name),
       priv: pt.priv,
       pass: pt.pass || "",
       max: pt.max,
-      host: MP.fields.name || "Host",
+      host: srvTxt(MP.fields.name || "Host"),
       dev: SRV.dev
     }).then(function (r) {
       if (SRV.party !== pt) {
@@ -54550,7 +54764,8 @@ function program() {
       if (!b.made) {
         b.made = true;
         mpMakeInvite({
-          lan: !!b.same
+          lan: !!b.same,
+          both: true
         });
         if (MP.invite) {
           MP.invite.rid = b.rid;
@@ -54609,7 +54824,7 @@ function program() {
           return r.live.indexOf(q.rid) >= 0;
         });
         var bb = SRV.busy;
-        var gotAnswer = (r.answers || []).some(function (an) {
+        var gotAnswer = !!bb && (r.answers || []).some(function (an) {
           return an.rid === bb.rid;
         });
         if (bb && !bb.answered && !gotAnswer && __p.millis() - bb.at > 4000 && r.live.indexOf(bb.rid) < 0) {
@@ -54676,7 +54891,7 @@ function program() {
       if (pl && pl.id !== MP.myId) {
         out.push({
           slot: pl.id,
-          name: pl.name,
+          name: srvTxt(pl.name),
           rid: pl.rid || ""
         });
       }
@@ -54734,7 +54949,7 @@ function program() {
       key: key,
       action: action,
       party: party,
-      name: name
+      name: srvTxt(name)
     }).then(function (r) {
       mpChatLine("", r.text || "Done.", -1);
     }, function (e) {
@@ -54753,70 +54968,44 @@ function program() {
     }
     srvHostTick();
     srvJoinTick();
-    if (scene === "Multiplayer" && MP.screen === "browse") {
-      srvRefreshList(false);
+    if (scene === "Multiplayer" && (MP.screen === "browse" || MP.screen === "home" || MP.screen === "create") && !MP.active) {
+      srvRefreshList(false); // [v1.4] the list is on the first screen now
     }
   };
   // ---------------- screens ----------------
-  var srvDrawHome = function srvDrawHome(y) {
-    mpLabel("Your name", 40, y);
-    mpField("name", 40, y + 24, 300, 42, "Type a name...");
-    y += 86;
-    y += mpParagraph("Find a party to join, or make your own. Private parties need a passcode.", 40, y, 520, 16) + 16;
-    if (mpButton(40, y, 250, 64, "CREATE PARTY", __p.color(255, 0, 0))) {
-      MP.screen = "create";
-      MP.fields.pname = MP.fields.pname || ((MP.fields.name || "My") + "'s party").slice(0, 24);
-    }
-    if (mpButton(310, y, 250, 64, "FIND A PARTY", __p.color(0, 120, 255))) {
-      MP.screen = "browse";
-      SRV.page = 0;
-      srvRefreshList(true);
-    }
-    y += 84;
-    y += mpParagraph("LINKED: one team. If anyone dies, everyone does, and checkpoints, launchers, bosses and the finish wait for the whole team.", 40, y, 520, 14, 70) + 8;
-    mpParagraph("RACE: everyone for themselves. The first to finish wins and the results are shown to all.", 40, y, 520, 14, 70);
-    if (mpButton(400, 532, 160, 34, "USE INVITE CODES", __p.color(130))) {
-      MP.screen = "codes"; // the serverless way still works
-    }
+  // ---------------- [v1.4] the lobby: one screen, like Among Us ----------------
+  // The parties are listed as soon as Multiplayer opens, with CREATE PARTY right
+  // there (its settings open in a panel over the list). Parties hosted by
+  // Digitsofpi or Kineto wear a DEV tag.
+  var srvDevHost = function srvDevHost(pt) {
+    var n = String(pt && pt.host || "").toLowerCase();
+    return ADM_NAMES[n] ? n : "";
   };
-  var srvDrawCreate = function srvDrawCreate(y) {
-    mpLabel("Party name", 40, y);
-    mpField("pname", 40, y + 24, 520, 42, "Party name...");
-    if (MP.fields.pname && MP.fields.pname.length > 24) {
-      MP.fields.pname = MP.fields.pname.slice(0, 24);
+  var srvOpenCreate = function srvOpenCreate() {
+    var auto = ((MP.fields.name || "My") + "'s party").slice(0, 24);
+    if (!MP.fields.pname || MP.fields.pname === SRV.autoName) {
+      MP.fields.pname = auto; // (a name you typed yourself is kept)
     }
-    y += 84;
-    mpLabel("Who can join", 40, y);
-    if (mpButton(40, y + 24, 150, 42, "PUBLIC", !SRV.priv ? __p.color(0, 160, 90) : __p.color(150))) {
-      SRV.priv = false;
-    }
-    if (mpButton(200, y + 24, 150, 42, "PRIVATE", SRV.priv ? __p.color(0, 160, 90) : __p.color(150))) {
-      SRV.priv = true;
-    }
-    if (SRV.priv) {
-      mpLabel("Passcode", 370, y);
-      mpField("ppass", 370, y + 24, 190, 42, "passcode", false, true);
-    }
-    y += 84;
-    mpLabel("Max players", 40, y);
-    if (mpButton(40, y + 24, 76, 42, "LESS", __p.color(120), SRV.max > 2)) {
-      SRV.max--;
-    }
-    mpArcLine(String(SRV.max), 140, y + 34, 13, 20, __p.CENTER);
-    if (mpButton(164, y + 24, 76, 42, "MORE", __p.color(120), SRV.max < 12)) {
-      SRV.max++;
-    }
-    mpParagraph(SRV.priv ? "Only players with the passcode can join. Everyone can still see the party in the list." : "Anyone can find and join it from the party list.", 260, y + 26, 300, 13, 80);
-    if (mpButton(40, 520, 120, 50, "BACK", __p.color(120))) {
-      MP.screen = "home";
-    }
-    if (mpButton(360, 520, 210, 50, SRV.creating ? "CREATING..." : "CREATE", __p.color(255, 0, 0), !SRV.creating)) {
-      srvCreateParty();
-    }
+    SRV.autoName = auto;
+    MP.screen = "create";
+    MP.focus = null;
   };
-  var srvDrawBrowse = function srvDrawBrowse(y) {
-    mpField("search", 40, y, 380, 40, "Search parties by name...");
-    if (mpButton(430, y, 130, 40, SRV.listing ? "..." : "REFRESH", __p.color(0, 120, 255))) {
+  var srvDrawLobby = function srvDrawLobby(y) {
+    var creating = MP.screen === "create";
+    var click = MP.click;
+    if (creating) {
+      MP.click = false; // the create panel takes the clicks
+    }
+    // your name, and the big CREATE PARTY button beside it
+    mpLabel("Your name", 40, y - 4, 14);
+    mpField("name", 40, y + 16, 230, 40, "Type a name...");
+    if (mpButton(300, y + 12, 260, 48, "CREATE PARTY", __p.color(255, 0, 0))) {
+      srvOpenCreate();
+    }
+    y += 74;
+    // search and refresh
+    mpField("search", 40, y, 390, 36, "Search parties...");
+    if (mpButton(440, y, 120, 36, SRV.listing ? "..." : "REFRESH", __p.color(0, 120, 255))) {
       srvRefreshList(true);
     }
     if (MP.focus === "search" && MP.lastSearch !== MP.fields.search) {
@@ -54824,46 +55013,123 @@ function program() {
       SRV.page = 0;
       SRV.listAt = 0; // search as you type
     }
-    y += 54;
+    y += 48;
     var rows = SRV.list,
-      per = 6;
+      per = 5,
+      rh = 50;
     var pages = __p.max(1, __p.ceil(rows.length / per));
     SRV.page = __p.constrain(SRV.page, 0, pages - 1);
+    mpArcLine(rows.length ? rows.length + (rows.length === 1 ? " PARTY" : " PARTIES") : "PARTIES", 40, y, 7, 70); // (ArcDash has no brackets)
+    y += 22;
     if (SRV.listErr) {
-      mpParagraph(SRV.listErr, 40, y, 520, 14, __p.color(200, 40, 0));
+      mpParagraph(SRV.listErr, 40, y + 6, 520, 14, __p.color(200, 40, 0));
     } else if (!rows.length) {
-      mpParagraph(SRV.listing && !SRV.listAt ? "Looking for parties..." : MP.fields.search ? "No parties with that name." : "No parties right now. Make one!", 40, y, 520, 15, 90);
+      __p.noStroke();
+      __p.fill(255, 255, 255, 150);
+      __p.rect(40, y, 520, 96, 14);
+      mpArcLine(SRV.listing && !SRV.listAt ? "Looking for parties..." : MP.fields.search ? "No parties with that name." : "No parties right now.", 300, y + 26, 8, 70, __p.CENTER);
+      if (!SRV.listing && !MP.fields.search) {
+        mpArcLine("Press CREATE PARTY to make one!", 300, y + 56, 6.5, 110, __p.CENTER);
+      }
     }
     for (var i = SRV.page * per; i < __p.min(rows.length, SRV.page * per + per); i++) {
       var pt = rows[i],
-        ry = y + (i - SRV.page * per) * 56;
+        ry = y + (i - SRV.page * per) * rh;
+      var full = pt.n >= pt.max;
       __p.stroke(0);
       __p.strokeWeight(3);
-      __p.fill(255, 255, 255, 230);
-      __p.rect(40, ry, 520, 48, 12);
-      var full = pt.n >= pt.max;
+      __p.fill(255, 255, 255, 235);
+      __p.rect(40, ry, 520, rh - 6, 12);
+      // a colour stripe: green public, orange private
+      __p.noStroke();
+      __p.fill(pt.priv ? __p.color(235, 140, 0) : __p.color(0, 170, 90));
+      __p.rect(43, ry + 6, 6, rh - 18, 3);
+      // party name (+ DEV tag)
+      var dev = srvDevHost(pt);
       var label = mpArcSafe(cleanText(pt.name));
-      var s = 9;
-      while (s > 5 && mpArcW(label, s) > 290) {
+      var room = 300 - (dev ? 38 : 0);
+      var s = 8.5;
+      while (s > 5 && mpArcW(label, s) > room) {
         s -= 0.5;
       }
-      mpArcLine(label, 56, ry + 8, s, 20);
-      mpArcLine((pt.priv ? "PRIVATE - " : "PUBLIC - ") + pt.n + " of " + pt.max + " players" + (pt.playing ? " - in a level" : ""), 56, ry + 28, 5.5, pt.priv ? __p.color(170, 90, 0) : __p.color(0, 130, 70));
-      if (mpButton(440, ry + 6, 110, 36, full && !admOn() ? "FULL" : "JOIN", __p.color(0, 120, 255), !full || admOn())) {
+      mpArcLine(label, 60, ry + 7, s, 20);
+      if (dev) {
+        mpDevTag(60 + mpArcW(label, s) + 8, ry + 6, dev);
+      }
+      // host, players, and whether it's playing
+      var info = mpArcSafe(cleanText(pt.host || "?")) + "  -  " + pt.n + " of " + pt.max + (pt.playing ? "  -  in a level" : "");
+      mpArcLine(info, 60, ry + 28, 5, 100);
+      mpArcLine(pt.priv ? "PRIVATE" : "PUBLIC", 398, ry + 17, 5.5, pt.priv ? __p.color(200, 110, 0) : __p.color(0, 140, 70), __p.CENTER);
+      if (mpButton(446, ry + 5, 106, rh - 16, full && !admOn() ? "FULL" : "JOIN", __p.color(0, 120, 255), !full || admOn())) {
         srvJoinParty(pt);
       }
     }
+    // bottom row: pages, and the serverless way
     if (pages > 1) {
-      if (mpButton(200, 520, 90, 50, "PREV", __p.color(120), SRV.page > 0)) {
+      if (mpButton(200, 526, 80, 40, "PREV", __p.color(120), SRV.page > 0)) {
         SRV.page--;
       }
-      mpArcLine(SRV.page + 1 + " of " + pages, 335, 536, 8, 20, __p.CENTER);
-      if (mpButton(380, 520, 90, 50, "NEXT", __p.color(120), SRV.page < pages - 1)) {
+      mpArcLine(SRV.page + 1 + " of " + pages, 320, 538, 7, 20, __p.CENTER);
+      if (mpButton(360, 526, 80, 40, "NEXT", __p.color(120), SRV.page < pages - 1)) {
         SRV.page++;
       }
     }
-    if (mpButton(40, 520, 120, 50, "BACK", __p.color(120))) {
+    if (mpButton(40, 530, 140, 34, "INVITE CODES", __p.color(130))) {
+      MP.screen = "codes"; // the serverless way still works
+    }
+    MP.click = click;
+    if (creating) {
+      srvDrawCreatePanel();
+    }
+  };
+  // CREATE PARTY's settings, in a panel over the list
+  var srvDrawCreatePanel = function srvDrawCreatePanel() {
+    __p.noStroke();
+    __p.fill(0, 0, 0, 140);
+    __p.rect(-widePad - 10, 94, wideW + 20, 520);
+    var x = 70,
+      y = 130,
+      w = 460;
+    __p.stroke(0);
+    __p.strokeWeight(6);
+    __p.fill(255);
+    __p.rect(x, y, w, 410, 24);
+    mpArcLine("CREATE PARTY", 300, y + 18, 12, __p.color(255, 0, 0), __p.CENTER);
+    var ix = x + 24,
+      iw = w - 48,
+      yy = y + 62;
+    mpLabel("Party name", ix, yy, 14);
+    mpField("pname", ix, yy + 20, iw, 40, "Party name...");
+    if (MP.fields.pname && MP.fields.pname.length > 24) {
+      MP.fields.pname = MP.fields.pname.slice(0, 24);
+    }
+    yy += 76;
+    mpLabel("Who can join", ix, yy, 14);
+    if (mpButton(ix, yy + 20, 130, 40, "PUBLIC", !SRV.priv ? __p.color(0, 160, 90) : __p.color(150))) {
+      SRV.priv = false;
+    }
+    if (mpButton(ix + 140, yy + 20, 130, 40, "PRIVATE", SRV.priv ? __p.color(235, 140, 0) : __p.color(150))) {
+      SRV.priv = true;
+    }
+    if (SRV.priv) {
+      mpField("ppass", ix + 282, yy + 20, iw - 282, 40, "passcode", false, true);
+    }
+    yy += 76;
+    mpLabel("Max players", ix, yy, 14);
+    if (mpButton(ix, yy + 20, 60, 40, "LESS", __p.color(120), SRV.max > 2)) {
+      SRV.max--;
+    }
+    mpArcLine(String(SRV.max), ix + 92, yy + 30, 13, 20, __p.CENTER);
+    if (mpButton(ix + 124, yy + 20, 60, 40, "MORE", __p.color(120), SRV.max < 12)) {
+      SRV.max++;
+    }
+    mpParagraph(SRV.priv ? "Everyone sees it in the list, but only players with the passcode can join." : "Anyone can find it in the list and join.", ix + 200, yy + 22, iw - 200, 12, 90);
+    if (mpButton(ix, y + 340, 150, 50, "CANCEL", __p.color(130))) {
       MP.screen = "home";
+      MP.focus = null;
+    }
+    if (mpButton(ix + iw - 220, y + 340, 220, 50, SRV.creating ? "CREATING..." : "CREATE", __p.color(255, 0, 0), !SRV.creating)) {
+      srvCreateParty();
     }
   };
   // host screen, right column, while a party is listed

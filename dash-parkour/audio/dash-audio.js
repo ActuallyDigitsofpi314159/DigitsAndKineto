@@ -579,6 +579,9 @@
        The music player
        ================================================================ */
     var AHEAD = opts.offline ? 1e9 : 0.22;
+    // [v1.4] how far ahead to schedule now: grows when the page's timers run late
+    // (a slow Chromebook, a busy frame), so notes are never skipped for being late
+    E.ahead = function () { return opts.offline ? AHEAD : Math.max(AHEAD, E.lateBy || 0); };
 
     function Player(song, startAt) {
       var P = this;
@@ -784,7 +787,7 @@
         var skip = Math.ceil((now - this.timeOf(this.g)) / this.sd);
         for (var s = 0; s < skip && !this.ended; s++) this.stepOnceSilent();
       }
-      var lim = until === undefined ? now + AHEAD : until;
+      var lim = until === undefined ? now + E.ahead() : until;
       var guard = 0;
       while (!this.ended && this.timeOf(this.g) < lim && guard++ < 100000) {
         if (this.stepOnce() === false) break;
@@ -861,15 +864,71 @@
   ['touchstart', 'touchend', 'pointerdown', 'pointerup', 'mousedown', 'click', 'keydown'].forEach(function (n) {
     window.addEventListener(n, unlock, { capture: true, passive: true });
   });
+  // [v1.4] promise-safe suspend (a rejected promise used to go unhandled)
+  function suspendCtx(c) {
+    try { var pr = c.suspend(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) { /* ignore */ }
+  }
+  function wake() {
+    if (!live.ui || document.hidden) return;
+    resumeCtx(live.ui.ctx);
+    if (!DA.paused) resumeCtx(live.game.ctx);
+    wd.ct = -1; // the clock was frozen while hidden: don't count that as stuck
+  }
   document.addEventListener('visibilitychange', function () {
     if (!live.ui) return;
-    if (document.hidden) { live.ui.ctx.suspend(); live.game.ctx.suspend(); }
-    else { live.ui.ctx.resume(); if (!DA.paused) live.game.ctx.resume(); }
+    if (document.hidden) { suspendCtx(live.ui.ctx); suspendCtx(live.game.ctx); }
+    else wake();
   });
-  window.addEventListener('pageshow', function () { if (live.ui && !document.hidden) { live.ui.ctx.resume(); if (!DA.paused) live.game.ctx.resume(); } });
+  window.addEventListener('pageshow', wake);
+  window.addEventListener('focus', wake);
+
+  // [v1.4] Throw away both contexts and make new ones, then carry on with the song.
+  // Used when the audio clock has stopped moving although the context says it is
+  // running (the output device got stuck: "it played one note and then stopped").
+  function rebuild(why) {
+    logEv('rebuild', { why: why });
+    var old = live.ui, oldGame = live.game;
+    if (DA.current) { try { DA.current.stop(0); } catch (e) { /* gone */ } DA.current = null; }
+    live.ui = live.game = null;
+    try { old.ctx.close(); } catch (e) { /* ignore */ }
+    try { oldGame.ctx.close(); } catch (e) { /* ignore */ }
+    if (!ensure()) return;
+    if (DA.paused) { // keep the pause look on the new contexts
+      live.ui.musicLevel.gain.value = 0.45; live.ui.muffle.frequency.value = 900; suspendCtx(live.game.ctx);
+    }
+    resumeCtx(live.ui.ctx);
+    if (!DA.paused) resumeCtx(live.game.ctx);
+    if (DA.wanted && live.ui.ctx.state === 'running') startSong(DA.wanted); // (otherwise onstatechange starts it)
+  }
+
+  // [v1.4] The watchdog, on the pump's timer: keeps the contexts running while the
+  // page is visible, spots a stuck clock, and measures how late the timer runs.
+  var wd = { last: 0, lateMax: 0, check: 0, ct: -1, still: 0, rebuilds: 0, rebuiltAt: 0 };
+  function watchdog(nowMs) {
+    var gap = wd.last ? (nowMs - wd.last) / 1000 : 0.045;
+    wd.last = nowMs;
+    if (document.hidden) { wd.ct = -1; return; }
+    wd.lateMax = Math.max(gap, wd.lateMax * 0.995); // the worst recent gap, fading over a few seconds
+    if (live.ui) live.ui.lateBy = live.game.lateBy = Math.min(1.2, wd.lateMax * 1.3 + 0.05);
+    if (!live.ui || !live.gestured || nowMs - wd.check < 500) return;
+    var dt = wd.check ? (nowMs - wd.check) / 1000 : 0;
+    wd.check = nowMs;
+    var ui = live.ui.ctx;
+    if (ui.state !== 'running' && ui.state !== 'closed') { resumeCtx(ui); wd.ct = -1; }
+    if (!DA.paused && live.game.ctx.state !== 'running' && live.game.ctx.state !== 'closed') resumeCtx(live.game.ctx);
+    if (ui.state !== 'running') return;
+    if (ui.currentTime !== wd.ct) { wd.ct = ui.currentTime; wd.still = 0; return; }
+    wd.still += dt;
+    // stuck for 2 s: start over (at most 3 times, and not more than once in 10 s)
+    if (wd.still > 2 && wd.rebuilds < 3 && nowMs - wd.rebuiltAt > 10000) {
+      wd.rebuilds++; wd.rebuiltAt = nowMs; wd.still = 0; wd.ct = -1;
+      rebuild('clock stuck');
+    }
+  }
 
   function pumpLoop() {
     setTimeout(pumpLoop, 45);
+    try { watchdog(Date.now()); } catch (e) { /* never break the music */ }
     var P = DA.current;
     if (P && live.ui) {
       try { P.pump(); } catch (e) { if (window.console) console.error(e); }
