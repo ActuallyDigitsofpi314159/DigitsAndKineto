@@ -27315,10 +27315,51 @@ function program() {
     }
   }
   // [v1.1] "Achievement unlocked" notices (not for badges a loaded save code already has)
+  // [v1.3] The red count is kept as the list of unseen achievements (and the ones that were
+  // already seen), checked against the save code that is loaded. It used to be a bare
+  // number on the device, so entering a different save code showed the old save's count.
   var achNewCount = 0;
-  try {
-    achNewCount = __p.parseInt(window.localStorage.getItem("dashparkour-ach-new"), 10) || 0;
-  } catch (e) {}
+  var achNewKeys = [];
+  var achUnlockedKeys = function achUnlockedKeys() {
+    var out = [];
+    for (var k in achievementStates) {
+      if (achievementStates.hasOwnProperty(k) && achievementStates[k]) {
+        out.push(k);
+      }
+    }
+    return out.sort();
+  };
+  var achSaveNew = function achSaveNew() {
+    achNewCount = achNewKeys.length;
+    try {
+      var base = achUnlockedKeys().filter(function (k) {
+        return achNewKeys.indexOf(k) < 0;
+      });
+      window.localStorage.setItem("dashparkour-ach-new-keys", JSON.stringify({
+        n: achNewKeys,
+        b: base
+      }));
+    } catch (e) {}
+  };
+  // after the save code is loaded: keep the stored count only if it belongs to this save
+  var achResyncNew = function achResyncNew() {
+    achNewKeys = [];
+    try {
+      var st = JSON.parse(window.localStorage.getItem("dashparkour-ach-new-keys") || "null");
+      var have = achUnlockedKeys();
+      if (st && st.n && st.b && st.n.length) {
+        var within = function (list) {
+          return list.every(function (k) {
+            return have.indexOf(k) >= 0;
+          });
+        };
+        if (within(st.n) && within(st.b) && have.length - st.b.length - st.n.length <= 2) {
+          achNewKeys = st.n.slice(0);
+        }
+      }
+    } catch (e) {}
+    achSaveNew();
+  };
   // a red count on the Goals button; cleared once the Goals screen is opened
   var drawAchCount = function drawAchCount(x, y) {
     if (scene === "Goals") {
@@ -27328,16 +27369,26 @@ function program() {
       return;
     }
     __p.pushStyle();
+    __p.pushMatrix();
     var pop = 1 + 0.08 * __p.sin(__p.frameCount * 6);
+    // [v1.3] the number is drawn in the ArcDash font and is scaled with the circle
+    var label = achNewCount > 99 ? "99" : achNewCount + "";
+    var asz = __p.floor(__p.min(11, 19 / arcMeasureLine(label, 1)) * 2) / 2;
+    var keepSz = arcDashSize,
+      keepAl = arcDashAlign;
+    __p.translate(x, y);
+    __p.scale(pop);
     __p.stroke(0);
     __p.strokeWeight(3);
     __p.fill(230, 20, 30);
-    __p.ellipse(x, y, 30 * pop, 30 * pop);
-    __p.fill(255);
-    __p.noStroke();
-    __p.textAlign(__p.CENTER, __p.CENTER);
-    __p.textSize(achNewCount > 9 ? 13 : 16);
-    __p.text(achNewCount > 99 ? "99+" : achNewCount + "", x, y + 1);
+    __p.ellipse(0, 0, 30, 30);
+    __p.stroke(255);
+    arcSize(asz);
+    arcAlign(__p.CENTER);
+    arcText(label, 0, asz / 2);
+    arcSize(keepSz);
+    arcAlign(keepAl);
+    __p.popMatrix();
     __p.popStyle();
   };
   var achToasts = [],
@@ -27444,10 +27495,10 @@ function program() {
       giveAchievementSkins();
       if (achToastOn) {
         sfx("achievement"); // [v1.1] sound
-        achNewCount++;
-        try {
-          window.localStorage.setItem("dashparkour-ach-new", achNewCount);
-        } catch (e) {}
+        if (achNewKeys.indexOf(key) < 0) {
+          achNewKeys.push(key);
+        }
+        achSaveNew();
         achToasts.push({
           name: achievementName,
           t: 0
@@ -43381,6 +43432,7 @@ function program() {
 
   // Finally, load the save code so we can use it ([v1.1] 1.0 and 1.1 codes both work)
   loadSaveString(saveCode);
+  achResyncNew(); // [v1.3] (the red count belongs to the save that was just loaded)
   achToastReady = true; // from now on, new unlocks pop up a notice
   achToastOn = true;
   //]
@@ -43564,10 +43616,8 @@ function program() {
             break;
           case "Goals":
             if (achNewCount) {
-              achNewCount = 0; // [v1.1] seen
-              try {
-                window.localStorage.setItem("dashparkour-ach-new", 0);
-              } catch (e) {}
+              achNewKeys = []; // [v1.1] seen
+              achSaveNew();
             }
             //[
             startY = __p.lerp(startY, targetY, dtLerp(0.2));
@@ -44557,6 +44607,9 @@ function program() {
               }
               if (gamePaused) {
                 // paused: the player waits too
+              } else if (mpSpecOn()) {
+                mpGuardWaiting(); // [v1.3] spectating: Dash waits at the start
+                mpHoldUpdate();
               } else if (mpHoldActive() && !p.spawning) {
                 mpHoldUpdate(); // [MP] at the start line: physics runs, controls wait for GO
               } else if (p.admDoom !== undefined && p.admDoom !== null) {
@@ -44575,7 +44628,7 @@ function program() {
             }
 
             // Restart Level
-            if (isPressed('r') && !p.dead) {
+            if (isPressed('r') && !p.dead && !mpSpecOn()) {
               resetCharTimer += 8 * DT;
               p.hurtFrames = 1;
             } else {
@@ -45009,6 +45062,7 @@ function program() {
               p.lastHurtBy = "fell off the arena"; // [v5] for the multiplayer death message
               p.health = 0;
             }
+            mpSpectateCam(); // [v1.3] the camera follows the player being watched
             updateCamera();
             admCamera(); // [ADMIN] freecam
 
@@ -46022,7 +46076,7 @@ function program() {
             }
             admDrawWorld(); // [ADMIN] rainbow trails (under every player)
             mpDrawGhosts(); // [MP] other players
-            if (!p.dead && !admDrawPlayer()) {
+            if (!p.dead && !mpSpecOn() && !admDrawPlayer()) {
               mpLocalTint();
               p.draw();
               dashTint = null;
@@ -48667,8 +48721,8 @@ function program() {
   // Every player simulates their own level; only player states and a few
   // events (gates, deaths, finishes, chat) are sent. The host relays messages.
   // ===================================================================
-  var MP_COLORS = [[255, 0, 0], [0, 120, 255], [255, 205, 0], [0, 185, 70], [255, 130, 0], [165, 70, 255], [255, 80, 180], [0, 205, 205]];
-  var MP_COLOR_NAMES = ["Red", "Blue", "Yellow", "Green", "Orange", "Purple", "Pink", "Cyan"];
+  var MP_COLORS = [[255, 0, 0], [0, 120, 255], [255, 205, 0], [0, 185, 70], [255, 130, 0], [165, 70, 255], [255, 80, 180], [0, 205, 205], [150, 230, 40], [150, 95, 45], [235, 235, 235], [90, 90, 255]]; // [v1.3] 12 players
+  var MP_COLOR_NAMES = ["Red", "Blue", "Yellow", "Green", "Orange", "Purple", "Pink", "Cyan", "Lime", "Brown", "White", "Indigo"];
   var MP_BASE_SKINS = {
     0: true,
     23: true, // [v1.1] Mustachioed Dash
@@ -48731,7 +48785,9 @@ function program() {
     linkedDeath: false,
     mousePrev: false,
     click: false,
-    session: 0 // increases whenever a level starts, so stale gate/finish messages are ignored
+    session: 0, // increases whenever a level starts, so stale gate/finish messages are ignored
+    spectating: false, // [v1.3] joined while the host was in a level: watch until the next level starts
+    specId: -1
   };
   try {
     MP.fields.name = String(window.localStorage.getItem("dashparkour-mp-name") || "").split("").filter(function (ch) {
@@ -48772,6 +48828,15 @@ function program() {
     MP.chatLines.push(row);
     if (MP.chatLines.length > 40) {
       MP.chatLines.shift();
+    }
+  };
+  // [v1.3] tells new players how to chat (it waits on the menu screen, where chat is
+  // hidden, so it is still there when the level starts)
+  var mpChatHint = function mpChatHint() {
+    mpChatLine("", "Press / to open chat", -1);
+    var last = MP.chatLines[MP.chatLines.length - 1];
+    if (last) {
+      last.hold = true;
     }
   };
   var mpChatOn = function mpChatOn() {
@@ -48898,6 +48963,7 @@ function program() {
     MP.skinChecked = false;
     MP.raceDecided = false;
     MP.finished = false;
+    MP.spectating = false;
     dashTint = null;
     if (wasActive && reason) {
       mpToast(reason);
@@ -48936,7 +49002,7 @@ function program() {
       adm: admOn() ? ADM.who : "",
       dm: p.admDoom !== undefined && p.admDoom !== null ? 1 : 0,
       id: MP.myId,
-      in: inLevel ? 1 : 0,
+      in: inLevel && !MP.spectating ? 1 : 0,
       ses: MP.session,
       lv: currentLevel,
       fb: finalBossPhase,
@@ -49653,6 +49719,9 @@ function program() {
     var rows = [];
     for (var k in MP.players) {
       var pl = MP.players[k];
+      if (pl.spec) {
+        continue; // [v1.3] spectators are not in the race
+      }
       var st = pl.id === MP.myId ? mpCurrentState() : pl.st;
       rows.push({
         n: pl.name,
@@ -49717,7 +49786,7 @@ function program() {
       MP.myHits = 0;
       // everyone waits at the start until all players have loaded, then a
       // shared 3-2-1 countdown starts the level for all at the same moment
-      MP.hold = mpCount() > 1;
+      MP.hold = mpCount() > 1 && !MP.spectating;
       MP.readySent = false;
       MP.holdSince = Date.now();
       MP.raceOutT = 0;
@@ -49725,10 +49794,13 @@ function program() {
       if (!MP.isHost && MP.mode === "linked" && MP.hostLives > 0) {
         p.lives = MP.hostLives;
       }
-    } else if (MP.isHost && MP.lastScene === "game") {
-      mpBroadcast({
-        t: "map"
-      });
+    } else {
+      MP.spectating = false; // [v1.3] (back on the map: nobody spectates)
+      if (MP.isHost && MP.lastScene === "game") {
+        mpBroadcast({
+          t: "map"
+        });
+      }
     }
     MP.lastScene = scene;
   };
@@ -49736,6 +49808,9 @@ function program() {
     MP.goSent = true;
     MP.session++;
     MP.readyIds = {};
+    for (var sk in MP.players) {
+      MP.players[sk].spec = false; // [v1.3] spectators play from this level on
+    }
     mpBroadcast({
       t: "go",
       lv: currentLevel,
@@ -49797,7 +49872,16 @@ function program() {
   // finish, nothing can hurt you.
   var mpGuardWaiting = function mpGuardWaiting() {
     // (a teammate's death in Linked mode still takes you down while you wait)
-    if (MP.active && MP.waitT > 0 && !p.dead && !MP.linkedDeath) {
+    if (MP.active && MP.spectating && scene === "game") {
+      // [v1.3] a spectator can't be hurt
+      p.health = 100;
+      p.dead = false;
+      p.deathTriggered = false;
+      p.deathFrames = 0;
+      p.hurtFrames = 0;
+      MP.linkedDeath = false;
+      MP.hpHold = undefined;
+    } else if (MP.active && MP.waitT > 0 && !p.dead && !MP.linkedDeath) {
       if (MP.hpHold === undefined) {
         MP.hpHold = __p.max(p.health, MP.hpStart);
       }
@@ -49809,6 +49893,62 @@ function program() {
     } else {
       MP.hpHold = undefined;
     }
+  };
+  // ---- [v1.3] spectating: joined while the host was in a level ----
+  // Dash waits at the start (nothing can hurt it, nobody sees it) while the
+  // camera follows another player. Click or LEFT / RIGHT switches player.
+  var mpSpecOn = function mpSpecOn() {
+    return MP.active && MP.spectating && scene === "game";
+  };
+  var mpSpecTargets = function mpSpecTargets() {
+    var list = [];
+    for (var k in MP.players) {
+      var pl = MP.players[k];
+      if (pl.id !== MP.myId && pl.st && pl.st.in && pl.st.lv === currentLevel && pl.st.ses === MP.session) {
+        list.push(pl);
+      }
+    }
+    list.sort(function (a, b) {
+      return a.id - b.id;
+    });
+    return list;
+  };
+  var mpSpecKeyPrev = 0;
+  var mpSpectateCam = function mpSpectateCam() {
+    if (!mpSpecOn()) {
+      return;
+    }
+    var list = mpSpecTargets();
+    var idx = -1;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === MP.specId) {
+        idx = i;
+      }
+    }
+    var kr = isPressed(__p.RIGHT) || isPressed('d') ? 1 : 0;
+    var kl = isPressed(__p.LEFT) || isPressed('a') ? 1 : 0;
+    var step = MP.click && !MP.modal && !MP.chatOpen ? 1 : kr && !(mpSpecKeyPrev & 1) ? 1 : kl && !(mpSpecKeyPrev & 2) ? -1 : 0;
+    mpSpecKeyPrev = (kr ? 1 : 0) | (kl ? 2 : 0);
+    if (MP.chatOpen) {
+      step = 0;
+    }
+    if (idx < 0) {
+      idx = 0;
+    } else if (step) {
+      idx = (idx + step + list.length) % list.length;
+    }
+    if (!list.length) {
+      MP.specId = -1;
+      return;
+    }
+    MP.specId = list[idx].id;
+    var pl2 = list[idx];
+    var snap = mpSample(pl2) || pl2.st;
+    if (!snap) {
+      return;
+    }
+    cam.targetX = snap.x - 300;
+    cam.targetY = snap.y + (snap.ay !== undefined && lvl && lvl.arenaY !== undefined ? lvl.arenaY - snap.ay : 0) - 300;
   };
   var mpHoldUpdate = function mpHoldUpdate() {
     var saved = {},
@@ -49838,20 +49978,26 @@ function program() {
           t: "sys",
           x: pl.name + " joined the game"
         }, fromId);
-        if (scene === "game") {
-          // the host is already in a level: bring the new player in
+        if (scene === "game" || transitionActive && sceneToTransition === "game") {
+          // [v1.3] the host is already in a level: the new player can only watch
+          // it (spectate) until the next level starts
+          pl.spec = true;
           for (var li = 0; li < MP.links.length; li++) {
             if (MP.links[li].id === fromId) {
               mpSendRaw(MP.links[li], {
                 t: "go",
                 lv: currentLevel,
                 w: world,
+                rs: bossRemixStage,
                 ses: MP.session,
-                mode: MP.mode
+                mode: MP.mode,
+                lives: p.lives,
+                spec: 1
               });
-              if (MP.countSes !== MP.session) {
-                mpStartCountdown(); // nobody is waiting for a countdown any more
-              }
+              mpSendRaw(MP.links[li], {
+                t: "sys",
+                x: "You joined while a level is running, so you are spectating. You will play from the next level."
+              });
             }
           }
         }
@@ -49945,7 +50091,7 @@ function program() {
         }
         return;
       case "die":
-        if (m.ses === MP.session && scene === "game" && !p.dead && !p.deathTriggered && MP.mode === "linked") {
+        if (m.ses === MP.session && scene === "game" && !p.dead && !p.deathTriggered && MP.mode === "linked" && !MP.spectating) {
           MP.linkedDeath = true;
           p.health = 0;
           pl = MP.players[m.id];
@@ -49999,6 +50145,8 @@ function program() {
       case "go":
         if (!MP.isHost) {
           MP.mode = m.mode;
+          MP.spectating = !!m.spec; // [v1.3] joined mid-level: watch until the next level
+          MP.specId = -1;
           mpStartLevelFromHost(m);
         }
         return;
@@ -50222,6 +50370,14 @@ function program() {
   // the game loop is paused). A link that is silent for 8 s is dropped, which
   // also catches a closed window or a dropped network.
   setInterval(function () {
+    // [v1.3] party server work also runs here: it kept stopping while the tab was in
+    // the background (the game loop pauses), so the party looked dead to joiners
+    try {
+      if (mpServerOn()) {
+        srvHostTick();
+        srvJoinTick();
+      }
+    } catch (e) {}
     if (!MP.links.length) {
       return;
     }
@@ -50254,8 +50410,9 @@ function program() {
     MP.screen = "host";
     MP.players = {};
     mpAddPlayer(0, MP.fields.name || "Host", 0, currentSkin);
+    mpChatHint();
   };
-  var mpMakeInvite = function mpMakeInvite() {
+  var mpMakeInvite = function mpMakeInvite(opt) {
     if (!window.DashNet || !window.DashNet.supported) {
       mpToast("This browser can't make peer-to-peer connections (WebRTC is unavailable).");
       return;
@@ -50275,10 +50432,13 @@ function program() {
     var inv = MP.invite;
     // [v1.1] Same Wi-Fi mode remembered as on: get the local address access it
     // needs first (by itself; the browser only asks if it never allowed it)
-    var ready = MP.lanMode && !MP.localUnlocked ? mpUnlockQuietly() : Promise.resolve(true);
+    // [v1.3] in server mode the server says when a player is on the same Wi-Fi (opt.lan):
+    // then this invite carries the local address, whatever the Same Wi-Fi switch says
+    var wantLan = MP.lanMode || !!(opt && opt.lan);
+    var ready = opt && opt.lan ? mpTryUnlockLocal() : MP.lanMode && !MP.localUnlocked ? mpUnlockQuietly() : Promise.resolve(true);
     ready.then(function () {
       return window.DashNet.createInvite(slot, {
-        noRawLocal: !MP.lanMode
+        noRawLocal: !wantLan
       });
     }).then(function (r) {
       if (MP.invite !== inv) {
@@ -50288,7 +50448,7 @@ function program() {
       inv.pc = r.pc;
       inv.ch = r.channel;
       inv.code = r.code;
-      inv.lan = !!MP.lanMode && r.rawLocal;
+      inv.lan = wantLan && r.rawLocal;
       inv.status = "ready";
     }, function (err) {
       inv.status = "error";
@@ -50356,7 +50516,7 @@ function program() {
         } else if (inv.pc.__gaveUp || !inv.pc.__trying && (inv.pc.iceConnectionState === "failed" || inv.pc.connectionState === "failed")) {
           clearInterval(watch);
           fail();
-        } else if (sameNet && !inv.lan && !MP.lanMode && Date.now() - started > 6000 && !MP.modal && !inv.autoAsked) {
+        } else if (sameNet && !inv.lan && !MP.lanMode && !inv.rid && Date.now() - started > 6000 && !MP.modal && !inv.autoAsked) {
           // same network and nothing yet: this is the case Same Wi-Fi mode fixes
           inv.autoAsked = true;
           mpSetLanMode(true, true);
@@ -50443,6 +50603,52 @@ function program() {
       }
     } catch (e) {}
     return ask();
+  };
+  // [v1.3] Asks for the local-address access once, WITHOUT touching the Same Wi-Fi
+  // switch. Never waits more than 8 s (the browser's question may sit unanswered):
+  // the connection then goes on without it, using the browser's .local names.
+  var mpTryUnlockLocal = function mpTryUnlockLocal() {
+    if (MP.localUnlocked) {
+      return Promise.resolve(true);
+    }
+    if (MP.noMic || !window.DashNet || !window.DashNet.unlockLocal || MP.localDenied) {
+      return Promise.resolve(false);
+    }
+    var ask = new Promise(function (resolve) {
+      var go = function () {
+        window.DashNet.unlockLocal().then(function (ok) {
+          MP.localUnlocked = !!ok;
+          if (!ok) {
+            MP.localDenied = true;
+          }
+          resolve(!!ok);
+        }, function () {
+          resolve(false);
+        });
+      };
+      try {
+        if (navigator.permissions && navigator.permissions.query) {
+          navigator.permissions.query({
+            name: "microphone"
+          }).then(function (st) {
+            if (st.state === "denied") {
+              MP.localDenied = true;
+              resolve(false);
+            } else {
+              go();
+            }
+          }, go);
+          return;
+        }
+      } catch (e) {}
+      go();
+    });
+    var wait = new Promise(function (resolve) {
+      setTimeout(function () {
+        resolve(false);
+      }, 8000);
+    });
+    return Promise.race([ask, wait]);
   };
   var mpUnlockLocal = function mpUnlockLocal() {
     mpSetLanMode(true, true);
@@ -50543,7 +50749,10 @@ function program() {
     }
     var j = MP.join;
     j.status = "making";
-    window.DashNet.acceptInvite(MP.fields.invite).then(function (r) {
+    // [v1.3] same Wi-Fi as the host (the server says so): get the local address first
+    (j.same ? mpTryUnlockLocal() : Promise.resolve(true)).then(function () {
+      return window.DashNet.acceptInvite(MP.fields.invite);
+    }).then(function (r) {
       if (MP.join !== j) {
         r.pc.close();
         return;
@@ -50575,6 +50784,7 @@ function program() {
             sk: currentSkin
           });
           mpChatLine("", "Connected! The host picks the levels.", -1);
+          mpChatHint();
         };
         if (ch.readyState === "open") {
           onOpen();
@@ -50811,7 +51021,9 @@ function program() {
     mpFloatTick(); // [v1.1]
     mpBossTipTick(); // [v1.1]
     for (var i = 0; i < MP.chatLines.length; i++) {
-      MP.chatLines[i].t += gameRealDT;
+      if (!(MP.chatLines[i].hold && scene === "Multiplayer")) {
+        MP.chatLines[i].t += gameRealDT;
+      }
     }
     if (scene !== "Multiplayer" || !MP.focusSeen) {
       MP.focus = null;
@@ -50850,7 +51062,7 @@ function program() {
       if (MP.isHost && MP.readySent && MP.countSes !== MP.session) {
         var allIn = true;
         for (var pk in MP.players) {
-          if (!MP.readyIds[MP.players[pk].id]) {
+          if (!MP.readyIds[MP.players[pk].id] && !MP.players[pk].spec) {
             allIn = false;
           }
         }
@@ -51381,7 +51593,7 @@ function program() {
   };
   var mpPlayerList = function mpPlayerList(x, y) {
     var i = 0;
-    var rh = mpCount() > 5 ? 24 : 34; // eight players still fit
+    var rh = mpCount() > 8 ? 19 : mpCount() > 5 ? 24 : 34; // twelve players still fit
     for (var k in MP.players) {
       var pl = MP.players[k];
       mpDashIcon(x + 14, y + i * rh + 14, rh * 0.76, mpColorOf(pl.id));
@@ -51573,8 +51785,8 @@ function program() {
       if (SRV.party) {
         srvDrawPartyPanel(ix, y, iw); // [v1.1 beta] players join from the party list
       } else if (!inv) {
-        mpParagraph(mpCount() > 1 ? "Invite another player, up to 8, or press PLAY to pick a level." : "Make an invite code for the player you want to play with.", ix, y, iw, 15);
-        if (mpButton(ix, y + 52, iw, 54, mpCount() > 1 ? "INVITE ANOTHER" : "INVITE PLAYER", __p.color(0, 120, 255), mpCount() < 8)) {
+        mpParagraph(mpCount() > 1 ? "Invite another player, up to 12, or press PLAY to pick a level." : "Make an invite code for the player you want to play with.", ix, y, iw, 15);
+        if (mpButton(ix, y + 52, iw, 54, mpCount() > 1 ? "INVITE ANOTHER" : "INVITE PLAYER", __p.color(0, 120, 255), mpCount() < 12)) {
           mpMakeInvite();
         }
       } else if (inv.status === "making") {
@@ -51718,6 +51930,10 @@ function program() {
   var mpWaitingText = function mpWaitingText() {
     if (!MP.active || scene !== "game") {
       return "";
+    }
+    if (MP.spectating) {
+      var spl = MP.players[MP.specId];
+      return spl ? "Spectating " + mpShownName(spl) + ". Click or press the arrow keys to watch someone else. You'll play from the next level." : "Spectating: waiting for someone to be in the level. You'll play from the next level.";
     }
     if (MP.hold && !(MP.countSes === MP.session && MP.countEnd)) {
       return "Waiting for everyone to load the level...";
@@ -52166,14 +52382,78 @@ function program() {
     pop: {},
     note: null
   };
+  // [v1.3] A small SHA-256 (the admin passcodes are kept as salted hashes here, not as text)
+  var dashSha256 = function dashSha256(str) {
+    var K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2];
+    var H = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+    var b = unescape(encodeURIComponent(String(str))), bytes = [], i, j;
+    for (i = 0; i < b.length; i++) {
+      bytes.push(b.charCodeAt(i));
+    }
+    var bitLen = bytes.length * 8;
+    bytes.push(0x80);
+    while (bytes.length % 64 !== 56) {
+      bytes.push(0);
+    }
+    for (i = 7; i >= 0; i--) {
+      bytes.push(i > 3 ? 0 : bitLen >>> i * 8 & 255);
+    }
+    var w = new Array(64);
+    for (var off = 0; off < bytes.length; off += 64) {
+      for (i = 0; i < 16; i++) {
+        w[i] = bytes[off + i * 4] << 24 | bytes[off + i * 4 + 1] << 16 | bytes[off + i * 4 + 2] << 8 | bytes[off + i * 4 + 3];
+      }
+      for (i = 16; i < 64; i++) {
+        var s0 = (w[i - 15] >>> 7 | w[i - 15] << 25) ^ (w[i - 15] >>> 18 | w[i - 15] << 14) ^ w[i - 15] >>> 3;
+        var s1 = (w[i - 2] >>> 17 | w[i - 2] << 15) ^ (w[i - 2] >>> 19 | w[i - 2] << 13) ^ w[i - 2] >>> 10;
+        w[i] = w[i - 16] + s0 + w[i - 7] + s1 | 0;
+      }
+      var a = H[0], bb = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+      for (i = 0; i < 64; i++) {
+        var S1 = (e >>> 6 | e << 26) ^ (e >>> 11 | e << 21) ^ (e >>> 25 | e << 7);
+        var t1 = h + S1 + (e & f ^ ~e & g) + K[i] + w[i] | 0;
+        var S0 = (a >>> 2 | a << 30) ^ (a >>> 13 | a << 19) ^ (a >>> 22 | a << 10);
+        var t2 = S0 + (a & bb ^ a & c ^ bb & c) | 0;
+        h = g;
+        g = f;
+        f = e;
+        e = d + t1 | 0;
+        d = c;
+        c = bb;
+        bb = a;
+        a = t1 + t2 | 0;
+      }
+      H[0] = H[0] + a | 0;
+      H[1] = H[1] + bb | 0;
+      H[2] = H[2] + c | 0;
+      H[3] = H[3] + d | 0;
+      H[4] = H[4] + e | 0;
+      H[5] = H[5] + f | 0;
+      H[6] = H[6] + g | 0;
+      H[7] = H[7] + h | 0;
+    }
+    var out = "";
+    for (j = 0; j < 8; j++) {
+      out += ("00000000" + (H[j] >>> 0).toString(16)).slice(-8);
+    }
+    return out;
+  };
+  // a passcode is checked as 4000 rounds of salted SHA-256
+  var admHashPass = function admHashPass(who, pass) {
+    var h = String(pass).toLowerCase();
+    for (var i = 0; i < 4000; i++) {
+      h = dashSha256("dash-admin:" + who + ":" + i + ":" + h);
+    }
+    return h;
+  };
   var ADM_NAMES = {
     digitsofpi: {
-      pass: "kineto",
+      hash: "22f8ffffc62eee654fb1d47913e6b9e944aad08de22df6fa8dc3b8f7b0728114",
       skin: 19,
       glow: [255, 40, 40]
     },
     kineto: {
-      pass: "digitsofpi",
+      hash: "20c45bcaf4f75d3a87a5ba47a1f422ba3d2ce0cc1dc86f6f5fbec61e3758e7c6",
       skin: 18,
       glow: [40, 120, 255]
     }
@@ -52210,7 +52490,7 @@ function program() {
       no: "CANCEL",
       keep: true,
       onYes: function onYes() {
-        if (String(MP.fields.pass || "").toLowerCase() === ADM_NAMES[n].pass) {
+        if (admHashPass(n, MP.fields.pass || "") === ADM_NAMES[n].hash) {
           ADM.who = n;
           MP.modal = null;
           currentSkin = ADM_NAMES[n].skin; // their own costume, even if it isn't unlocked
@@ -54003,7 +54283,21 @@ function program() {
       opts.headers["Content-Type"] = "application/json";
       opts.body = JSON.stringify(body);
     }
+    // [v1.3] a request that never answers used to freeze the heartbeat (the party then
+    // vanished from the list while the host still saw it): give up after 12 s
+    var ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var timer = null;
+    if (ctl) {
+      opts.signal = ctl.signal;
+      timer = setTimeout(function () {
+        ctl.abort();
+      }, 12000);
+    }
+    var done = function () {
+      clearTimeout(timer);
+    };
     return fetch(srvUrl(path), opts).then(function (r) {
+      done();
       return r.json().catch(function () {
         return {};
       }).then(function (j) {
@@ -54013,6 +54307,7 @@ function program() {
         return j;
       });
     }, function () {
+      done();
       throw new Error("Can't reach the party server. Check the address at the top of the file, or that the server is running.");
     });
   };
@@ -54033,7 +54328,7 @@ function program() {
       SRV.listAt = __p.millis();
     });
   };
-  var srvAskJoin = function srvAskJoin(party, pass) {
+  var srvAskJoin = function srvAskJoin(party, pass, key) {
     MP.modal = null;
     mpStartJoin();
     var j = MP.join;
@@ -54043,6 +54338,7 @@ function program() {
     srvFetch("POST", "/api/parties/" + encodeURIComponent(party.id) + "/join", {
       name: MP.fields.name || "Player",
       pass: pass || "",
+      key: key || "",
       dev: SRV.dev
     }).then(function (r) {
       if (MP.join !== j) {
@@ -54061,9 +54357,30 @@ function program() {
       }
       j.status = "refused";
       j.error = e.message;
+      if (key && /admin key/i.test(e.message)) {
+        SRV.modKey = "";
+        try {
+          window.localStorage.removeItem("dashparkour-mod-key");
+        } catch (err) {}
+      }
     });
   };
   var srvJoinParty = function srvJoinParty(party) {
+    // [v1.3] Digitsofpi and Kineto can join any party (private, full, banned...) at any
+    // time. The server checks their admin key, so nobody else can do it.
+    if (admOn()) {
+      var key = srvModKey();
+      if (key) {
+        srvAskJoin(party, "", key);
+        return;
+      }
+      if (party.priv || party.n >= party.max) {
+        srvAskModKey("to join this party", function () {
+          srvAskJoin(party, "", srvModKey());
+        }, null);
+        return;
+      }
+    }
     if (!party.priv) {
       srvAskJoin(party, "");
       return;
@@ -54098,11 +54415,9 @@ function program() {
           return;
         }
         s.hostPlaying = !!r.playing;
-        if (s.hostPlaying) {
-          s.at = __p.millis(); // no time limit while the host finishes their level
-        }
         if (r.state === "offer" && r.offer && j.status === "waiting") {
           MP.fields.invite = r.offer;
+          j.same = !!r.same;
           j.status = "idle";
           mpUseInvite(); // makes the reply (j.status "making", then "reply")
         } else if (r.state === "gone") {
@@ -54122,9 +54437,9 @@ function program() {
         j.error = e.message;
       });
     }
-    if (__p.millis() - s.at > 60000 && !MP.active && j.status !== "refused") {
+    if (__p.millis() - s.at > 75000 && !MP.active && j.status !== "refused") {
       j.status = "refused";
-      j.error = "The host didn't connect in time. Try again.";
+      j.error = "The host didn't connect in time. They may be away from their game, or this network blocks direct links. Try again.";
     }
   };
   // ---------------- parties (hosts) ----------------
@@ -54156,6 +54471,7 @@ function program() {
         token: r.token,
         name: name,
         priv: SRV.priv,
+        pass: SRV.priv ? String(MP.fields.ppass).slice(0, 24) : "",
         max: SRV.max
       };
       SRV.queue = [];
@@ -54164,6 +54480,39 @@ function program() {
     }, function (e) {
       SRV.creating = false;
       mpToast(e.message);
+    });
+  };
+  var srvReregister = function srvReregister(pt) {
+    if (SRV.party !== pt || pt.reregistering) {
+      return;
+    }
+    pt.reregistering = true;
+    srvFetch("POST", "/api/parties", {
+      name: pt.name,
+      priv: pt.priv,
+      pass: pt.pass || "",
+      max: pt.max,
+      host: MP.fields.name || "Host",
+      dev: SRV.dev
+    }).then(function (r) {
+      if (SRV.party !== pt) {
+        return;
+      }
+      pt.id = r.id;
+      pt.token = r.token;
+      pt.reregistering = false;
+      SRV.queue = [];
+      SRV.busy = null;
+      SRV.lastBeat = 0;
+    }, function (e) {
+      pt.reregistering = false;
+      if (SRV.party === pt) {
+        pt.failedAt = __p.millis();
+        if (!pt.told) {
+          pt.told = true;
+          mpToast("The party server forgot this party. Trying to list it again...");
+        }
+      }
     });
   };
   var srvCloseParty = function srvCloseParty() {
@@ -54187,12 +54536,22 @@ function program() {
       return;
     }
     var b = SRV.busy;
+    // [v1.3] an invite nobody finished (the player left, or the link never opened) is
+    // thrown away: it used to stay for ever and block every player behind it
+    if (!b && MP.invite && (!MP.invite.rid || MP.invite.status === "failed" || MP.invite.status === "error") && MP.invite.status !== "connecting") {
+      try {
+        MP.invite.pc.close();
+      } catch (e) {}
+      MP.invite = null;
+    }
     // the request being connected: make its connection code, post it, wait
     if (b) {
       var inv = MP.invite;
       if (!b.made) {
         b.made = true;
-        mpMakeInvite();
+        mpMakeInvite({
+          lan: !!b.same
+        });
         if (MP.invite) {
           MP.invite.rid = b.rid;
         }
@@ -54221,8 +54580,8 @@ function program() {
         SRV.busy = null; // done (or gave up): next one
       }
     }
-    // (new players are let in from the menus, not in the middle of a level)
-    if (!SRV.busy && SRV.queue.length && mpCount() < pt.max && !MP.invite && scene !== "game") {
+    // [v1.3] players are let in at any time (in a level they spectate until the next one)
+    if (!SRV.busy && SRV.queue.length && (mpCount() < pt.max || SRV.queue[0].admin) && !MP.invite) {
       SRV.busy = SRV.queue.shift();
       SRV.busy.at = __p.millis();
       SRV.busy.slot = MP.nextSlot;
@@ -54244,6 +54603,25 @@ function program() {
       if (SRV.party !== pt) {
         return;
       }
+      // [v1.3] players who stopped waiting are dropped at once, so they don't hold everyone up
+      if (r.live) {
+        SRV.queue = SRV.queue.filter(function (q) {
+          return r.live.indexOf(q.rid) >= 0;
+        });
+        var bb = SRV.busy;
+        var gotAnswer = (r.answers || []).some(function (an) {
+          return an.rid === bb.rid;
+        });
+        if (bb && !bb.answered && !gotAnswer && __p.millis() - bb.at > 4000 && r.live.indexOf(bb.rid) < 0) {
+          if (MP.invite && MP.invite.rid === bb.rid && MP.invite.status !== "connecting") {
+            try {
+              MP.invite.pc.close();
+            } catch (e) {}
+            MP.invite = null;
+          }
+          SRV.busy = null;
+        }
+      }
       // a moderator's /kick or /ban
       var kicks = r.kicks || [];
       for (var k = 0; k < kicks.length; k++) {
@@ -54263,13 +54641,18 @@ function program() {
         if (!known) {
           SRV.queue.push({
             rid: reqs[i].rid,
-            name: reqs[i].name
+            name: reqs[i].name,
+            admin: !!reqs[i].admin,
+            same: !!reqs[i].same
           });
         }
       }
       var ans = r.answers || [];
       for (var a = 0; a < ans.length; a++) {
         var inv2 = MP.invite;
+        if (SRV.busy && ans[a].rid === SRV.busy.rid) {
+          SRV.busy.answered = true;
+        }
         if (SRV.busy && ans[a].rid === SRV.busy.rid && inv2 && inv2.rid === SRV.busy.rid && inv2.status === "ready") {
           MP.fields.reply = ans[a].code;
           mpUseReply();
@@ -54281,8 +54664,8 @@ function program() {
         SRV.party = null;
         mpLeave("A moderator closed this party.");
       } else if (/no longer|not found|gone/i.test(e.message)) {
-        mpToast("The party server forgot this party. Make a new one.");
-        SRV.party = null;
+        // [v1.3] the server restarted (or lost the party): list it again by itself
+        srvReregister(pt);
       }
     });
   };
@@ -54303,31 +54686,47 @@ function program() {
   // ---------------- moderators: /kick, /ban, /unban ----------------
   // Needs the admin key made on the Pi (setup.sh / dash-party keys). It's asked
   // for once and remembered on this device only.
-  var srvAdmin = function srvAdmin(action, name) {
+  var srvModKey = function srvModKey() {
     var key = "";
     try {
       key = window.localStorage.getItem("dashparkour-mod-key") || "";
     } catch (e) {}
-    key = key || SRV.modKey || "";
-    if (!key) {
-      MP.fields.pass = "";
-      MP.modal = {
-        title: "ADMIN KEY",
-        text: "Paste your server admin key (from the Pi) to /" + action + ". It's remembered on this device.",
-        field: "pass",
-        yes: "OK",
-        no: "CANCEL",
-        keep: true,
-        onYes: function () {
-          SRV.modKey = String(MP.fields.pass || "").replace(/\s+/g, "");
-          try {
-            window.localStorage.setItem("dashparkour-mod-key", SRV.modKey);
-          } catch (e) {}
-          MP.modal = null;
-          MP.fields.pass = "";
-          srvAdmin(action, name);
+    return key || SRV.modKey || "";
+  };
+  // asks for the key once (remembered on this device), then calls done
+  var srvAskModKey = function srvAskModKey(why, done, cancelled) {
+    MP.fields.pass = "";
+    MP.modal = {
+      title: "ADMIN KEY",
+      text: "Type your server admin key (from dash-party keys) " + why + ". It's remembered on this device.",
+      field: "pass",
+      yes: "OK",
+      no: "CANCEL",
+      keep: true,
+      onYes: function () {
+        SRV.modKey = String(MP.fields.pass || "").replace(/\s+/g, "");
+        try {
+          window.localStorage.setItem("dashparkour-mod-key", SRV.modKey);
+        } catch (e) {}
+        MP.modal = null;
+        MP.fields.pass = "";
+        done();
+      },
+      onNo: function () {
+        MP.modal = null;
+        MP.fields.pass = "";
+        if (cancelled) {
+          cancelled();
         }
-      };
+      }
+    };
+  };
+  var srvAdmin = function srvAdmin(action, name) {
+    var key = srvModKey();
+    if (!key) {
+      srvAskModKey("to /" + action, function () {
+        srvAdmin(action, name);
+      });
       return;
     }
     var party = SRV.party ? SRV.party.id : SRV.joinedParty || "";
@@ -54404,7 +54803,7 @@ function program() {
       SRV.max--;
     }
     mpArcLine(String(SRV.max), 140, y + 34, 13, 20, __p.CENTER);
-    if (mpButton(164, y + 24, 76, 42, "MORE", __p.color(120), SRV.max < 8)) {
+    if (mpButton(164, y + 24, 76, 42, "MORE", __p.color(120), SRV.max < 12)) {
       SRV.max++;
     }
     mpParagraph(SRV.priv ? "Only players with the passcode can join. Everyone can still see the party in the list." : "Anyone can find and join it from the party list.", 260, y + 26, 300, 13, 80);
@@ -54450,7 +54849,7 @@ function program() {
       }
       mpArcLine(label, 56, ry + 8, s, 20);
       mpArcLine((pt.priv ? "PRIVATE - " : "PUBLIC - ") + pt.n + " of " + pt.max + " players" + (pt.playing ? " - in a level" : ""), 56, ry + 28, 5.5, pt.priv ? __p.color(170, 90, 0) : __p.color(0, 130, 70));
-      if (mpButton(440, ry + 6, 110, 36, full ? "FULL" : "JOIN", __p.color(0, 120, 255), !full)) {
+      if (mpButton(440, ry + 6, 110, 36, full && !admOn() ? "FULL" : "JOIN", __p.color(0, 120, 255), !full || admOn())) {
         srvJoinParty(pt);
       }
     }
@@ -54491,7 +54890,7 @@ function program() {
     var j = MP.join;
     mpLabel("Joining " + mpArcSafe(cleanText(j.party || "the party")), 40, y, 18);
     var hostBusy = SRV.join && SRV.join.hostPlaying;
-    var msg = j.status === "asking" ? "Asking to join..." : j.status === "waiting" ? hostBusy ? "The host is in a level right now. You'll join as soon as they are back on the map..." : "Waiting for the host to let you in..." : j.status === "making" || j.status === "idle" ? "Connecting..." : j.status === "reply" ? "Almost there: connecting to the host..." : j.status === "refused" ? j.error || "Couldn't join." : "";
+    var msg = j.status === "asking" ? "Asking to join..." : j.status === "waiting" ? hostBusy ? "The host is in a level right now. You'll join in a moment and watch (spectate) until the next level starts..." : "Waiting for the host to let you in..." : j.status === "making" || j.status === "idle" ? "Connecting..." : j.status === "reply" ? "Almost there: connecting to the host..." : j.status === "refused" ? j.error || "Couldn't join." : "";
     mpParagraph(msg, 40, y + 34, 520, 16, j.status === "refused" ? __p.color(200, 40, 0) : 60);
     if (j.status === "refused" && mpButton(40, y + 90, 220, 46, "BACK TO PARTIES", __p.color(0, 120, 255))) {
       MP.join = null;

@@ -516,10 +516,12 @@ function logo(x, y, s) {
   arc(x + s * 3.05, y + s / 4, s / 2, s / 2.3, 270, 520);
 }
 
-function bat(x, y, s, op) {
+// col: how red this bat is (0 = black). Only the bat that is carrying you away turns red.
+function bat(x, y, s, op, col) {
   if (op === undefined) op = 0;
+  if (col === undefined) col = 0;
   rectMode(LEFT);
-  if (scene === "game") fill(batCol, 0, 0); else fill(0, 0, 0);
+  if (scene === "game") fill(col, 0, 0); else fill(0, 0, 0);
   noStroke();
   // Upper Wings
   arc(x, y, s * 1.5, s / 2, 180, 270);
@@ -532,7 +534,7 @@ function bat(x, y, s, op) {
   // Head
   ellipse(x + s / 2.5, y - s / 5, s / 2, s / 2);
   // Lower Wings
-  if (scene === "game") stroke(batCol, 0, 0); else stroke(0, 0, 0);
+  if (scene === "game") stroke(col, 0, 0); else stroke(0, 0, 0);
   strokeWeight(s / 10);
   noFill();
   arc(x - s / 1.48, y + s / 7, s / 1.2, s / 3, 270, 350);
@@ -1204,10 +1206,12 @@ function sceneGame() {
     const bx = batLocX[b], by = batLocY[b];
     if (rooms[bx][by].shown) {
       setAlpha(easeOut3(rooms[bx][by].reveal));
+      // only the bat you stepped on (the one carrying you away) flashes red
+      const carrying = batAnim && bx === playerLocX && by === playerLocY ? batCol : 0;
       if (blindfoldMode) {
-        if (bx === playerLocX && by === playerLocY) bat(bx * 65 - 38, by * 65 - 30, 20);
+        if (bx === playerLocX && by === playerLocY) bat(bx * 65 - 38, by * 65 - 30, 20, undefined, carrying);
       } else {
-        bat(bx * 65 - 38, by * 65 - 30, 20);
+        bat(bx * 65 - 38, by * 65 - 30, 20, undefined, carrying);
       }
       setAlpha(1);
     }

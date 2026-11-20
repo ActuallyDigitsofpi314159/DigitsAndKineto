@@ -2083,6 +2083,27 @@ function dkMidiVoice(song, index, when, volume, out) {
     /* jshint ignore:end */
 }
 
+// Too many notes at once: instead of dropping the NEW note (that is what made busy
+// songs lose notes), the voice that is about to end anyway is faded out quickly.
+function dkMidiMakeRoom() {
+    /* jshint ignore:start */
+    var ctx = dkAudioContext;
+    var oldest = 0;
+    var v;
+    for (v = 1; v < dkMidiVoices.length; v++) {
+        if (dkMidiVoices[v].end < dkMidiVoices[oldest].end) {
+            oldest = v;
+        }
+    }
+    var victim = dkMidiVoices.splice(oldest, 1)[0];
+    try {
+        victim.gain.gain.cancelScheduledValues(0);
+        victim.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.012);
+        victim.source.stop(ctx.currentTime + 0.08);
+    } catch (e) {}
+    /* jshint ignore:end */
+}
+
 function dkMidiPump(state) {
     if (dkMidiState !== state) {
         return;
@@ -2107,8 +2128,12 @@ function dkMidiPump(state) {
         var horizon = now - state.startTime + 0.6;
         while (state.next < song.count && song.start[state.next] <= horizon) {
             var when = state.startTime + song.start[state.next];
-            // notes that are already late are skipped, and at most 64 sound at once
-            if (when > now - 0.05 && dkMidiVoices.length < 64) {
+            // a note that is more than a moment late (the page froze) is skipped; up to 96 sound at once
+            // (past that the voice that is nearly finished makes room, so no new note is dropped)
+            if (when > now - 0.15) {
+                if (dkMidiVoices.length >= 96) {
+                    dkMidiMakeRoom();
+                }
                 dkMidiVoices.push(dkMidiVoice(song, state.next, Math.max(when, now), state.volume, state.out));
             }
             state.next++;

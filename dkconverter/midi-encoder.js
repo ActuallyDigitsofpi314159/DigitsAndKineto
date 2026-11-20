@@ -93,7 +93,9 @@ function parseMIDIFile(input) {
 
     const events = []; // { ticks, order, kind, ... }
     let order = 0;
-    for (let track = 0; track < trackCount && pos + 8 <= length; track++) {
+    // Read every track in the file. The header's track count is sometimes too small, and
+    // trusting it dropped whole tracks (their notes just went missing).
+    for (let track = 0; pos + 8 <= length; track++) {
         // skip any unknown chunks until the next track
         let id = readString(4);
         let chunkLength = read32();
