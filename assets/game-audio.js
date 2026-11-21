@@ -3,7 +3,7 @@
  * Everything is synthesized live with Web Audio from the note patterns below
  * (original pieces written for these games), so there are no sound files and
  * nothing copyrighted. The one borrowed tune, Wumpus Hunt's 'wumpus-eaten', is from
- * the original Hunt the Wumpus (not under copyright) and is credited in the game.
+ * the original Hunt the Wumpus (not under copyright).
  *
  *   DKAudio.init('wumpus-hunt');      // once; loads that game's saved on/off settings
  *   DKAudio.music('wumpus-cave');     // start / switch song (null = silence)

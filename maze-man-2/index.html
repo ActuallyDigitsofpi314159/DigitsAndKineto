@@ -1748,6 +1748,12 @@ function startDeath() {
   if (level > best) { best = level; store.set('mazeman2_best', String(best)); }
   death.dust = []; death.unlocked = false;
 }
+var jumpCv = null;
+function jumpCanvas() {           // scratch canvas the size of the screen, for the jumpscare
+  if (!jumpCv) jumpCv = document.createElement('canvas');
+  if (jumpCv.width !== cv.width || jumpCv.height !== cv.height) { jumpCv.width = cv.width; jumpCv.height = cv.height; }
+  return jumpCv;
+}
 function retry() { requestLock(); loadLevel(1); setScene('game'); game.wake = 0; game.wakeWhite = false; game.freeze = 3.0; game.paused = false; game.toast = 0; }
 function toMenu() { releaseLock(); setScene('title'); fadeBlack = 1; game.paused = false; }
 function drawDeath(dt) {
@@ -1761,12 +1767,21 @@ function drawDeath(dt) {
     var sh = 30 * (1 - t / 1.6 * 0.6);
     var lunge = 0.7 + 0.4 * easeOutBack(t / 0.22) + (t > 1.25 ? Math.pow((t - 1.25) / 0.35, 2) * 2.5 : 0);
     var R = Math.min(W, H) * 0.42 * lunge;
-    drawLarry(ctx, W / 2 + rnd(-sh, sh), H / 2 + rnd(-sh, sh) + R * 0.05, R, { mouth: clamp(t / 0.2, 0, 1) * (0.85 + 0.15 * Math.sin(t * 40)), lookX: rnd(-0.3, 0.3), lookY: rnd(-0.2, 0.2) });
+    // Larry is drawn once into a scratch canvas, then copied in. The glitch slices
+    // come from that copy too: copying the screen canvas onto itself (as before)
+    // made the browser snapshot the whole screen 4 times a frame, which tanked the
+    // frame rate during the attack.
+    var jc = jumpCanvas(), jx = jc.getContext('2d');
+    jx.setTransform(1, 0, 0, 1, 0, 0); jx.clearRect(0, 0, jc.width, jc.height);
+    jx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    drawLarry(jx, W / 2 + rnd(-sh, sh), H / 2 + rnd(-sh, sh) + R * 0.05, R, { mouth: clamp(t / 0.2, 0, 1) * (0.85 + 0.15 * Math.sin(t * 40)), lookX: rnd(-0.3, 0.3), lookY: rnd(-0.2, 0.2) });
+    ctx.drawImage(jc, 0, 0, W, H);
     // glitch slices
     if (Math.random() < 0.6) {
       for (var i = 0; i < 4; i++) {
         var sy = Math.random() * H, sh2 = rnd(8, 40), off = rnd(-40, 40);
-        ctx.drawImage(cv, 0, sy * DPR, cv.width, sh2 * DPR, off, sy, W, sh2);
+        ctx.fillRect(0, sy, W, sh2); // (the flicker colour, under the shifted slice)
+        ctx.drawImage(jc, 0, sy * DPR, jc.width, sh2 * DPR, off, sy, W, sh2);
       }
     }
     ctx.fillStyle = 'rgba(255,0,0,' + (Math.random() < 0.25 ? 0.25 : 0) + ')'; ctx.fillRect(0, 0, W, H);

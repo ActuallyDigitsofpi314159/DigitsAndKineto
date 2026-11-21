@@ -479,13 +479,16 @@ function dashPlayOn(ctx, key, volume, loop) {
 }
 var dashUiSources = {};
 window.dashSfx = function (name, volume, opt) {
+  if (window.__dashBootHold) return; // [v1.5] the game is loading behind the save code screen
   var data = DASH_SOUNDS[name];
   volume = volume === undefined ? 1 : volume;
   if (!data || !(data.s || data.data)) {
+    // (the synthesized ones follow the volume sliders inside DashAudio)
     // no recording pasted in: the synthesized effect from audio/dash-sfx.js
     if (window.DashAudio) window.DashAudio.sfx(name, volume, opt);
     return;
   }
+  volume *= typeof window.__dashSfxVol === "number" ? window.__dashSfxVol : 1; // [v1.5] Effects Volume
   try {
     if (DASH_UI_SOUNDS[name]) {
       // menu sounds: on the context that keeps playing in the pause menu
@@ -521,6 +524,7 @@ dkGetAudioContext = function () {
 };
 var dashMusicNow = "", dashMusicSource = null;
 window.dashMusic = function (track) {
+  if (window.__dashBootHold) track = ""; // [v1.5] (silent behind the save code screen)
   if (track === dashMusicNow) return;
   dashMusicNow = track;
   if (dashMusicSource) {
@@ -25899,6 +25903,26 @@ function program() {
       key: "playMusic",
       defaultValue: true,
       desc: "Background music for the menus, levels, boss fights and the final stage.\n\nThe tracks are pasted into the music list at the top of the file."
+    }, {
+      label: "Music Volume",
+      key: "musicVolume",
+      defaultValue: 70,
+      slider: {
+        min: 0,
+        max: 100,
+        step: 5
+      },
+      desc: "How loud the music is.\n\nKept on this device (not in the save code)."
+    }, {
+      label: "Effects Volume",
+      key: "sfxVolume",
+      defaultValue: 70,
+      slider: {
+        min: 0,
+        max: 100,
+        step: 5
+      },
+      desc: "How loud the sound effects are.\n\nKept on this device (not in the save code)."
     }]
   };
   var currentPage = "Menu";
@@ -26410,7 +26434,7 @@ function program() {
   }, {
     id: 21,
     name: "Parkour\nMaster\nCostume",
-    mainColor: __p.color(183, 0, 255),
+    mainColor: __p.color(253, 147, 255), // [v1.5] the real Parkour Master's light pink
     cost: null,
     owned: allRunsComplete,
     area: "S"
@@ -27026,6 +27050,19 @@ function program() {
       return false;
     }
   })();
+  // [v1.5] the volume sliders: per device too (the save code layout stays the same)
+  (function () {
+    var rd = function (k, d) {
+      try {
+        var v = parseInt(window.localStorage.getItem("dashparkour-" + k), 10);
+        return v >= 0 && v <= 100 ? v : d;
+      } catch (e) {
+        return d;
+      }
+    };
+    settings.musicVolume = rd("musicVolume", 70);
+    settings.sfxVolume = rd("sfxVolume", 70);
+  })();
   for (var KeyV in SAVE_TEMPLATE_11) {
     if (SAVE_TEMPLATE_11.hasOwnProperty(KeyV)) {
       SAVE_TEMPLATE_V[KeyV] = SAVE_TEMPLATE_11[KeyV];
@@ -27385,7 +27422,9 @@ function program() {
     __p.stroke(255);
     arcSize(asz);
     arcAlign(__p.CENTER);
-    arcText(label, 0, asz / 2);
+    // [v1.5] centred in the circle: it sat low, and a little left (the font's centring
+    // counts a little space after the last letter)
+    arcText(label, asz * 0.3, asz * 0.14);
     arcSize(keepSz);
     arcAlign(keepAl);
     __p.popMatrix();
@@ -27869,7 +27908,12 @@ function program() {
       ensureBadgeMasked(b, baseSize);
     }
   }
+  // [v1.5] how far up the achievements list may scroll: far enough to see the last
+  // row (it was a fixed amount, so badges added at the end, like Parkour Master once
+  // it is listed, could sit below the bottom of the screen)
+  var goalsMinY = -110;
   function drawBadgesAndClasses(classNames, startX, initialY, s, maxWidth) {
+    var lastRowY = initialY;
     // --------------------------------------------------------
     // REACTIVE SYNC: Pulls live values into the visual objects 
     // immediately prior to rendering (solves async loading lag)
@@ -27932,6 +27976,7 @@ function program() {
             selectedBadge = badge.name;
           }
         }
+        lastRowY = currentY;
         if (currentX + s + badgeSpacing > maxWidth) {
           currentX = startX;
           currentY += s * 1.2;
@@ -27941,6 +27986,7 @@ function program() {
       }
       currentY += s * 1.5;
     }
+    goalsMinY = __p.min(-110, 570 - (lastRowY - initialY) - s * 0.6);
   }
   // [v1.1] the ring of a secret badge: a slowly turning rainbow
   var rainbowRing = function rainbowRing(x, y, d, w) {
@@ -28166,6 +28212,14 @@ function program() {
 
   // Cool health box
   var visualHealth = 100;
+  // The health number: anything from 0.02% up shows at least 1%, so you're never
+  // shown 0% while still alive (0.01% is the orbital-strike skull: shown as 0%).
+  var hpShown = function hpShown(h) {
+    if (!(h > 0)) {
+      return 0;
+    }
+    return h < 0.5 ? h >= 0.015 ? 1 : 0 : __p.round(h);
+  };
   var drawHealthBox = function drawHealthBox(x, y, vh, h) {
     if (h === 0) {
       vh = 0;
@@ -28182,7 +28236,7 @@ function program() {
     if (world === 4) {
       __p.stroke(255, 255, 255, 80);
     }
-    arcText(__p.round(h) + '%', x - 1, y + 25);
+    arcText(hpShown(h) + '%', x - 1, y + 25);
     arcSize(11.5);
     arcText('HEALTH', x + 159, y + 69);
     // [v1.1] the two colour ramps are one gradient fill each (they were 150-300
@@ -28225,7 +28279,7 @@ function program() {
     if (world === 4) {
       __p.stroke(255, vh * 2.5, vh * 2.5);
     }
-    arcText(__p.round(h) + '%', x - 5, y + 21);
+    arcText(hpShown(h) + '%', x - 5, y + 21);
     __p.stroke(255, 255, 255, 100);
     //stroke(255, 0, 0);
     __p.strokeWeight(4);
@@ -29163,6 +29217,60 @@ function program() {
   drawBossSpike(80, 80, 105);
   var bossSpike = __p.get(0, 0, 160, 160);
 
+  // [v1.5] Where the drawing really is inside a baked sprite (its visible pixels),
+  // worked out once. Boss bullets and icicles are drawn so the middle of what you
+  // see sits on the middle of their hitbox: they were drawn with whichever image
+  // mode the last thing on screen had left set (the bomb sets CORNER, the spikes
+  // CENTER), so they sometimes showed far from where they really hurt.
+  var spriteMiddle = function spriteMiddle(img) {
+    if (img.__mid) {
+      return img.__mid;
+    }
+    var mid = { x: 0.5, y: 0.5 };
+    try {
+      var src = img.sourceImg || img;
+      var c = document.createElement("canvas");
+      c.width = src.width || img.width;
+      c.height = src.height || img.height;
+      var g = c.getContext("2d");
+      g.drawImage(src, 0, 0);
+      var d = g.getImageData(0, 0, c.width, c.height).data;
+      var x0 = c.width,
+        y0 = c.height,
+        x1 = -1,
+        y1 = -1;
+      for (var yy = 0; yy < c.height; yy++) {
+        for (var xx = 0; xx < c.width; xx++) {
+          if (d[(yy * c.width + xx) * 4 + 3] > 60) {
+            if (xx < x0) {
+              x0 = xx;
+            }
+            if (xx > x1) {
+              x1 = xx;
+            }
+            if (yy < y0) {
+              y0 = yy;
+            }
+            if (yy > y1) {
+              y1 = yy;
+            }
+          }
+        }
+      }
+      if (x1 >= x0 && y1 >= y0) {
+        mid = { x: (x0 + x1 + 1) / 2 / c.width, y: (y0 + y1 + 1) / 2 / c.height };
+      }
+    } catch (e) {}
+    img.__mid = mid;
+    return mid;
+  };
+  // draw a sprite w x h with the middle of its drawing at (cx, cy)
+  var drawSpriteOn = function drawSpriteOn(img, cx, cy, w, h) {
+    var m = spriteMiddle(img);
+    __p.imageMode(__p.CORNER);
+    __p.image(img, cx - m.x * w, cy - m.y * h, w, h);
+  };
+
   //]
 
   var bossPoisonWave = function bossPoisonWave(x, y, s) {
@@ -29456,6 +29564,24 @@ function program() {
     }
   };
   var bossDecaySpots = [];
+  // [v1.5] Broadphase: skip the collision maths for objects nowhere near (x, y).
+  // The player, Boings and ECH0 tested every object in the level every step; now
+  // anything farther than its own size plus pad is passed over (same results).
+  var OBJ_PLAIN = { block: 1, spike: 1, lava: 1, poison: 1 };
+  var objFar = function objFar(o, x, y, pad) {
+    if (o.w === undefined || o.h === undefined || o.x === undefined || o.y === undefined) {
+      return false;
+    }
+    if (o.__ex === undefined || o.__ew !== o.w || o.__eh !== o.h || o.__er !== o.r) {
+      o.__ew = o.w;
+      o.__eh = o.h;
+      o.__er = o.r;
+      var big = o.r ? Math.sqrt(o.w * o.w + o.h * o.h) / 2 : 0;
+      o.__ex = o.r ? big : o.w / 2;
+      o.__ey = o.r ? big : o.h / 2;
+    }
+    return Math.abs(o.x - x) > o.__ex + pad || Math.abs(o.y - y) > o.__ey + pad;
+  };
   function Enemy(x, y, s, r, speed) {
     this.x = x;
     this.y = y;
@@ -29620,6 +29746,9 @@ function program() {
     };
     for (var i = 0; i < objects.length; i++) {
       var o = objects[i];
+      if (objFar(o, boingBox.x, boingBox.y, 90)) {
+        continue; // [v1.5] nowhere near
+      }
       var mtv = checkCollision(boingBox, o);
       if (mtv && __p.abs(mtv.y) >= __p.abs(mtv.x)) {
         if (this.vy >= 0 && mtv.y < 0) {
@@ -29788,9 +29917,75 @@ function program() {
     __p.stroke(255, 255, 255, 50);
     __p.line(this.x + 2, this.y - 13, this.x + 5, this.y - 10);
   };
-  Thorn.prototype.update = function (player) {
+  // [v1.5] Things an enemy can stand on or bump into (not hazards, signs, enemies...)
+  var ENEMY_NOT_SOLID = { spike: 1, lava: 1, poison: 1, sign: 1, arrowSign: 1, boing: 1, thorn: 1, zapp: 1, checkpoint: 1, launcher: 1 };
+  var enemySolid = function enemySolid(o) {
+    return !!o && o.w !== undefined && o.h !== undefined && !ENEMY_NOT_SOLID[o.type];
+  };
+  // is the point inside the (possibly turned) box?
+  var pointInBox = function pointInBox(px, py, o) {
+    var dx = px - o.x,
+      dy = py - o.y;
+    if (o.r) {
+      var c = __p.cos(-o.r),
+        sn = __p.sin(-o.r);
+      var lx = dx * c - dy * sn;
+      dy = dx * sn + dy * c;
+      dx = lx;
+    }
+    return __p.abs(dx) <= o.w / 2 && __p.abs(dy) <= o.h / 2;
+  };
+  Thorn.prototype.update = function (player, objects) {
     // Move if player is in the radius
-    this.x += this.detectRadius(player) * DT;
+    var move = this.detectRadius(player) * DT;
+    if (!move) {
+      return;
+    }
+    if (!objects) {
+      this.x += move;
+      return;
+    }
+    // [v1.5] Thorns keep to their own ground: they stop at a ledge (and wait there)
+    // instead of walking off it and floating, and they can't walk through walls.
+    var sc = this.size / 50,
+      half = 20 * sc,
+      tall = 20 * sc;
+    var nx = this.x + move,
+      dir = move > 0 ? 1 : -1;
+    var probeX = nx + dir * half * 0.5; // (the front half of the thorn must have ground under it)
+    var body = {
+      x: nx,
+      y: this.y - tall / 2 - 1,
+      w: half * 1.8,
+      h: tall * 0.9,
+      r: 0
+    };
+    var hadGround = false,
+      ground = false,
+      wall = false;
+    for (var i = 0; i < objects.length; i++) {
+      var o = objects[i];
+      // only what is near (most of the level is far away)
+      if (!enemySolid(o) || __p.abs(o.x - nx) > (o.r ? __p.max(o.w, o.h) : o.w) / 2 + half * 2 + 10 || __p.abs(o.y - this.y) > (o.r ? __p.max(o.w, o.h) : o.h) / 2 + tall + 12) {
+        continue;
+      }
+      for (var d = 1; d <= 8 && !(hadGround && ground); d += 3.5) {
+        if (!hadGround && pointInBox(this.x, this.y + d, o)) {
+          hadGround = true;
+        }
+        if (!ground && pointInBox(probeX, this.y + d, o)) {
+          ground = true;
+        }
+      }
+      if (!wall && checkCollision(body, o)) {
+        wall = true;
+      }
+    }
+    // (a thorn placed in mid-air in a level just moves as it always did)
+    if (wall || hadGround && !ground) {
+      return;
+    }
+    this.x = nx;
   };
   Thorn.prototype.checkHit = function (player) {
     var playerVerts = getVertices(player);
@@ -30403,7 +30598,7 @@ function program() {
     }, {
       type: 'conveyorbelt',
       x: 3100,
-      y: -170,
+      y: -165,
       w: 390,
       h: 30,
       d: 1,
@@ -30431,7 +30626,7 @@ function program() {
     }, {
       type: 'conveyorbelt',
       x: 4600,
-      y: 100,
+      y: 104,
       w: 800,
       h: 30,
       d: 1,
@@ -30507,7 +30702,7 @@ function program() {
     }, {
       type: 'conveyorbelt',
       x: 7520,
-      y: 101,
+      y: 105,
       w: 450,
       h: 30,
       d: 1,
@@ -30573,7 +30768,7 @@ function program() {
     }, {
       type: 'conveyorbelt',
       x: 10150,
-      y: 42,
+      y: 45,
       w: 450,
       h: 30,
       d: -1,
@@ -30726,7 +30921,7 @@ function program() {
     }, {
       type: 'conveyorbelt',
       x: 2815,
-      y: -613,
+      y: -610,
       w: 300,
       h: 30,
       r: 0,
@@ -30786,7 +30981,7 @@ function program() {
     }, {
       type: 'conveyorbelt',
       x: 3200,
-      y: -1068,
+      y: -1065,
       w: 300,
       h: 30,
       r: 0,
@@ -30834,7 +31029,7 @@ function program() {
     }, {
       type: 'conveyorbelt',
       x: 800,
-      y: -1068,
+      y: -1065,
       w: 300,
       h: 30,
       r: 0,
@@ -30984,7 +31179,7 @@ function program() {
     }, {
       type: 'conveyorbelt',
       x: 3730,
-      y: 432,
+      y: 435,
       w: 300,
       h: 30,
       d: 1,
@@ -31093,7 +31288,7 @@ function program() {
     }, {
       type: 'conveyorbelt',
       x: 8750,
-      y: 372,
+      y: 375,
       w: 360,
       h: 30,
       d: -1,
@@ -31396,7 +31591,7 @@ function program() {
     }, {
       type: 'conveyorbelt',
       x: 8835,
-      y: 385,
+      y: 387,
       w: 520,
       h: 30,
       d: 1,
@@ -31836,7 +32031,7 @@ function program() {
     }, {
       type: 'conveyorbelt',
       x: 1200,
-      y: 452,
+      y: 455,
       w: 300,
       h: 30,
       d: 1,
@@ -31844,7 +32039,7 @@ function program() {
     }, {
       type: 'conveyorbelt',
       x: 1800,
-      y: 452,
+      y: 455,
       w: 300,
       h: 30,
       d: -1,
@@ -31956,7 +32151,7 @@ function program() {
     }, {
       type: 'conveyorbelt',
       x: 7680,
-      y: 452,
+      y: 455,
       w: 300,
       h: 30,
       d: 1,
@@ -33229,7 +33424,7 @@ function program() {
     }, {
       type: 'conveyorbelt',
       x: 4500,
-      y: -268,
+      y: -265,
       w: 400,
       h: 30,
       d: 1,
@@ -33302,7 +33497,7 @@ function program() {
     {
       type: 'conveyorbelt',
       x: 1300,
-      y: -252,
+      y: -250,
       w: 400,
       h: 30,
       d: 1,
@@ -33681,7 +33876,7 @@ function program() {
     }, {
       type: 'conveyorbelt',
       x: 6700,
-      y: 451,
+      y: 455,
       w: 400,
       h: 30,
       d: 1,
@@ -33773,7 +33968,7 @@ function program() {
     }, {
       type: 'conveyorbelt',
       x: 8150,
-      y: 451,
+      y: 455,
       w: 400,
       h: 30,
       d: 1,
@@ -33995,7 +34190,7 @@ function program() {
     }, {
       type: 'hyperbelt',
       x: -700,
-      y: 451,
+      y: 455,
       w: 400,
       h: 30,
       d: 1,
@@ -34758,7 +34953,7 @@ function program() {
       }, {
         type: 'hyperbelt',
         x: 2815,
-        y: -613,
+        y: -610,
         w: 300,
         h: 30,
         r: 0,
@@ -34807,7 +35002,7 @@ function program() {
       }, {
         type: 'hyperbelt',
         x: 3200,
-        y: -1068,
+        y: -1065,
         w: 300,
         h: 30,
         r: 0,
@@ -34856,7 +35051,7 @@ function program() {
       }, {
         type: 'hyperbelt',
         x: 800,
-        y: -1068,
+        y: -1065,
         w: 300,
         h: 30,
         r: 0,
@@ -34949,7 +35144,7 @@ function program() {
       }, {
         type: 'hyperbelt',
         x: 1200,
-        y: 452,
+        y: 455,
         w: 300,
         h: 30,
         d: 1,
@@ -34957,7 +35152,7 @@ function program() {
       }, {
         type: 'hyperbelt',
         x: 1800,
-        y: 452,
+        y: 455,
         w: 300,
         h: 30,
         d: -1,
@@ -35071,7 +35266,7 @@ function program() {
       }, {
         type: 'hyperbelt',
         x: 7680,
-        y: 452,
+        y: 455,
         w: 300,
         h: 30,
         d: 1,
@@ -35272,7 +35467,7 @@ function program() {
       }, {
         type: 'hyperbelt',
         x: 4500,
-        y: -268,
+        y: -265,
         w: 400,
         h: 30,
         d: 1,
@@ -35345,7 +35540,7 @@ function program() {
       {
         type: 'hyperbelt',
         x: 1300,
-        y: -252,
+        y: -250,
         w: 400,
         h: 30,
         d: 1,
@@ -35933,6 +36128,11 @@ function program() {
 
   // Particle class
   var CONFETTI_COLS = [[255, 60, 90], [255, 200, 40], [60, 200, 255], [120, 230, 90], [190, 100, 255], [255, 130, 40]];
+  // [v1.5] the Parkour Master's particles. 1 = all pink/purple, 0 = mixed with the
+  // obstacle's own colour (every other one)
+  var PM_COLS = [[255, 100, 255], [183, 0, 255], [255, 60, 200], [140, 40, 255], [230, 150, 255]];
+  var PM_TINT_TYPES = { dust: 1, smoke: 1, death: 1, spawn: 1, launch: 1, wind: 1, spike: 0, lava: 0, bullet: 0, explosion: 0, laser: 0, decay: 0, rock: 0, fuse: 0 };
+  var GLITTER_COLS = [[255, 105, 180], [255, 150, 210], [255, 190, 230], [255, 70, 160], [255, 235, 250]]; // [v1.5] Bubbly Dash
   var Particle = function Particle(x, y, vx, vy, type, timeSpeed, boss) {
     this.x = x;
     this.y = y;
@@ -35949,6 +36149,16 @@ function program() {
       this.rot = __p.random(360);
       this.spin = __p.random(-14, 14);
       this.flip = __p.random(360);
+    } else if (this.type === "money") {
+      this.coin = __p.random(1) < 0.45; // a gold coin, or else a green bill
+      this.rot = __p.random(360);
+      this.spin = __p.random(-10, 10);
+      this.flip = __p.random(360);
+    } else if (this.type === "glitter") {
+      this.col = GLITTER_COLS[Math.floor(__p.random(0, GLITTER_COLS.length))];
+      this.rot = __p.random(90);
+      this.spin = __p.random(-6, 6);
+      this.tw = __p.random(360); // twinkle phase
     } else if (this.type === "pi") {
       this.life = 0; // Starts completely transparent
       this.digit = Math.floor(__p.random(0, 10)); // Chooses a number 0-9
@@ -35986,6 +36196,24 @@ function program() {
       this.rot += this.spin * DT;
       this.flip += 16 * DT;
       this.life -= 5 * DT;
+    } else if (this.type === "money") {
+      this.x += this.vx * DT;
+      this.y += this.vy * DT;
+      this.vy += 0.1 * DT; // a bit heavier than confetti
+      this.vx *= dtPow(0.97);
+      this.vy *= dtPow(0.98);
+      this.rot += this.spin * DT;
+      this.flip += 14 * DT;
+      this.life -= 5 * DT;
+    } else if (this.type === "glitter") {
+      this.x += this.vx * DT;
+      this.y += this.vy * DT;
+      this.vy += 0.03 * DT; // drifts down slowly
+      this.vx *= dtPow(0.95);
+      this.vy *= dtPow(0.96);
+      this.rot += this.spin * DT;
+      this.tw += 22 * DT;
+      this.life -= 4.5 * DT;
     } else if (this.type === "pi") {
       var piOwner = this.boss && this.boss.x !== undefined ? this.boss : p; // [v1.1] another player's Dash in multiplayer
       // [v1.4] the digits move relative to their Dash, so a running (or dashing) Dash
@@ -36145,6 +36373,16 @@ function program() {
       worldRenderStats.particlesCulled++;
     }
     __p.noStroke();
+    // [v1.5] made at the Parkour Master's Dash: pink / purple
+    if (this.pm && !(this.type === "death" && this.col)) {
+      if (particleVisible) {
+        var pmA = __p.constrain(this.type === "death" || this.type === "spawn" ? this.life * 2 : this.life, 0, 255);
+        __p.fill(this.pm[0], this.pm[1], this.pm[2], pmA);
+        var pmS = __p.max(1, __p.abs(this.size));
+        __p.ellipse(this.x, this.y, pmS, pmS);
+      }
+      return;
+    }
     if (this.type === "wind") {
       __p.stroke(165, 165, 165, this.life);
       __p.strokeWeight(this.size);
@@ -36297,6 +36535,45 @@ function program() {
         __p.rect(-this.size * 0.5, -cfH / 2, this.size, cfH);
         __p.popMatrix();
       }
+    } else if (this.type === "money") {
+      if (particleVisible) {
+        var ma = __p.constrain(this.life * 1.6, 0, 255);
+        __p.pushMatrix();
+        __p.translate(this.x, this.y);
+        __p.rotate(this.rot);
+        var mFlip = Math.cos(this.flip * Math.PI / 180);
+        if (this.coin) {
+          // a gold coin turning over
+          var cw = this.size * 0.9 * __p.max(0.15, __p.abs(mFlip));
+          __p.fill(200, 140, 0, ma);
+          __p.ellipse(0, 0, cw, this.size * 0.9);
+          __p.fill(255, 210, 40, ma);
+          __p.ellipse(0, 0, cw * 0.7, this.size * 0.65);
+        } else {
+          // a little green bill flipping as it falls
+          var bw = this.size * 1.5,
+            bh = this.size * 0.75 * mFlip;
+          __p.fill(30, 120, 50, ma);
+          __p.rect(-bw / 2, -bh / 2, bw, bh);
+          __p.fill(130, 210, 130, ma);
+          __p.rect(-bw * 0.36, -bh * 0.3, bw * 0.72, bh * 0.6);
+          __p.fill(30, 120, 50, ma);
+          __p.ellipse(0, 0, __p.abs(bh) * 0.45, __p.abs(bh) * 0.45);
+        }
+        __p.popMatrix();
+      }
+    } else if (this.type === "glitter") {
+      if (particleVisible) {
+        // a pink four-point sparkle that twinkles
+        var gs = this.size * (0.55 + 0.45 * __p.abs(Math.sin(this.tw * Math.PI / 180)));
+        __p.fill(this.col[0], this.col[1], this.col[2], __p.constrain(this.life * 1.5, 0, 255));
+        __p.pushMatrix();
+        __p.translate(this.x, this.y);
+        __p.rotate(this.rot);
+        __p.quad(0, -gs * 0.6, gs * 0.14, 0, 0, gs * 0.6, -gs * 0.14, 0);
+        __p.quad(-gs * 0.6, 0, 0, gs * 0.14, gs * 0.6, 0, 0, -gs * 0.14);
+        __p.popMatrix();
+      }
     } else {
       // Regular smoke/dust
       __p.fill(200, 200, 200, this.life);
@@ -36346,10 +36623,18 @@ function program() {
       type = "confetti";
       count = Math.ceil(count * 1.5);
     }
+    var pmStart = particles.length; // [v1.5] (see the Parkour Master colours below)
+    // [v1.5] Money Dash kicks up cash (bills and coins), Bubbly Dash pink glitter
+    if (type === "dust" && currentSkin === 25) {
+      type = "money";
+    } else if (type === "dust" && currentSkin === 14) {
+      type = "glitter";
+      count = Math.ceil(count * 1.5);
+    }
     if (true) {
       for (var i = 0; i < count; i++) {
         var vx, vy;
-        if (type === "confetti") {
+        if (type === "confetti" || type === "money" || type === "glitter") {
           vx = __p.random(-speed, speed) * 1.2;
           vy = __p.random(-speed * 1.4, speed * 0.3) - 0.6;
           particles.push(new Particle(x, y, vx, vy, type, speed, boss));
@@ -36422,6 +36707,15 @@ function program() {
           vx = __p.random(-speed, speed);
           vy = __p.random(-speed, speed);
           particles.push(new Particle(x, y, vx, vy, type, speed, boss));
+        }
+      }
+    }
+    // [v1.5] the Parkour Master costume: everything around his Dash is pink and purple
+    // (hitting a spike, lava... mixes that obstacle's own colour in with them)
+    if (currentSkin === 21 && !boss && p && __p.abs(x - p.x) < 60 && __p.abs(y - p.y) < 60 && PM_TINT_TYPES[type] !== undefined) {
+      for (var pk = pmStart; pk < particles.length; pk++) {
+        if (PM_TINT_TYPES[type] === 1 || (pk - pmStart) % 2 === 0) {
+          particles[pk].pm = PM_COLS[Math.floor(__p.random(0, PM_COLS.length))];
         }
       }
     }
@@ -36937,6 +37231,42 @@ function program() {
       return null;
     }
   };
+  // [v1.5] Pixel Dash drawn turned: a copy scaled up with hard pixel edges and a
+  // clear border, then drawn smoothed, so the cells stay sharp but the outline
+  // is anti-aliased instead of jagged.
+  var PIXEL_AA_CELLS = 96,
+    PIXEL_AA_PAD = 3;
+  var pixelSpriteTurned = function pixelSpriteTurned() {
+    var ctx = __p.externals.context;
+    if (!ctx || !ctx.getTransform) {
+      return false;
+    }
+    var m = ctx.getTransform();
+    return Math.abs(m.b) > 1e-3 || Math.abs(m.c) > 1e-3;
+  };
+  var pixelSpriteAA = function pixelSpriteAA(img) {
+    if (!img) {
+      return null;
+    }
+    if (img.__aa) {
+      return img.__aa;
+    }
+    var src = img.sourceImg || img;
+    if (!src || !src.width) {
+      return null;
+    }
+    try {
+      var cv = document.createElement("canvas");
+      cv.width = cv.height = PIXEL_AA_CELLS + PIXEL_AA_PAD * 2;
+      var cx = cv.getContext("2d");
+      cx.imageSmoothingEnabled = false;
+      cx.drawImage(src, 0, 0, src.width, src.height, PIXEL_AA_PAD, PIXEL_AA_PAD, PIXEL_AA_CELLS, PIXEL_AA_CELLS);
+      img.__aa = cv;
+      return cv;
+    } catch (e) {
+      return null;
+    }
+  };
   var Player = function Player(x, y) {
     this.x = x;
     this.y = y;
@@ -37056,6 +37386,10 @@ function program() {
 
     // Paralysis tick
     if (this.paralyzed) {
+      // [v1.5] (also while zapped or frozen: without these, every frame on the ground
+      // looked like a fresh hard landing and burst out another cloud of dust)
+      this.prevGrounded = this.grounded;
+      this.prevVy = this.vy;
       this.paralyzedFrames += DT;
       if (this.paralyzedFrames >= this.paralyzedDuration) {
         this.paralyzed = false;
@@ -37078,6 +37412,8 @@ function program() {
       return; // skip all input
     }
     if (this.frozen) {
+      this.prevGrounded = this.grounded;
+      this.prevVy = this.vy;
       this.frozenFrames += DT;
       if (this.frozenFrames >= this.frozenDuration) {
         this.frozen = false;
@@ -37821,7 +38157,16 @@ function program() {
         // level (the title showed no skin after loading a save); fall back to the real image
         var pixImg = activeSprite && activeSprite.width ? activeSprite : imgs.pixelSkinStraight;
         var pixTinted = dashTint !== null ? tintedSprite(pixImg, dashTint) : null;
-        if (pixTinted) {
+        // [v1.5] turned (flips, spins, cutscenes): smooth edges instead of jagged ones
+        var pixAA = pixelSpriteTurned() ? pixelSpriteAA(pixTinted || pixImg) : null;
+        if (pixAA) {
+          var pctx = __p.externals.context,
+            pwas = pctx.imageSmoothingEnabled;
+          var ppad = this.h * PIXEL_AA_PAD / PIXEL_AA_CELLS;
+          pctx.imageSmoothingEnabled = true;
+          pctx.drawImage(pixAA, -this.h / 2 - ppad, -this.h - ppad, this.h + ppad * 2, this.h + ppad * 2);
+          pctx.imageSmoothingEnabled = pwas;
+        } else if (pixTinted) {
           __p.externals.context.drawImage(pixTinted, -this.h / 2, -this.h, this.h, this.h);
         } else {
           __p.imageMode(__p.CENTER);
@@ -38286,7 +38631,7 @@ function program() {
         var h = this.visualH;
         var x = faceX;
         var y = faceY + h / 6;
-        var s = w * 2;
+        var s = this.w * 2; // [v1.5] the eyes keep their size (they grew and shrank with every jump)
         // [v5] a short cape that trails behind when running and lifts in the air
         var capeTrail = __p.constrain(-this.vx * 2.4, -w * 0.75, w * 0.75);
         var capeLift = __p.constrain(this.vy * 1.6, -h * 0.35, h * 0.25);
@@ -38294,14 +38639,14 @@ function program() {
         var capeBottom = -h * 0.04 + capeLift;
         __p.stroke(0);
         __p.strokeWeight(w / 22);
-        __p.fill(70, 0, 110);
+        __p.fill(colorCape[0], colorCape[1], colorCape[2]); // [v1.5] the real Parkour Master's cape colour
         __p.beginShape();
         __p.vertex(-w * 0.46, -h * 0.82);
         __p.bezierVertex(-w * 0.6 + capeTrail * 0.4, -h * 0.45, -w * 0.7 + capeTrail * 0.9, capeBottom - h * 0.1, -w * 0.62 + capeTrail + capeFlap, capeBottom);
         __p.bezierVertex(-w * 0.2 + capeTrail, capeBottom + h * 0.06 - capeFlap, w * 0.2 + capeTrail, capeBottom - h * 0.04 + capeFlap, w * 0.62 + capeTrail - capeFlap, capeBottom);
         __p.bezierVertex(w * 0.7 + capeTrail * 0.9, capeBottom - h * 0.1, w * 0.6 + capeTrail * 0.4, -h * 0.45, w * 0.46, -h * 0.82);
         __p.endShape(__p.CLOSE);
-        __p.fill(255, 0, 255);
+        __p.fill(253, 147, 255); // [v1.5] the real Parkour Master's light pink
         __p.noStroke();
         var cornerRad = w * 0.25;
         __p.rect(-w / 2, -h, w, h, cornerRad);
@@ -38379,45 +38724,7 @@ function program() {
 
     // --- Overlays & Effects ---
     if (this.paralyzed) {
-      __p.pushMatrix();
-      // Pulsing electric aura
-      var pulse = __p.sin(__p.frameCount * 0.25) * 0.5 + 0.8;
-      __p.noFill();
-
-      // Outer glow layers
-      for (var i = 3; i > 0; i--) {
-        var alpha = (60 + i * 25) * pulse;
-        __p.stroke(255, 240, 80, alpha);
-        __p.strokeWeight(6 + i * 3);
-        __p.rect(-this.visualW / 2 - i * 4, -this.visualH - i * 4, this.visualW + i * 8, this.visualH + i * 8, this.visualW * 0.3);
-      }
-
-      // Bright core outline
-      __p.stroke(255, 255, 120, 220);
-      __p.strokeWeight(3);
-      __p.rect(-this.visualW / 2, -this.visualH, this.visualW, this.visualH, this.visualW * 0.25);
-
-      // Electric arcs / lightning bolts
-      __p.stroke(255, 255, 100, 255);
-      __p.strokeWeight(2.5);
-      var time = __p.frameCount * 0.3;
-      for (var i = 0; i < 6; i++) {
-        var baseAngle = i / 6 * 360 + time * 25;
-        var offset = __p.sin(time * 2 + i * 1.3) * 25;
-        var x1 = __p.cos(baseAngle) * this.w * 0.45;
-        var y1 = __p.sin(baseAngle) * this.h * 0.45 - this.h * 0.4;
-        var x2 = __p.cos(baseAngle + offset) * this.w * 0.85;
-        var y2 = __p.sin(baseAngle + offset) * this.h * 0.75 - this.h * 0.45;
-        var mx = (x1 + x2) * 0.5 + __p.random(-12, 12);
-        var my = (y1 + y2) * 0.5 + __p.random(-12, 12);
-        __p.line(x1, y1, mx, my);
-        __p.line(mx, my, x2, y2);
-      }
-      if (__p.frameCount % 5 < 2) {
-        __p.fill(255, 255, 200, 90);
-        __p.rect(-this.visualW / 2, -this.visualH, this.visualW, this.visualH, this.visualW * 0.25);
-      }
-      __p.popMatrix();
+      this.drawZapRing(this.visualW, this.visualH);
     }
     // [v1.1] frozen by an icicle: a cold blue shell with frost and drifting flakes
     if (this.frozen) {
@@ -38458,6 +38765,49 @@ function program() {
     this.hurtFrames -= DT;
     __p.popMatrix();
   };
+  // [v1.5] the zapped (paralyzed) look, at the bottom-middle of a vw x vh Dash; also
+  // used for the square Dash in the vortex (final boss stage 2)
+  Player.prototype.drawZapRing = function (vw, vh) {
+      __p.pushMatrix();
+      // Pulsing electric aura
+      var pulse = __p.sin(__p.frameCount * 0.25) * 0.5 + 0.8;
+      __p.noFill();
+
+      // Outer glow layers
+      for (var i = 3; i > 0; i--) {
+        var alpha = (60 + i * 25) * pulse;
+        __p.stroke(255, 240, 80, alpha);
+        __p.strokeWeight(6 + i * 3);
+        __p.rect(-vw / 2 - i * 4, -vh - i * 4, vw + i * 8, vh + i * 8, vw * 0.3);
+      }
+
+      // Bright core outline
+      __p.stroke(255, 255, 120, 220);
+      __p.strokeWeight(3);
+      __p.rect(-vw / 2, -vh, vw, vh, vw * 0.25);
+
+      // Electric arcs / lightning bolts
+      __p.stroke(255, 255, 100, 255);
+      __p.strokeWeight(2.5);
+      var time = __p.frameCount * 0.3;
+      for (var i = 0; i < 6; i++) {
+        var baseAngle = i / 6 * 360 + time * 25;
+        var offset = __p.sin(time * 2 + i * 1.3) * 25;
+        var x1 = __p.cos(baseAngle) * this.w * 0.45;
+        var y1 = __p.sin(baseAngle) * this.h * 0.45 - this.h * 0.4;
+        var x2 = __p.cos(baseAngle + offset) * this.w * 0.85;
+        var y2 = __p.sin(baseAngle + offset) * this.h * 0.75 - this.h * 0.45;
+        var mx = (x1 + x2) * 0.5 + __p.random(-12, 12);
+        var my = (y1 + y2) * 0.5 + __p.random(-12, 12);
+        __p.line(x1, y1, mx, my);
+        __p.line(mx, my, x2, y2);
+      }
+      if (__p.frameCount % 5 < 2) {
+        __p.fill(255, 255, 200, 90);
+        __p.rect(-vw / 2, -vh, vw, vh, vw * 0.25);
+      }
+      __p.popMatrix();
+  };
   Player.prototype.reset = function (spawnX, spawnY) {
     // [v5] only a death during the final chase restarts the vortex. After the
     // ending currentLevel stays 16, and every menu change replayed the stage-two
@@ -38479,7 +38829,14 @@ function program() {
     this.targetW = this.w;
     this.targetH = this.h;
     this.isVariableJumping = false;
+    this.mouth = 'closed'; // [v1.5] (a cutscene or level end could leave the face stuck)
+    this.faceX = 0;
+    this.faceY = 0;
     this.paralyzed = false;
+    this.paralyzedFrames = 0;
+    // [v1.5] dying to the icicle rain left you frozen after respawning
+    this.frozen = false;
+    this.frozenFrames = 0;
 
     // Reset decay
     this.isDecaying = false;
@@ -38889,6 +39246,8 @@ function program() {
     this.state = "attack";
     this.attackTimer = 0;
     this.attackFresh = true;
+    this.attackStart = true; // [v1.5] (the attack's first frame: see updateAttack)
+    this.spikeWaves = [];
     if (this.bossNum === 4 && this.attacksThisWave > 0 && this.wave > 3) {
       this.currentAttack = this.attackOrder2[this.attackIndex2];
       this.attackIndex2++;
@@ -38909,6 +39268,11 @@ function program() {
   };
   Boss.prototype.updateAttack = function () {
     this.attackTimer += DT;
+    // [v1.5] an attack's first frame. It was "attackTimer === DT", which a timer
+    // corrected to the host's in multiplayer could skip, so the attack never set
+    // itself up (the spike attack then showed no spikes at all)
+    var first = !!this.attackStart;
+    this.attackStart = false;
     var dir = 0;
     if (this.currentSpot === 0) {
       dir = 1; // facing right
@@ -38953,7 +39317,7 @@ function program() {
     else if (this.currentAttack === "dive") {
       var outline;
       this.diveTime = 230;
-      if (this.attackTimer === DT) {
+      if (first) {
         sfx("diveCharge", 1, { len: 3.8 }); // [v1.2] sound: the wind-up
       }
       if (dtCross(this.attackTimer, this.diveTime - 1)) {
@@ -39172,7 +39536,7 @@ function program() {
 
       // Generate 18 open spike slots
       // 6 of them (in pairs of 3) will stay open
-      if (this.attackTimer === DT) {
+      if (first) {
         spikeSlots = [];
         var startX = this.positions[0] - 15;
         var spacing = 28.5;
@@ -39221,14 +39585,17 @@ function program() {
       }
 
       // Spawn spikes in 3 waves
-      if (dtCross(this.attackTimer, 60)) {
-        spawnSpikeWave(4, this.initialY + 38);
+      // [v1.5] each wave once its moment has come, even if the timer jumped past it
+      // (multiplayer keeps the timer in step with the host's)
+      if (!this.spikeWaves) {
+        this.spikeWaves = [];
       }
-      if (dtCross(this.attackTimer, 140)) {
-        spawnSpikeWave(4, this.initialY + 38);
-      }
-      if (dtCross(this.attackTimer, 250)) {
-        spawnSpikeWave(4, this.initialY + 38);
+      var SPIKE_WAVE_AT = [60, 140, 250];
+      for (var sw = 0; sw < SPIKE_WAVE_AT.length; sw++) {
+        if (this.attackTimer >= SPIKE_WAVE_AT[sw] && this.attackTimer < 400 && !this.spikeWaves[sw]) {
+          this.spikeWaves[sw] = true;
+          spawnSpikeWave(4, this.initialY + 38);
+        }
       }
 
       // Charge animation while spikes are happening
@@ -39258,7 +39625,7 @@ function program() {
       drawFallingHazards();
 
       // 1 Start movement velocity
-      if (this.attackTimer === DT) {
+      if (first) {
         this.vx = this.speed * 1.2;
       }
 
@@ -39326,7 +39693,7 @@ function program() {
       drawFallingHazards();
 
       // 1 Start movement velocity
-      if (this.attackTimer === DT) {
+      if (first) {
         this.vx = this.speed * 1.2;
       }
 
@@ -39902,6 +40269,14 @@ function program() {
         this.updateVulnerable();
         break;
     }
+    // [v1.5] the hitbox follows where the boss is NOW (it was set before the boss
+    // moved this frame, so in fast moves like the dive it trailed behind the model)
+    this.hitbox = {
+      x: this.x,
+      y: this.visualY,
+      w: this.size,
+      h: this.size
+    };
     this.checkCollision();
   };
   Boss.prototype.draw = function () {
@@ -40314,6 +40689,8 @@ function program() {
       var o = levelObjects[i];
       if (o.type === 'spike' || o.type === 'checkpoint') {
         continue;
+      } else if ((o.type === undefined || OBJ_PLAIN[o.type]) && objFar(o, this.x, this.y, 120)) {
+        continue; // [v1.5] nowhere near
       } else if (o.type === 'lava' || o.type === 'poison') {
         var mtv = checkCollision(this, o);
         if (mtv) {
@@ -41200,19 +41577,34 @@ function program() {
       }
     }
   };
+  // [v1.5] the glitch moves on 60-per-second ticks of real time, not every
+  // drawn frame (on a 120 or 144 Hz screen it shook two or more times as fast)
+  var areaXGlitch = { tick: -1 };
   var areaXlogo = function areaXlogo(x, y, s) {
+    var G = areaXGlitch;
+    var tick = __p.floor(__p.millis() * 0.06);
+    if (tick !== G.tick) {
+      G.tick = tick;
+      G.white = !!(tick % __p.round(__p.random(0, 2)));
+      G.wx = __p.random(-1, 1);
+      G.wy = __p.random(-1, 1);
+      G.blue = !!(tick % __p.round(__p.random(0, 2)));
+      G.bx = __p.random(-1, 1);
+      G.by = __p.random(-1, 1);
+      G.red = __p.random(180, 220);
+    }
     arcSize(s / 3);
-    if (__p.floor(__p.frameCount) % __p.round(__p.random(0, 2))) {
+    if (G.white) {
       __p.fill(255, 255, 255, 200);
-      arcText("X", x + __p.random(-s / 8, s / 8) - s / 3, y + __p.random(-s / 8, s / 8));
+      arcText("X", x + G.wx * s / 8 - s / 3, y + G.wy * s / 8);
     } //White glitch
 
-    if (__p.floor(__p.frameCount) % __p.round(__p.random(0, 2))) {
+    if (G.blue) {
       __p.fill(0, 0, 255);
-      arcText("X", x + __p.random(-s / 8, s / 8) - s / 3, y + __p.random(-s / 8, s / 8));
+      arcText("X", x + G.bx * s / 8 - s / 3, y + G.by * s / 8);
     } //Blue glitch
 
-    __p.stroke(__p.random(180, 220), 0, 0);
+    __p.stroke(G.red, 0, 0);
     arcText("X", x - s / 3, y);
     __p.textAlign(__p.LEFT, __p.BASELINE);
   };
@@ -42437,6 +42829,10 @@ function program() {
       var centerY = 300;
       var movementSpeed = 0.5;
       var remainingTouchpoints = 0;
+      // [v1.5] once Dash is dying (the vortex swallowed them, or anything else got
+      // them) the circles can't be collected any more: grabbing the last one during
+      // the fade used to start the next cutscene with Dash already dead
+      var canTouch = p.health > 0 && !p.dead && !p.deathTriggered && this.vortexStability > 0;
       for (var i = 0; i < this.touchpoints.length; i++) {
         var tp = this.touchpoints[i];
         if (!tp.isHit) {
@@ -42456,7 +42852,7 @@ function program() {
           debugHitbox(tpHitbox);
 
           // 3 Collision logic remains exactly the same!
-          if (checkCollision(p, tpHitbox)) {
+          if (canTouch && checkCollision(p, tpHitbox)) {
             tp.isHit = true;
             this.touchedCount = (this.touchedCount || 0) + 1;
             sfx("touchpoint", 1, { n: this.touchedCount - 1 }); // [v1.2] each one plays the next note of the Dash motif
@@ -42465,8 +42861,8 @@ function program() {
         }
       }
 
-      // Check if all are cleared...
-      if (remainingTouchpoints === 0) {
+      // Check if all are cleared... (only while Dash is still alive)
+      if (remainingTouchpoints === 0 && canTouch) {
         this.livesRemaining--;
         this.touchedCount = 0;
         sfx("vortexBreak"); // [v1.2] sound
@@ -42898,6 +43294,11 @@ function program() {
     cutsceneIsJump = [false, false, false];
     cutsceneBckCol = [0, 0, 0];
     cutsceneIs = false;
+    // [v1.5] a cutscene that ends early (skipped) left Dash's face stuck open or surprised
+    if (p && p.mouth !== undefined) {
+      p.mouth = 'closed';
+      p.faceY = 0;
+    }
   };
   // [v5] Cutscenes show plain Dash; remember the player's skin and give it back.
   var cutsceneSkinSaved = null;
@@ -43444,6 +43845,14 @@ function program() {
   achResyncNew(); // [v1.3] (the red count belongs to the save that was just loaded)
   achToastReady = true; // from now on, new unlocks pop up a notice
   achToastOn = true;
+  // [v1.5] The game now starts (and makes its pictures) behind the save code screen;
+  // the code typed there is loaded when Start is pressed.
+  window.__dashApplySave = function (code) {
+    if (code) {
+      loadSaveString(code);
+      achResyncNew();
+    }
+  };
   //]
 
   // Draw loop
@@ -44500,7 +44909,10 @@ function program() {
 
             // Which boss is it?
             var currentBoss = bosses[world - 1];
-            if (lvlUnlock > 4 && !MP.tipOpen) {
+            // [v1.5] the Boss Fights tip is only for 1-4: on every other boss level the boss
+            // starts at once. (A player who hadn't beaten 1-4 themselves, e.g. following
+            // the host in a race, could never close it there, so the boss just sat still.)
+            if ((lvlUnlock > 4 || currentLevel !== 3) && !MP.tipOpen) {
               bossMenuGone = true; // ([v1.1] unless a teammate still needs the boss tip, see mpBossTipTick)
             }
 
@@ -44581,7 +44993,9 @@ function program() {
                 19720,
                 // Clear final lava pit at 19900
                 20150];
-                ECH0 = new FakeAI(-150, 200, jumpTriggers);
+                // [v1.5] starts further back, off-screen even on a wide screen (he could be
+                // seen popping in at the edge); he is faster than Dash, so he catches up
+                ECH0 = new FakeAI(-150 - __p.max(0, widePad) - 250, 200, jumpTriggers);
               } else {
                 ECH0 = null;
               }
@@ -44653,6 +45067,9 @@ function program() {
             if (!p.launching) {
               for (var i = 0; i < levelObjects.length; i++) {
                 var o = levelObjects[i];
+                if ((o.type === undefined || OBJ_PLAIN[o.type]) && objFar(o, p.x, p.y, 120)) {
+                  continue; // [v1.5] nowhere near
+                }
                 if (o.type === 'spike') {
                   if (checkSpikeHit(p, o) && p.spikeCooldown <= 0) {
                     spawnParticles(p.x, p.y, 10, "spike", 2);
@@ -44990,8 +45407,9 @@ function program() {
             }
             if (p.deathFrames > 0 && !p.gameOver) {
               p.deathFrames += DT;
-              if (settings.instantRespawn) {
+              if (settings.instantRespawn || MP.awayDeath) {
                 p.deathFrames = 314159;
+                MP.awayDeath = false;
               }
               if (p.deathFrames >= p.deathTimer) {
                 p.health = 100;
@@ -45203,12 +45621,12 @@ function program() {
                 continue;
               }
               withAlpha(bulletFade, function () {
-                // Left or right bullet?
+                // Left or right bullet? ([v1.5] drawn on its hitbox)
                 if (bosses[world - 1].currentSpot === 0) {
-                  __p.image(bossBulletRight, b.x + b.size * 1.2, b.y + b.size / 2, b.size * 1.5, b.size * 1.5);
+                  drawSpriteOn(bossBulletRight, b.x + b.size / 1.4, b.y - b.size / 4, b.size * 1.5, b.size * 1.5);
                 }
                 if (bosses[world - 1].currentSpot === 4) {
-                  __p.image(bossBulletLeft, b.x + b.size * 1.2, b.y + b.size / 2, b.size * 1.5, b.size * 1.5);
+                  drawSpriteOn(bossBulletLeft, b.x + b.size / 1.4, b.y - b.size / 4, b.size * 1.5, b.size * 1.5);
                 }
               });
               if (bulletFade < 0.35) {
@@ -45261,11 +45679,12 @@ function program() {
                 b.explosion = true;
                 sfx("bombExplode"); // [v1.1] sound
               }
+              // [v1.5] on the bomb itself (it sat up and to the left of it)
               var bombHitbox = {
-                x: b.x - b.size / 2.5,
-                y: b.y - b.size / 2.5,
-                w: b.size / 1.2,
-                h: b.size / 1.2,
+                x: b.x,
+                y: b.y,
+                w: b.size * 0.72,
+                h: b.size * 0.72,
                 r: b.r
               };
               debugHitbox(bombHitbox); // [BUGFIX] was commented out
@@ -45289,7 +45708,7 @@ function program() {
               i.vy += 0.07 * DT;
 
               // Draw it!
-              __p.image(bossIce, i.x - i.spawnSize / 4, i.y - i.spawnSize / 2, i.spawnSize, i.spawnSize);
+              drawSpriteOn(bossIce, i.x - i.spawnSize / 3.3, i.y - i.spawnSize / 2, i.spawnSize, i.spawnSize); // [v1.5] drawn on its hitbox
               i.spawnSize = __p.lerp(i.spawnSize, i.size, dtLerp(0.04));
 
               // Explodes when touches ground OR collison with player
@@ -45350,7 +45769,9 @@ function program() {
                   p.spikeCooldown = 10;
                 }
               }
-              if (currentBoss.attackTimer > 400) {
+              // [v1.5] also when the spike attack has ended some other way (the boss's
+              // state was put in step with the host's): they used to stay up for good
+              if (currentBoss.attackTimer > 400 || currentBoss.state !== "attack" || currentBoss.currentAttack !== "spikes") {
                 s.y = __p.lerp(s.y, s.targetY + 50, dtLerp(0.4));
                 if (s.y >= s.targetY + 30) {
                   bossSpikes.splice(q, 1);
@@ -45384,7 +45805,7 @@ function program() {
                 enemies.splice(i, 1);
                 continue;
               }
-              if (mpEnemyPuppetFor(enemies[i])) {
+              if (mpEnemyPuppetFor(enemies[i]) && !mpEnemyLocal(enemies[i])) {
                 mpEnemyApply(enemies[i]); // [MP] Linked: the host's enemy
               } else {
                 dtSubsteps(function () {
@@ -45834,6 +46255,7 @@ function program() {
                 h: o.h,
                 r: o.r
               }; // arena hitbox
+              debugHitbox(arenaObj); // [v1.5] the boss arena shows with Show Hitboxes too
 
               var mtv = admSolid(checkCollision(p, arenaObj));
               if (mtv) {
@@ -46095,7 +46517,7 @@ function program() {
               // draw object hitboxes
               for (var i = 0; i < lvl.objects.length; i++) {
                 var o = lvl.objects[i];
-                if (!o.type || o.type === 'block' || o.type === 'trampoline' || o.type === 'lava' || o.type === 'conveyorbelt' || o.type === 'hyperbelt' || o.type === "checkpoint" || o.type === "launcher") {
+                if (!o.type || o.type === 'block' || o.type === 'trampoline' || o.type === 'lava' || o.type === 'poison' || o.type === 'conveyorbelt' || o.type === 'hyperbelt' || o.type === "checkpoint" || o.type === "launcher") {
                   // draw exact OBB
                   var v = getVertices(o);
                   __p.noFill();
@@ -46558,19 +46980,19 @@ function program() {
               }
             }
 
+            // Boss health meter (before the Q menu, so the menu covers it)
+            if (bossFight && !levelEnd) {
+              hudLeft();
+              drawBossHealth(80, 570, 130, currentBoss);
+              __p.popMatrix();
+            }
+
             // Q MENU [
 
             // Where the menu should go
             mpDrawQMenu(); // [MP] the Q menu (also drawn in the vortex)
 
             //]
-
-            // Boss health meter
-            if (bossFight && !levelEnd) {
-              hudLeft();
-              drawBossHealth(80, 570, 130, currentBoss);
-              __p.popMatrix();
-            }
             if (bossScreenOpacity > 0) {
               __p.fill(0, 0, 0, bossScreenOpacity);
               __p.noStroke();
@@ -46678,7 +47100,13 @@ function program() {
             // Handle Game Objects
             FinalPhase.update();
 
-            //p.initiateFinalBoss();
+            // [v1.5] Dash still at a spot from the stage before (far outside the vortex)
+            // starts in the middle: the vortex's edges used to pin them in a corner
+            if (p.x < -50 || p.x > 650 || p.y < -50 || p.y > 650) {
+              p.initiateFinalBoss();
+              p.vx = 0;
+              p.vy = 0;
+            }
             if (!admVortexUpdate()) {
               p.finalBossUpdate();
             }
@@ -46918,6 +47346,13 @@ function program() {
             if (!admVortexPlayer()) {
               __p.rect(p.x - p.w / 2, p.y - p.h / 2, p.w, p.h, 8);
             }
+            if (p.paralyzed) {
+              // [v1.5] the zapped ring in the vortex too (only the square was drawn)
+              __p.pushMatrix();
+              __p.translate(p.x, p.y + p.h / 2);
+              p.drawZapRing(p.w, p.h);
+              __p.popMatrix();
+            }
             admDrawOver(); // [ADMIN] strikes
             if (showHitboxes) {
               debugHitbox(p);
@@ -46932,6 +47367,15 @@ function program() {
             hudLeft();
             drawLeftHUD(20, 40, currentLevel + 1, 4, p.lives);
             __p.popMatrix();
+            // [v1.5] the run's clock keeps going through stage 2 (it stopped in the vortex)
+            if (speedrun) {
+              hudRight();
+              speedClock.draw();
+              __p.popMatrix();
+            }
+            if (!levelEnd && !p.gameOver) {
+              speedClock.update();
+            }
             // Fades while you are behind it so it never hides you
             // ([WIDE] on wide screens it sits in the bottom-left corner)
             var bossHudAlpha;
@@ -47662,7 +48106,9 @@ function program() {
             }
 
             // Scene 13 "Only time will tell..."
-            if (cFrames > 2950 && cFrames <= 3160) {
+            // [v1.5] (kept on screen while the transition covers it: the background
+            // used to vanish as soon as the transition began)
+            if (cFrames > 2950) {
               // 1 - Fade in the text
               if (cFrames > 2950 && cFrames <= 3040) {
                 ctOpacity -= 2.83334 * DT;
@@ -47899,18 +48345,12 @@ function program() {
 
             // Scenes 9-11 - "An Unfriendly Greeting"
             else if (cFrames <= 1450) {
-              if (dtCross(cFrames, 1401)) {
-                sfx("cutWhoosh"); // [v1.2] sound: something huge swoops past
-              }
               worldBackground(-__p.frameCount / 3, 100, 4);
               __p.fill(150);
               __p.noStroke();
               __p.rect(-10, 450, 620, 250);
               masterX(300, -100, 1000);
             } else if (cFrames <= 1500) {
-              if (dtCross(cFrames, 1451)) {
-                sfx("cutWhoosh"); // [v1.2] sound
-              }
               worldBackground(-__p.frameCount / 3, 100, 4);
               __p.fill(150);
               __p.noStroke();
@@ -47976,6 +48416,11 @@ function program() {
               __p.fill(150);
               __p.noStroke();
               __p.rect(-30, 400, 500, 250, 30);
+              p.x = 160 + __p.sin(__p.frameCount * 2) * 60;
+              p.y = 370 + cutsceneY[1];
+              p.w = 60;
+              p.h = 60;
+              // [v1.5] particles from where Dash is now (they lagged a frame behind)
               spawnParticles(p.x, p.y, dtCount(3), 'masterParticles', 4);
               for (var i = particles.length - 1; i >= 0; i--) {
                 var pp = particles[i];
@@ -47985,10 +48430,6 @@ function program() {
                   particles.splice(i, 1);
                 }
               }
-              p.x = 160 + __p.sin(__p.frameCount * 2) * 60;
-              p.y = 370 + cutsceneY[1];
-              p.w = 60;
-              p.h = 60;
               p.draw();
               __p.noStroke();
               __p.fill(255, 0, 0);
@@ -48008,6 +48449,11 @@ function program() {
               cutsceneY[1] -= DT;
               cutsceneY[0] = 0;
               areaXPortal(650, 250, 500, -__p.frameCount * 4);
+              p.x = -30 + cutsceneX[0];
+              p.y = 300;
+              p.w = 50;
+              p.h = 50;
+              // [v1.5] particles from where Dash is now (they lagged a frame behind)
               spawnParticles(p.x, p.y, dtCount(3), 'masterParticles', 4);
               for (var i = particles.length - 1; i >= 0; i--) {
                 var pp = particles[i];
@@ -48017,10 +48463,6 @@ function program() {
                   particles.splice(i, 1);
                 }
               }
-              p.x = -30 + cutsceneX[0];
-              p.y = 300;
-              p.w = 50;
-              p.h = 50;
               p.draw();
               masterX(-50 + cutsceneX[1], 650 + cutsceneY[1], 130);
             }
@@ -48075,6 +48517,9 @@ function program() {
               }
               streakBatch.flush();
               __p.popMatrix();
+              p.x = 300;
+              p.y = 630 - cutsceneY[0] / 2;
+              // [v1.5] particles from where Dash is now (they lagged a frame behind)
               spawnParticles(p.x, p.y, dtCount(3), 'masterParticles', 4);
               for (var i = particles.length - 1; i >= 0; i--) {
                 var pp = particles[i];
@@ -48084,8 +48529,6 @@ function program() {
                   particles.splice(i, 1);
                 }
               }
-              p.x = 300;
-              p.y = 630 - cutsceneY[0] / 2;
               __p.fill(255, 0, 0);
               __p.noStroke();
               __p.rect(p.x - 25, p.y - 25, 50, 50, 10);
@@ -48115,6 +48558,12 @@ function program() {
             //cFrames = 750;
             if (cFrames <= 190) {
               __p.background(100, 0, 0);
+              p.x = 150 + ctOpacity / 2;
+              p.y = 360;
+              p.w = 80;
+              p.h = 80;
+              p.hurtFrames = 1;
+              // [v1.5] particles from where Dash is now (they lagged a frame behind)
               spawnParticles(p.x, p.y, dtCount(5), 'masterParticles', 5);
               for (var i = particles.length - 1; i >= 0; i--) {
                 var pp = particles[i];
@@ -48124,11 +48573,6 @@ function program() {
                   particles.splice(i, 1);
                 }
               }
-              p.x = 150 + ctOpacity / 2;
-              p.y = 360;
-              p.w = 80;
-              p.h = 80;
-              p.hurtFrames = 1;
               p.draw();
               ctOpacity += DT;
               __p.fill(255);
@@ -48158,6 +48602,11 @@ function program() {
               cutsceneX[0] += 5 * DT;
               masterX(-70 + cutsceneX[0], 300 + __p.sin(__p.frameCount * 4) * 15, 100);
               p.vx = 5;
+              p.x = -300 + cutsceneX[0];
+              p.y = 250;
+              p.w = 35;
+              p.h = 35;
+              // [v1.5] particles from where Dash is now (they lagged a frame behind)
               spawnParticles(p.x, p.y, dtCount(1), 'masterParticles', 3);
               for (var i = particles.length - 1; i >= 0; i--) {
                 var pp = particles[i];
@@ -48167,10 +48616,6 @@ function program() {
                   particles.splice(i, 1);
                 }
               }
-              p.x = -300 + cutsceneX[0];
-              p.y = 250;
-              p.w = 35;
-              p.h = 35;
               p.draw();
             } else if (cFrames <= 600) {
               worldBackground(__p.frameCount / 3 + 200, 100, 1);
@@ -48183,15 +48628,6 @@ function program() {
             } else if (cFrames <= 700) {
               worldBackground(__p.frameCount / 3, 100, 1);
               p.vx = 10;
-              spawnParticles(p.x, p.y, dtCount(4), 'masterParticles', 5);
-              for (var i = particles.length - 1; i >= 0; i--) {
-                var pp = particles[i];
-                pp.update();
-                pp.draw();
-                if (pp.life <= 0) {
-                  particles.splice(i, 1);
-                }
-              }
               if (cFrames > 600) {
                 cutsceneX[0] += 10 * DT;
               } else {
@@ -48201,6 +48637,16 @@ function program() {
               p.y = 300;
               p.w = 80;
               p.h = 80;
+              // [v1.5] particles from where Dash is now (they lagged a frame behind)
+              spawnParticles(p.x, p.y, dtCount(4), 'masterParticles', 5);
+              for (var i = particles.length - 1; i >= 0; i--) {
+                var pp = particles[i];
+                pp.update();
+                pp.draw();
+                if (pp.life <= 0) {
+                  particles.splice(i, 1);
+                }
+              }
               p.draw();
               __p.stroke(0);
               __p.strokeWeight(4);
@@ -48407,7 +48853,7 @@ function program() {
             }
 
             // Parkour MAster Dialogue
-            else if (cFrames <= 2150) {
+            else { // [v1.5] (the last scene stays up while the transition covers it)
               worldBackground(__p.frameCount / 3 + 200, 100, 1);
               __p.fill(150);
               __p.noStroke();
@@ -48949,6 +49395,9 @@ function program() {
     if (MP.invite && MP.invite.pc) {
       all.push(MP.invite);
     }
+    if (typeof srvDropBusy === "function" && typeof SRV !== "undefined" && SRV.busy) {
+      srvDropBusy(); // [v1.5] players the party server was letting in
+    }
     if (MP.join && MP.join.pc) {
       all.push(MP.join);
     }
@@ -49021,6 +49470,7 @@ function program() {
       ses: MP.session,
       lv: currentLevel,
       fb: finalBossPhase,
+      rs: currentLevel === 15 ? bossRemixStage : 0, // [v1.5] which X-4 stage
       x: __p.round(p.x * 10) / 10,
       y: __p.round(p.y * 10) / 10,
       vx: __p.round(p.vx * 100) / 100,
@@ -49033,6 +49483,8 @@ function program() {
       hf: p.hurtFrames > 0 ? 1 : 0,
       m: p.mouth,
       d: p.dead || p.spawning ? 1 : 0,
+      spn: p.spawning && !p.dead ? 1 : 0, // [v1.5] (their spawn particles)
+      gr: p.grounded ? 1 : 0, // [v1.5] (so prediction knows if they're falling)
       sk: currentSkin,
       pv: prog,
       pt: progText,
@@ -49297,6 +49749,35 @@ function program() {
       f: f
     };
   };
+  // [v1.5] Prediction for enemies: an enemy that is going after YOU (you're the
+  // closest player) runs in your own game, so it reacts to you at once. Shown the
+  // host's way, a Boing only jumped about half a second after you reached it (the
+  // host saw you late, then you saw its jump late). Enemies near other players
+  // still follow the host. Switching back eases over instead of jumping.
+  var mpEnemyLocal = function mpEnemyLocal(e) {
+    var was = !!e.mpMine;
+    var mine = false;
+    if (p && !p.dead && !MP.spectating && scene === "game") {
+      var dme = __p.abs(p.x - e.x) + __p.abs(p.y - e.y) * 0.7;
+      var other = Infinity;
+      for (var k in MP.players) {
+        var pl = MP.players[k];
+        if (pl.id !== MP.myId && pl.ghost && pl.ghostShown && pl.st && pl.st.in && !pl.st.d && pl.st.lv === currentLevel && pl.st.ses === MP.session) {
+          other = __p.min(other, __p.abs(pl.ghost.x - e.x) + __p.abs(pl.ghost.y - e.y) * 0.7);
+        }
+      }
+      // (a little stickiness either way, so it doesn't flicker between the two)
+      mine = was ? dme < 950 && dme < other + 120 : dme < 700 && dme < other - 40;
+    }
+    if (mine && !was && e.state === "jumping") {
+      e.chaseTime = 0;
+    }
+    if (!mine && was) {
+      e.mpBlend = 1;
+    }
+    e.mpMine = mine;
+    return mine;
+  };
   var mpEnemyApply = function mpEnemyApply(e) {
     var v = MP.wview;
     var rb = v && v.b.map[e.mpId];
@@ -49307,8 +49788,18 @@ function program() {
     if (__p.abs(rb[1] - ra[1]) > 200 || __p.abs(rb[2] - ra[2]) > 200) {
       ra = rb; // a jump (respawn), not movement
     }
-    e.x = ra[1] + (rb[1] - ra[1]) * v.f;
-    e.y = ra[2] + (rb[2] - ra[2]) * v.f;
+    var hx = ra[1] + (rb[1] - ra[1]) * v.f,
+      hy = ra[2] + (rb[2] - ra[2]) * v.f;
+    if (e.mpBlend > 0 && __p.abs(hx - e.x) + __p.abs(hy - e.y) < 400) {
+      e.mpBlend -= DT / 30;
+      var bk = dtLerp(0.15);
+      e.x += (hx - e.x) * bk;
+      e.y += (hy - e.y) * bk;
+    } else {
+      e.mpBlend = 0;
+      e.x = hx;
+      e.y = hy;
+    }
     e.vy = rb[3];
     if (rb[4] >= 0) {
       e.state = MP_ESTATES[rb[4]];
@@ -49325,30 +49816,55 @@ function program() {
   };
   // the boss on a joiner's screen: its own fight runs (attacks, hazards), but
   // where it is drawn follows the host smoothly
+  // [v1.5] Its own movement runs too, and is only eased towards where the host's
+  // boss is NOW (the newest snapshot carried forward by the ping and its speed).
+  // It used to be put on the host's position from 100-260 ms ago every frame, so
+  // it lagged behind its own attacks, stopped when a snapshot came late and then
+  // raced to catch up ("glitching fast for a few frames").
   var mpBossGlide = function mpBossGlide() {
-    var v = MP.wview;
-    if (!v || MP.isHost || !mpSyncOn() || !v.a.b || !v.b.b) {
+    var buf = MP.wbuf;
+    var host = MP.players[0];
+    if (MP.isHost || !mpSyncOn() || !buf || buf.length < 1 || !host || host.off === undefined) {
       return;
     }
     var b = bosses[world - 1];
-    var A = v.a.b,
-      B = v.b.b;
-    if (!b || b.dead || A.n !== b.bossNum || B.n !== b.bossNum || A.rs !== bossRemixStage) {
+    var L = buf[buf.length - 1],
+      Lp = buf.length > 1 ? buf[buf.length - 2] : null;
+    var B = L.b;
+    if (!b || b.dead || !B || B.n !== b.bossNum || B.rs !== bossRemixStage) {
       return;
     }
-    var tx = A.x + (B.x - A.x) * v.f,
-      ty = A.y + (B.y - A.y) * v.f,
-      tvy = A.vy + (B.vy - A.vy) * v.f;
-    if (__p.abs(b.x - tx) + __p.abs(b.y - ty) > 600) {
-      b.x = tx;
+    // the host's clock now: arrival time back to its clock, plus the trip here
+    var hostNow = mpNow() - host.off + (MP.hostRtt || 80) / 2;
+    var ahead = __p.constrain(hostNow - L.ts, 0, 150);
+    var tx = B.x,
+      ty = B.y,
+      tvy = B.vy;
+    var P = Lp && Lp.b && Lp.b.n === B.n && Lp.b.rs === B.rs ? Lp.b : null;
+    if (P && L.ts > Lp.ts && __p.abs(B.x - P.x) + __p.abs(B.y - P.y) < 300) {
+      var k = ahead / (L.ts - Lp.ts);
+      tx += (B.x - P.x) * k;
+      ty += (B.y - P.y) * k;
+      tvy += (B.vy - P.vy) * k;
+    }
+    var ex = tx - b.x,
+      ey = ty - b.y;
+    if (__p.abs(ex) + __p.abs(ey) > 300) {
+      b.x = tx; // far off (it went somewhere else): go there
       b.y = ty;
       b.visualY = tvy;
-      return;
+    } else {
+      var f = dtLerp(0.12);
+      b.x += ex * f;
+      b.y += ey * f;
+      b.visualY += ey * f + (tvy - (b.visualY + ey * f)) * dtLerp(0.08);
     }
-    b.x = tx;
-    b.visualY += ty - b.y;
-    b.y = ty;
-    b.visualY = __p.lerp(b.visualY, tvy, dtLerp(0.3));
+    b.hitbox = {
+      x: b.x,
+      y: b.visualY,
+      w: b.size,
+      h: b.size
+    };
   };
   // host: tell everyone where the enemies and the boss are (10 times a second)
   var mpSendWorld = function mpSendWorld() {
@@ -49426,6 +49942,10 @@ function program() {
     b.mpOff = differs ? (b.mpOff || 0) + 1 : 0;
     if (b.mpOff >= 20) {
       b.mpOff = 0;
+      if (H.st === "attack" && (b.state !== "attack" || (b.currentAttack || "") !== H.ca)) {
+        b.attackStart = true; // [v1.5] a different attack: it sets itself up first
+        b.spikeWaves = [];
+      }
       b.state = H.st;
       b.currentAttack = H.ca || b.currentAttack;
       b.attackTimer = H.at + lateFrames;
@@ -49443,6 +49963,11 @@ function program() {
   var mpBossEnter = function mpBossEnter() {
     if (!MP.active || MP.mode !== "linked" || mpCount() < 2) {
       return true;
+    }
+    // [v1.5] the boss waits until the whole team is there (it used to teleport
+    // everyone else to the boss the moment the first player arrived)
+    if (!mpGate("boss" + (currentLevel === 15 && bossRemixStage ? bossRemixStage : ""))) {
+      return false;
     }
     // ([v1.1] per X-4 remix stage too: each stage's top is its own "boss")
     var bkey = MP.session + ":" + currentLevel + ":" + bossRemixStage;
@@ -49819,6 +50344,9 @@ function program() {
         p.lives = MP.hostLives;
       }
     } else {
+      if (!MP.isHost && MP.lastScene === "game" && mpHostLevelOn()) {
+        mpChatLine("", "The host is still playing that level. Press WATCH at the top of the map to spectate it.", -1);
+      }
       MP.spectating = false; // [v1.3] (back on the map: nobody spectates)
       if (MP.isHost && MP.lastScene === "game") {
         mpBroadcast({
@@ -49855,7 +50383,9 @@ function program() {
   // Host: start the countdown for everyone, allowing for each link's latency.
   var mpStartCountdown = function mpStartCountdown() {
     MP.countSes = MP.session;
-    MP.countEnd = Date.now() + 3000;
+    // [v1.5] Linked mode: no 3-2-1, everyone just starts together once all have
+    // loaded (each player's start is moved by half their ping, so it's the same moment)
+    MP.countEnd = Date.now() + (MP.mode === "linked" ? 200 : 3000);
     for (var i = 0; i < MP.links.length; i++) {
       mpSendCount(MP.links[i]);
     }
@@ -50024,6 +50554,35 @@ function program() {
       keys[k] = saved[k];
     }
   };
+  // [v1.3] send one player into the running level, to watch it (spectate)
+  var mpSendSpectate = function mpSendSpectate(id, note) {
+    if (MP.players[id]) {
+      MP.players[id].spec = true;
+    }
+    for (var li = 0; li < MP.links.length; li++) {
+      if (MP.links[li].id === id) {
+        mpSendRaw(MP.links[li], {
+          t: "go",
+          lv: currentLevel,
+          w: world,
+          rs: bossRemixStage,
+          ses: MP.session,
+          mode: MP.mode,
+          lives: p.lives,
+          spec: 1
+        });
+        mpSendRaw(MP.links[li], {
+          t: "sys",
+          x: note
+        });
+      }
+    }
+  };
+  // [v1.5] is the host playing a level right now (for a player on the map)?
+  var mpHostLevelOn = function mpHostLevelOn() {
+    var h = MP.players[0];
+    return MP.active && !MP.isHost && !!h && !!h.st && h.st.ses === MP.session && !!(h.st.in || h.st.spc) && !h.away;
+  };
   var mpHandle = function mpHandle(m, fromId) {
     var pl;
     if (!m || !m.t) {
@@ -50046,25 +50605,13 @@ function program() {
         if (scene === "game" || transitionActive && sceneToTransition === "game") {
           // [v1.3] the host is already in a level: the new player can only watch
           // it (spectate) until the next level starts
-          pl.spec = true;
-          for (var li = 0; li < MP.links.length; li++) {
-            if (MP.links[li].id === fromId) {
-              mpSendRaw(MP.links[li], {
-                t: "go",
-                lv: currentLevel,
-                w: world,
-                rs: bossRemixStage,
-                ses: MP.session,
-                mode: MP.mode,
-                lives: p.lives,
-                spec: 1
-              });
-              mpSendRaw(MP.links[li], {
-                t: "sys",
-                x: "You joined while a level is running, so you are spectating. You will play from the next level."
-              });
-            }
-          }
+          mpSendSpectate(fromId, "You joined while a level is running, so you are spectating. You will play from the next level.");
+        }
+        return;
+      case "specme":
+        // [v1.5] a player who left the level asks to watch it until the next one
+        if (MP.isHost && scene === "game" && !transitionActive && MP.players[fromId]) {
+          mpSendSpectate(fromId, "Spectating the level. You will play from the next level.");
         }
         return;
       case "roster":
@@ -50159,6 +50706,12 @@ function program() {
         if (m.ses === MP.session && scene === "game" && !p.dead && !p.deathTriggered && MP.mode === "linked" && !MP.spectating) {
           MP.linkedDeath = true;
           p.health = 0;
+          // [v1.5] this game is in the background (away): the game can't play the
+          // death while it's paused, so it respawns at once when they come back
+          // (it used to die then, long after the rest of the team)
+          if (document.hidden) {
+            MP.awayDeath = true;
+          }
           pl = MP.players[m.id];
           mpChatLine("", "Linked team: everyone respawns together", -1);
         }
@@ -50440,6 +50993,9 @@ function program() {
         return;
       }
       if (m.t === "hb") {
+        if (!MP.isHost && typeof m.rtt === "number") {
+          MP.hostRtt = m.rtt;
+        }
         if (m.ts !== undefined && !MP.isHost) {
           mpSendRaw(link, {
             t: "hbr",
@@ -50487,15 +51043,27 @@ function program() {
       if (mpServerOn()) {
         srvHostTick();
         srvJoinTick();
+        srvHelloTick(); // [v1.5]
       }
     } catch (e) {}
     if (!MP.links.length) {
       return;
     }
-    mpBroadcast({
-      t: "hb",
-      ts: Date.now()
-    });
+    if (MP.isHost) {
+      // [v1.5] each player also gets their own ping (prediction uses it)
+      for (var hl = 0; hl < MP.links.length; hl++) {
+        mpSendRaw(MP.links[hl], {
+          t: "hb",
+          ts: Date.now(),
+          rtt: MP.links[hl].rtt === undefined ? undefined : Math.round(MP.links[hl].rtt)
+        });
+      }
+    } else {
+      mpBroadcast({
+        t: "hb",
+        ts: Date.now()
+      });
+    }
     var now = Date.now();
     var lost = [];
     for (var i = 0; i < MP.links.length; i++) {
@@ -50529,25 +51097,40 @@ function program() {
       mpToast("This browser can't make peer-to-peer connections (WebRTC is unavailable).");
       return;
     }
-    if (MP.invite && MP.invite.pc && !MP.invite.used) {
+    // [v1.5] opt.own: an invite of its own for one party-server join (several players
+    // can be let in at once). Without it this is the invite on the Invite Codes screen.
+    var own = !!(opt && opt.own);
+    if (!own && MP.invite && MP.invite.pc && !MP.invite.used) {
       try {
         MP.invite.pc.close();
       } catch (e) {}
     }
     var slot = MP.nextSlot++;
-    MP.invite = {
+    var inv = {
       status: "making",
       code: "",
-      slot: slot
+      slot: slot,
+      own: own
     };
-    MP.fields.reply = "";
-    var inv = MP.invite;
+    if (!own) {
+      MP.invite = inv;
+      MP.fields.reply = "";
+    }
     // [v1.1] Same Wi-Fi mode remembered as on: get the local address access it
     // needs first (by itself; the browser only asks if it never allowed it)
     // [v1.3] in server mode the server says when a player is on the same Wi-Fi (opt.lan):
     // then this invite carries the local address, whatever the Same Wi-Fi switch says
     var wantLan = MP.lanMode || !!(opt && opt.lan);
     var ready = opt && opt.lan ? mpTryUnlockLocal() : MP.lanMode && !MP.localUnlocked ? mpUnlockQuietly() : Promise.resolve(true);
+    if (own) {
+      // [v1.5] never wait on the browser's microphone question for ever: a join was
+      // stuck at "Waiting for the host to let you in" while it sat unanswered
+      ready = Promise.race([ready, new Promise(function (res) {
+        setTimeout(function () {
+          res(false);
+        }, 8000);
+      })]);
+    }
     ready.then(function () {
       // [v1.4] opt.both: the party server carries the code, so its length doesn't
       // matter: send the local address as well as the public one, every time. The
@@ -50558,7 +51141,7 @@ function program() {
         noRawLocal: !wantLan && !(opt && opt.both)
       });
     }).then(function (r) {
-      if (MP.invite !== inv) {
+      if (own ? inv.dropped : MP.invite !== inv) {
         r.pc.close();
         return;
       }
@@ -50569,17 +51152,28 @@ function program() {
       inv.status = "ready";
     }, function (err) {
       inv.status = "error";
-      mpToast("Could not make an invite: " + (err && err.message ? err.message : err));
+      if (!own) {
+        mpToast("Could not make an invite: " + (err && err.message ? err.message : err));
+      }
     });
+    return inv;
   };
-  var mpUseReply = function mpUseReply() {
-    var inv = MP.invite;
+  // [v1.5] ownInv / ownReply: a party-server join's own invite and its answer
+  var mpUseReply = function mpUseReply(ownInv, ownReply) {
+    var inv = ownInv || MP.invite;
     if (!inv || inv.status !== "ready") {
-      mpToast("Make an invite code first.");
+      if (!ownInv) {
+        mpToast("Make an invite code first.");
+      }
       return;
     }
+    var mine = function () {
+      return ownInv ? !inv.dropped : MP.invite === inv;
+    };
+    var replyCode = ownInv ? ownReply : MP.fields.reply;
     inv.status = "connecting";
-    window.DashNet.acceptReply(inv.pc, inv.slot, MP.fields.reply).then(function (fx) {
+    inv.connectAt = Date.now();
+    window.DashNet.acceptReply(inv.pc, inv.slot, replyCode).then(function (fx) {
       mpNoteFixes(fx, "reply");
       var link = {
         id: inv.slot,
@@ -50598,8 +51192,11 @@ function program() {
         mpWire(link);
         mpAddPlayer(link.id, "Player " + link.id, mpFreeColor(), 0);
         mpSendRoster();
-        MP.invite = null;
-        MP.fields.reply = "";
+        inv.status = "joined";
+        if (MP.invite === inv) {
+          MP.invite = null;
+          MP.fields.reply = "";
+        }
       };
       if (inv.ch.readyState === "open") {
         onOpen();
@@ -50608,9 +51205,8 @@ function program() {
       }
       // An invite can only be answered once: if no link opens, it is spent and
       // the host is told what probably went wrong and to make a new invite.
-      var replyCode = MP.fields.reply;
       var fail = function () {
-        if (opened || MP.invite !== inv || inv.status === "failed") {
+        if (opened || !mine() || inv.status === "failed") {
           return;
         }
         inv.status = "failed";
@@ -50628,7 +51224,7 @@ function program() {
         theirs = window.DashNet.describe(replyCode) || {};
       var sameNet = !!(mine.pub && mine.pub === theirs.pub);
       var watch = setInterval(function () {
-        if (opened || MP.invite !== inv) {
+        if (opened || !mine()) {
           clearInterval(watch);
         } else if (inv.pc.__gaveUp || !inv.pc.__trying && (inv.pc.iceConnectionState === "failed" || inv.pc.connectionState === "failed")) {
           clearInterval(watch);
@@ -50639,10 +51235,12 @@ function program() {
           mpSetLanMode(true, true);
         }
       }, 500);
-      setTimeout(fail, 60000); // (the link keeps being retried for 50 s)
+      setTimeout(fail, ownInv ? 30000 : 60000); // (the link keeps being retried for 50 s; a party join gives up sooner)
     }, function (err) {
-      inv.status = "ready";
-      mpToast(err && err.message ? err.message : String(err));
+      inv.status = ownInv ? "failed" : "ready";
+      if (!ownInv) {
+        mpToast(err && err.message ? err.message : String(err));
+      }
     });
   };
   // ---- Same Wi-Fi mode ----
@@ -51076,6 +51674,24 @@ function program() {
     }
     // things noticed from one frame to the next
     window.__dashSfxOn = settings.soundEffects !== false;
+    // [v1.5] the volume sliders
+    var mv = typeof settings.musicVolume === "number" ? settings.musicVolume : 70,
+      sv = typeof settings.sfxVolume === "number" ? settings.sfxVolume : 70;
+    window.__dashSfxVol = sv / 100;
+    if (window.DashAudio && window.DashAudio.setVolume) {
+      window.DashAudio.setVolume(mv / 100, sv / 100);
+    }
+    if (dashSnd.mv !== mv || dashSnd.sv !== sv) {
+      if (dashSnd.sv !== undefined && dashSnd.sv !== sv) {
+        sfx("slider", 1, { x: sv / 100 }); // (hear how loud it is)
+      }
+      dashSnd.mv = mv;
+      dashSnd.sv = sv;
+      try {
+        window.localStorage.setItem("dashparkour-musicVolume", String(mv));
+        window.localStorage.setItem("dashparkour-sfxVolume", String(sv));
+      } catch (e) {}
+    }
     // low graphics = probably a slower device: the music engine drops its heaviest extras too
     var liteAudio = settings.fancyGraphics === false;
     if (window.DashAudio && window.DashAudio.setLite && !!window.DashAudio.lite !== liteAudio) {
@@ -51209,7 +51825,7 @@ function program() {
     }
     mpBossPull(); // [v1.1] Linked: a teammate reached the boss
     // [v1.1] sounds that follow the game's state: getting hurt, countdown beeps, music
-    if (MP.active && MP.hold && MP.countSes === MP.session && MP.countEnd) {
+    if (MP.active && MP.hold && MP.countSes === MP.session && MP.countEnd && MP.mode !== "linked") {
       var beep = __p.max(1, __p.ceil((MP.countEnd - Date.now()) / 1000));
       if (beep !== MP.lastBeep) {
         MP.lastBeep = beep;
@@ -51254,17 +51870,50 @@ function program() {
   var mpNow = function mpNow() {
     return window.performance && performance.now ? performance.now() : Date.now();
   };
-  // Snapshot interpolation: remote players are drawn 100 ms in the past,
+  // Snapshot interpolation: remote players are drawn a little in the past,
   // blended between the two states around that moment, so they move smoothly
   // whatever the network jitter or either player's frame rate.
-  var MP_DELAY = 100;
-  var mpSample = function mpSample(pl) {
+  // [v1.5] Prediction: they used to be drawn 70-250 ms behind (on top of the ping),
+  // so other players felt laggy. Now the delay is much shorter and, when the next
+  // state hasn't come in yet, they are carried on along their speed (with gravity
+  // while in the air) for up to 180 ms. When a state then shows the guess was a
+  // little off, the difference is eased out over a few frames instead of jumping.
+  var MP_DELAY = 55;
+  var mpPredict = function mpPredict(last, ms) {
+    var ahead = __p.min(ms, 180) / (1000 / 60);
+    var o = {};
+    for (var k in last) {
+      o[k] = last[k];
+    }
+    o.x = last.x + last.vx * ahead;
+    if (last.gr || last.d) {
+      o.y = last.y;
+    } else {
+      // falling: v grows by gravity each frame, up to the terminal speed
+      var vy = last.vy,
+        g = 0.6,
+        cap = 15,
+        y = last.y;
+      var tCap = vy < cap ? (cap - vy) / g : 0;
+      if (ahead <= tCap) {
+        y += vy * ahead + g * ahead * ahead / 2;
+        vy += g * ahead;
+      } else {
+        y += vy * tCap + g * tCap * tCap / 2 + cap * (ahead - tCap);
+        vy = cap;
+      }
+      o.y = y;
+      o.vy = vy;
+    }
+    return o;
+  };
+  var mpSampleRaw = function mpSampleRaw(pl) {
     var buf = pl.buf;
     if (!buf || !buf.length) {
       return pl.st;
     }
     var nowT = mpNow();
-    var lagTarget = pl.off + __p.constrain(MP_DELAY + (pl.jit || 0) * 1.5 - 30, 70, 250);
+    var lagTarget = pl.off + __p.constrain(MP_DELAY + (pl.jit || 0) * 1.2 - 20, 30, 200);
     // the playback clock never jumps: it speeds up or slows down by at most 5%
     // to follow changes in latency, so motion keeps an even pace
     if (pl.lag === undefined || __p.abs(lagTarget - pl.lag) > 400) {
@@ -51277,15 +51926,7 @@ function program() {
     var t = nowT - pl.lag;
     var last = buf[buf.length - 1];
     if (t >= last.ts) {
-      // no newer data yet: carry on briefly along the last velocity, then hold
-      var ahead = __p.min(t - last.ts, 100) / (1000 / 60);
-      var o = {};
-      for (var k in last) {
-        o[k] = last[k];
-      }
-      o.x = last.x + last.vx * ahead;
-      o.y = last.y + last.vy * ahead;
-      return o;
+      return mpPredict(last, t - last.ts); // no newer state yet: predict
     }
     if (t <= buf[0].ts) {
       return buf[0];
@@ -51317,6 +51958,69 @@ function program() {
     }
     return out;
   };
+  // (worked out once a frame per player, however many things ask)
+  var mpSample = function mpSample(pl) {
+    var fr = window.__dashFrames || 0;
+    if (pl.smpFrame === fr && pl.smp) {
+      return pl.smp;
+    }
+    var o = mpSampleRaw(pl);
+    if (!o) {
+      return o;
+    }
+    if (o === pl.st || pl.buf && (o === pl.buf[0] || o === pl.buf[pl.buf.length - 1])) {
+      var c = {};
+      for (var k in o) {
+        c[k] = o[k];
+      }
+      o = c;
+    }
+    // ease out the small jumps a correction makes (a real teleport just jumps)
+    var ex = pl.errX || 0,
+      ey = pl.errY || 0;
+    if (pl.smpPrev) {
+      var px = pl.smpPrev.x + (pl.smpPrev.vx || 0) * DT,
+        py = pl.smpPrev.y + (pl.smpPrev.gr ? 0 : (pl.smpPrev.vy || 0) * DT);
+      var jx = px - o.x,
+        jy = py - o.y;
+      var big = __p.abs(o.x - pl.smpPrev.x) + __p.abs(o.y - pl.smpPrev.y) > 250 || o.d !== pl.smpPrev.d;
+      if (big) {
+        ex = ey = 0;
+      } else if (__p.abs(jx) > 3 || __p.abs(jy) > 3) {
+        ex = __p.constrain(ex + jx, -60, 60);
+        ey = __p.constrain(ey + jy, -60, 60);
+      }
+    }
+    ex *= dtPow(0.8);
+    ey *= dtPow(0.8);
+    pl.errX = ex;
+    pl.errY = ey;
+    pl.smpPrev = {
+      x: o.x,
+      y: o.y,
+      vx: o.vx,
+      vy: o.vy,
+      gr: o.gr,
+      d: o.d
+    };
+    o.x += ex;
+    o.y += ey;
+    pl.smpFrame = fr;
+    pl.smp = o;
+    return o;
+  };
+  // [v1.5] X-4 is several places in one level (three boss stages, then the vortex):
+  // another player is only drawn when they are in the same one (in a race they used
+  // to float in mid-air, drawn at their spot in a different stage)
+  var mpSameStage = function mpSameStage(st) {
+    if (currentLevel !== 15 || !st || st.lv !== 15) {
+      return true;
+    }
+    if (st.rs !== undefined && st.rs !== bossRemixStage) {
+      return false;
+    }
+    return (st.fb === 3) === (finalBossPhase === 3);
+  };
   var mpDrawGhosts = function mpDrawGhosts() {
     if (!MP.active) {
       return;
@@ -51327,13 +52031,24 @@ function program() {
     for (var k in MP.players) {
       var pl = MP.players[k];
       var st = pl.st;
-      if (pl.id !== MP.myId && st && st.in && st.lv === currentLevel && st.ses === MP.session) {
+      if (pl.id !== MP.myId && st && st.in && st.lv === currentLevel && st.ses === MP.session && mpSameStage(st)) {
         // [v1.1] their death burst (and a spark of light when they come back)
-        if (st.d && !pl.deadFx && pl.ghost && pl.ghostShown) {
+        // [v1.5] worked out from the state being shown (the newest one is a little
+        // ahead of their drawn Dash), and no longer only when the Dash had been
+        // drawn that frame, so the bursts don't go missing. Their spawn particles
+        // (rushing in where they appear) are shown too.
+        var fx = pl.away || pl.seen > 40 ? st : mpSample(pl);
+        var fy = fx && fx.ay !== undefined && lvl && lvl.arenaY !== undefined ? lvl.arenaY - fx.ay : 0;
+        if (fx && fx.d && !pl.deadFx && (pl.ghostShown || !fx.spn)) {
           pl.deadFx = true;
-          spawnParticles(pl.ghost.x, pl.ghost.y, 40, "death", 6);
-        } else if (!st.d && pl.deadFx) {
+          var dx = pl.ghostShown && pl.ghost ? pl.ghost.x : fx.x,
+            dy = pl.ghostShown && pl.ghost ? pl.ghost.y : fx.y + fy;
+          spawnParticles(dx, dy, 40, "death", 6);
+        } else if (fx && !fx.d && pl.deadFx) {
           pl.deadFx = false;
+        }
+        if (fx && fx.spn && !pl.away) {
+          spawnParticles(fx.x, fx.y + fy, dtCount(20), "spawn", 1.5);
         }
       }
       // [v1.1] a paused player (other tab, or no news for a moment) stays where
@@ -51349,7 +52064,7 @@ function program() {
         pl.staleTold = true;
         mpChatLine("", mpShownName(pl) + (pl.away ? " switched to another tab or app, so their game is paused. Their Dash waits here until they come back." : "'s game isn't answering right now (a paused tab or a slow connection). Their Dash waits here until it catches up."), -1);
       }
-      if (pl.id === MP.myId || !st || !st.in || st.d || st.lv !== currentLevel || st.ses !== MP.session || pl.seen > 60 * 60 * 5 && !pl.away) {
+      if (pl.id === MP.myId || !st || !st.in || st.d || st.lv !== currentLevel || st.ses !== MP.session || pl.seen > 60 * 60 * 5 && !pl.away || !mpSameStage(st)) {
         pl.ghostShown = false;
         continue;
       }
@@ -51605,9 +52320,16 @@ function program() {
   };
   // The world-map button: a red and a blue Dash (the multiplayer logo).
   var mpMapButton = function mpMapButton(x, y, s) {
+    s *= 1.3; // [v1.5] bigger, with a glow and its full name, so it's easy to find
     var hov = __p.dist(worldMouseX, worldMouseY, x, y) < s / 2;
     buttonStates.mp = buttonStates.mp === undefined ? s : animateButton(buttonStates.mp, s, hov);
     var cs = buttonStates.mp;
+    var pulse = (Math.sin(__p.millis() / 380) + 1) / 2;
+    __p.noStroke();
+    for (var gl = 3; gl >= 1; gl--) {
+      __p.fill(gl % 2 ? 255 : 0, gl % 2 ? 40 : 110, gl % 2 ? 40 : 255, (40 + pulse * 50) / gl);
+      __p.ellipse(x, y, cs + gl * (6 + pulse * 4), cs + gl * (6 + pulse * 4));
+    }
     __p.stroke(0);
     __p.strokeWeight(cs / 16);
     __p.fill(255);
@@ -51621,7 +52343,22 @@ function program() {
       __p.ellipse(x + cs * 0.34, y - cs * 0.34, cs * 0.22, cs * 0.22);
     }
     // label under the button
-    mpArcLine("MULTI", x, y + cs / 2 + 4, 6.5, 0, __p.CENTER);
+    mpArcLine("MULTIPLAYER", x + (widePad >= 45 ? 0 : 6), y + cs / 2 + 5, 6, 0, __p.CENTER);
+    // [v1.5] how many are playing right now (from the party server)
+    if (mpServerOn() && SRV.online > 1) {
+      var on = SRV.online + " online";
+      __p.textFont(mpSans, 12);
+      var ow = __p.textWidth(on) + 14;
+      __p.noStroke();
+      __p.fill(0, 170, 90);
+      // (above the button on wide screens; beside it on square ones, clear of the AREA title)
+      var bx = widePad >= 45 ? x : x + cs / 2 + ow / 2 + 6,
+        by = widePad >= 45 ? y - cs / 2 - 11 : y;
+      __p.rect(bx - ow / 2, by - 9, ow, 18, 9);
+      __p.fill(255);
+      __p.textAlign(__p.CENTER, __p.CENTER);
+      __p.text(on, bx, by);
+    }
     if (hov) {
       __p.cursor(__p.HAND);
       if (MP.click && !transitionActive) {
@@ -51813,6 +52550,13 @@ function program() {
       MP.click = false; // the dialog takes the clicks
     }
     mpDrawScreenBody();
+    // [v1.5] Digitsofpi and Kineto: invite every player online to this party
+    if (admOn() && mpServerOn() && MP.active && (MP.screen === "host" || MP.screen === "join")) {
+      var invWait = SRV.invitedAt && Date.now() - SRV.invitedAt < 30000;
+      if (mpButton(178, 520, 214, 50, SRV.inviting ? "INVITING..." : invWait ? "INVITED!" : "INVITE EVERYONE", __p.color(255, 140, 0), !SRV.inviting && !invWait)) {
+        srvInviteAll();
+      }
+    }
     if (MP.modal) {
       MP.click = modalClick;
       mpDrawModal();
@@ -52050,7 +52794,7 @@ function program() {
     }
     if (MP.waitT > 0 && !cutsceneIs) {
       var g = MP.waitGate || "";
-      var what = g === "end" || g === "victory" ? "the finish" : g === "boss" ? "the boss" : g === "masterx" || g === "into" ? "the cutscene" : g.charAt(0) === "c" ? "the checkpoint" : "the launcher";
+      var what = g === "end" || g === "victory" ? "the finish" : g.indexOf("boss") === 0 ? "the boss" : g === "masterx" || g === "into" ? "the cutscene" : g.charAt(0) === "c" ? "the checkpoint" : "the launcher";
       return "Waiting for your team at " + what + "... (you can't be hurt while you wait)";
     }
     return "";
@@ -52105,8 +52849,11 @@ function program() {
       }
     }
     var inputH = MP.chatOpen ? inputRows.length * rowH + 10 : 0;
-    var lines = scene === "Multiplayer" && !MP.chatOpen ? [] : MP.chatLines;
-    var maxRows = MP.chatOpen ? 14 : 8;
+    // [v1.5] the chat shows on the Multiplayer screen too (it was hidden there, so
+    // messages sent while you were on it never appeared), above its bottom buttons
+    var onMpScreen = scene === "Multiplayer";
+    var lines = MP.chatLines;
+    var maxRows = MP.chatOpen ? 14 : onMpScreen ? 5 : 8;
     var rows = [];
     // a yellow line that stays as long as you are waiting for the team
     var sticky = mpWaitingText();
@@ -52147,6 +52894,9 @@ function program() {
       }
     }
     var bottom = 600 - (MP.chatOpen ? inputH + 16 : 22) - (!MP.chatOpen && mobileInLevel() ? 104 : 0); // [v1.1] above the touch arrows
+    if (onMpScreen && !MP.chatOpen) {
+      bottom = 512; // (clear of LEAVE / PLAY / INVITE CODES)
+    }
     // keep clear of the Q menu while it is open
     var chatX = -widePad + 8 + (scene === "game" ? __p.max(0, qMenuX + qMenuWidth + 6) : 0);
     for (var r0 = 0; r0 < rows.length; r0++) {
@@ -52195,8 +52945,24 @@ function program() {
         __p.text(inputRows[ir], -widePad + 16, 600 - 10 - inputH + 5 + ir * rowH);
       }
     }
+    srvDrawInvite(); // [v1.5] a developer's invite
+    // [v1.5] on the map while the host plays a level: watch it (spectate)
+    if (scene === "Play" && !transitionActive && mpHostLevelOn() && !MP.chatOpen) {
+      if (mpButton(300 - 120, 10, 240, 40, "WATCH THE LEVEL", __p.color(0, 120, 255)) && !MP.specAsked) {
+        MP.specAsked = true;
+        setTimeout(function () {
+          MP.specAsked = false;
+        }, 3000);
+        if (MP.links[0]) {
+          mpSendRaw(MP.links[0], {
+            t: "specme"
+          });
+        }
+        MP.click = false; // (not a click on the map under it)
+      }
+    }
     // synced start: waiting for everyone, then 3-2-1-GO
-    if (MP.active && scene === "game" && !cutsceneIs && (MP.hold || MP.goFlash > 0)) {
+    if (MP.active && scene === "game" && !cutsceneIs && (MP.hold || MP.goFlash > 0) && MP.mode !== "linked") {
       var label = "";
       if (MP.hold) {
         if (MP.countSes === MP.session && MP.countEnd) {
@@ -53629,7 +54395,7 @@ function program() {
         st.done = true;
         if (st.hit && !p.admDoom && !p.dead) {
           p.admDoom = 0; // turns into the skull now
-          p.health = __p.max(1, p.health - 100);
+          p.health = 0.01; // shows 0%, but still (just) alive until the skull bursts
         }
       }
       if (st.t >= ADM_STRIKE_AIM + ADM_STRIKE_FIRE + ADM_STRIKE_AFTER && st.rings.length === 0 && st.smoke.length === 0) {
@@ -54126,7 +54892,7 @@ function program() {
     drag: function (dy) {
       var w = mobileWorld(0, 0);
       var d = dy * w.scale;
-      targetY = __p.constrain(targetY + d, -110, 300); // achievements list
+      targetY = __p.constrain(targetY + d, goalsMinY, 300); // achievements list
       targetScroll = __p.constrain(targetScroll - d, 0, 1000); // shop, runs and other long pages
     },
     // a tap (no drag) is about to become a click at this spot; true = the
@@ -54292,7 +55058,7 @@ function program() {
   MOBILE.saveAt = 0;
   MOBILE.lastSave = "";
   var dashAutosave = function dashAutosave() {
-    if (loading || __p.millis() - MOBILE.saveAt < 2000) {
+    if (loading || window.__dashBootHold || __p.millis() - MOBILE.saveAt < 2000) {
       return;
     }
     MOBILE.saveAt = __p.millis();
@@ -54402,7 +55168,7 @@ function program() {
   // ===================================================================
   var SRV = {
     party: null, // host: { id, token, name, priv, max }
-    busy: null, // host: the join request being connected { rid, name, at, posted }
+    busy: [], // host: [v1.5] the join requests being connected now { rid, name, at, inv, posted }
     queue: [], // host: join requests waiting their turn
     lastBeat: 0,
     beating: false,
@@ -54523,7 +55289,7 @@ function program() {
       SRV.listAt = __p.millis();
     });
   };
-  var srvAskJoin = function srvAskJoin(party, pass, key) {
+  var srvAskJoin = function srvAskJoin(party, pass, key, inviteTok) {
     MP.modal = null;
     mpStartJoin();
     var j = MP.join;
@@ -54532,11 +55298,13 @@ function program() {
     j.partyRef = party; // [v1.4] (to ask again if the link doesn't open)
     j.pass = pass || "";
     j.key = key || "";
+    j.invite = inviteTok || ""; // [v1.5] a developer's invite lets you into a private party
     j.status = "asking";
     srvFetch("POST", "/api/parties/" + encodeURIComponent(party.id) + "/join", {
       name: srvTxt(MP.fields.name || "Player"),
       pass: pass || "",
       key: key || "",
+      invite: inviteTok || "",
       dev: SRV.dev
     }).then(function (r) {
       if (MP.join !== j) {
@@ -54613,6 +55381,7 @@ function program() {
           return;
         }
         s.hostPlaying = !!r.playing;
+        s.hostAway = !!r.hostAway;
         if (r.state === "offer" && r.offer && j.status === "waiting") {
           MP.fields.invite = r.offer;
           j.same = !!r.same;
@@ -54625,6 +55394,16 @@ function program() {
       }, function (e) {
         s.polling = false;
       });
+    }
+    // [v1.5] no offer after 25 s (the host's game lost the request): ask again, once
+    if (j.status === "waiting" && !s.hostAway && __p.millis() - s.at > 25000 && !j.reasked && !MP.active && j.partyRef) {
+      SRV.join = null;
+      srvAskJoin(j.partyRef, j.pass, j.key, j.invite);
+      if (MP.join) {
+        MP.join.reasked = true;
+        MP.join.retried = j.retried;
+      }
+      return;
     }
     if (j.status === "reply" && j.code && !s.posted) {
       s.posted = true;
@@ -54645,7 +55424,7 @@ function program() {
         j.pc.close();
       } catch (e) {}
       SRV.join = null;
-      srvAskJoin(j.partyRef, j.pass, j.key);
+      srvAskJoin(j.partyRef, j.pass, j.key, j.invite);
       if (MP.join) {
         MP.join.retried = true;
       }
@@ -54689,7 +55468,7 @@ function program() {
         max: SRV.max
       };
       SRV.queue = [];
-      SRV.busy = null;
+      srvDropBusy();
       SRV.lastBeat = 0;
     }, function (e) {
       SRV.creating = false;
@@ -54716,7 +55495,7 @@ function program() {
       pt.token = r.token;
       pt.reregistering = false;
       SRV.queue = [];
-      SRV.busy = null;
+      srvDropBusy();
       SRV.lastBeat = 0;
     }, function (e) {
       pt.reregistering = false;
@@ -54729,10 +55508,23 @@ function program() {
       }
     });
   };
+  // [v1.5] stop letting in the players being connected (their invites are closed)
+  var srvDropBusy = function srvDropBusy() {
+    for (var i = 0; i < SRV.busy.length; i++) {
+      var inv = SRV.busy[i].inv;
+      if (inv && inv.status !== "joined") {
+        inv.dropped = true;
+        try {
+          inv.pc.close();
+        } catch (e) {}
+      }
+    }
+    SRV.busy = [];
+  };
   var srvCloseParty = function srvCloseParty() {
     var pt = SRV.party;
     SRV.party = null;
-    SRV.busy = null;
+    srvDropBusy();
     SRV.queue = [];
     if (pt) {
       srvFetch("POST", "/api/parties/" + encodeURIComponent(pt.id) + "/close", {
@@ -54749,60 +55541,65 @@ function program() {
       srvCloseParty();
       return;
     }
-    var b = SRV.busy;
-    // [v1.3] an invite nobody finished (the player left, or the link never opened) is
-    // thrown away: it used to stay for ever and block every player behind it
-    if (!b && MP.invite && (!MP.invite.rid || MP.invite.status === "failed" || MP.invite.status === "error") && MP.invite.status !== "connecting") {
-      try {
-        MP.invite.pc.close();
-      } catch (e) {}
-      MP.invite = null;
-    }
-    // the request being connected: make its connection code, post it, wait
-    if (b) {
-      var inv = MP.invite;
-      if (!b.made) {
-        b.made = true;
-        mpMakeInvite({
+    // [v1.5] Up to three players are let in at the same time, each with an invite of
+    // its own. Before, one join at a time went through the single shared invite, so a
+    // join that never finished held up every player behind it ("Waiting for the host
+    // to let you in..." for a minute or more, or for good if that invite was lost).
+    var now = __p.millis();
+    for (var bi = SRV.busy.length - 1; bi >= 0; bi--) {
+      var b = SRV.busy[bi];
+      if (!b.inv) {
+        b.inv = mpMakeInvite({
           lan: !!b.same,
-          both: true
+          both: true,
+          own: true
         });
-        if (MP.invite) {
-          MP.invite.rid = b.rid;
+        if (!b.inv) {
+          SRV.busy.splice(bi, 1); // (no WebRTC here: nothing to do)
+          continue;
         }
-      } else if (inv && inv.rid === b.rid && inv.status === "ready" && !b.posted) {
-        b.posted = true;
-        srvFetch("POST", "/api/parties/" + encodeURIComponent(pt.id) + "/offer", {
-          token: pt.token,
-          rid: b.rid,
-          code: inv.code
-        }).then(null, function () {
-          SRV.busy = null;
-        });
+        b.inv.rid = b.rid;
+        b.slot = b.inv.slot;
       }
-      inv = MP.invite; // (just made, the first time round)
-      var joined = MP.players[b.slot] !== undefined;
-      if (joined) {
+      var inv = b.inv;
+      if (inv.status === "ready" && !b.posted) {
+        b.posted = true;
+        b.postedAt = now;
+        (function (bb) {
+          srvFetch("POST", "/api/parties/" + encodeURIComponent(pt.id) + "/offer", {
+            token: pt.token,
+            rid: bb.rid,
+            code: bb.inv.code
+          }).then(null, function () {
+            bb.giveUp = true; // they stopped waiting
+          });
+        })(b);
+      }
+      var joined = inv.status === "joined" || MP.players[b.slot] !== undefined;
+      if (joined && MP.players[b.slot]) {
         MP.players[b.slot].rid = b.rid; // how they joined (for moderators' /kick and /ban)
       }
-      if (!inv || inv.rid !== b.rid || inv.status === "failed" || inv.status === "error" || __p.millis() - b.at > 45000 || joined) {
-        if (inv && inv.rid === b.rid && inv.status !== "connecting" && !joined) {
+      // done, or given up: an invite that never got an answer is dropped after 20 s,
+      // one that is connecting gets its 30 s, and nothing waits more than 45 s
+      var stale = inv.status === "failed" || inv.status === "error" || b.giveUp || now - b.at > 45000 || inv.status !== "connecting" && b.posted && !b.answered && now - b.postedAt > 20000;
+      if (joined || stale) {
+        if (!joined) {
+          inv.dropped = true;
           try {
             inv.pc.close();
           } catch (e) {}
-          MP.invite = null;
         }
-        SRV.busy = null; // done (or gave up): next one
+        SRV.busy.splice(bi, 1);
       }
     }
     // [v1.3] players are let in at any time (in a level they spectate until the next one)
-    if (!SRV.busy && SRV.queue.length && (mpCount() < pt.max || SRV.queue[0].admin) && !MP.invite) {
-      SRV.busy = SRV.queue.shift();
-      SRV.busy.at = __p.millis();
-      SRV.busy.slot = MP.nextSlot;
+    while (SRV.busy.length < 3 && SRV.queue.length && (mpCount() + SRV.busy.length < pt.max || SRV.queue[0].admin)) {
+      var nb = SRV.queue.shift();
+      nb.at = now;
+      SRV.busy.push(nb);
     }
     // heartbeat: keeps the party listed, collects join requests and answers
-    var every = SRV.busy || SRV.queue.length ? 1000 : 2500;
+    var every = SRV.busy.length || SRV.queue.length ? 1000 : 2500;
     if (SRV.beating || __p.millis() - SRV.lastBeat < every) {
       return;
     }
@@ -54823,18 +55620,14 @@ function program() {
         SRV.queue = SRV.queue.filter(function (q) {
           return r.live.indexOf(q.rid) >= 0;
         });
-        var bb = SRV.busy;
-        var gotAnswer = !!bb && (r.answers || []).some(function (an) {
-          return an.rid === bb.rid;
-        });
-        if (bb && !bb.answered && !gotAnswer && __p.millis() - bb.at > 4000 && r.live.indexOf(bb.rid) < 0) {
-          if (MP.invite && MP.invite.rid === bb.rid && MP.invite.status !== "connecting") {
-            try {
-              MP.invite.pc.close();
-            } catch (e) {}
-            MP.invite = null;
+        for (var lb = 0; lb < SRV.busy.length; lb++) {
+          var bb = SRV.busy[lb];
+          var gotAnswer = (r.answers || []).some(function (an) {
+            return an.rid === bb.rid;
+          });
+          if (!bb.answered && !gotAnswer && __p.millis() - bb.at > 4000 && r.live.indexOf(bb.rid) < 0 && bb.inv && bb.inv.status !== "connecting") {
+            bb.giveUp = true; // they stopped waiting
           }
-          SRV.busy = null;
         }
       }
       // a moderator's /kick or /ban
@@ -54846,8 +55639,16 @@ function program() {
         }
       }
       var reqs = r.requests || [];
+      var busyFor = function (rid) {
+        for (var q = 0; q < SRV.busy.length; q++) {
+          if (SRV.busy[q].rid === rid) {
+            return SRV.busy[q];
+          }
+        }
+        return null;
+      };
       for (var i = 0; i < reqs.length; i++) {
-        var known = SRV.busy && SRV.busy.rid === reqs[i].rid;
+        var known = !!busyFor(reqs[i].rid);
         for (var q = 0; q < SRV.queue.length; q++) {
           if (SRV.queue[q].rid === reqs[i].rid) {
             known = true;
@@ -54864,13 +55665,12 @@ function program() {
       }
       var ans = r.answers || [];
       for (var a = 0; a < ans.length; a++) {
-        var inv2 = MP.invite;
-        if (SRV.busy && ans[a].rid === SRV.busy.rid) {
-          SRV.busy.answered = true;
-        }
-        if (SRV.busy && ans[a].rid === SRV.busy.rid && inv2 && inv2.rid === SRV.busy.rid && inv2.status === "ready") {
-          MP.fields.reply = ans[a].code;
-          mpUseReply();
+        var ab = busyFor(ans[a].rid);
+        if (ab) {
+          ab.answered = true;
+          if (ab.inv && ab.inv.status === "ready") {
+            mpUseReply(ab.inv, ans[a].code);
+          }
         }
       }
     }, function (e) {
@@ -54961,6 +55761,129 @@ function program() {
       }
       mpChatLine("", e.message, -1);
     });
+  };
+  // [v1.5] Every game on the website checks in every 15 s (for the server's stats:
+  // how many play, when), and hears about a developer's invite that way.
+  var srvHelloTick = function srvHelloTick() {
+    if (SRV.helloBusy || Date.now() - (SRV.helloAt || 0) < 15000) {
+      return;
+    }
+    SRV.helloBusy = true;
+    SRV.helloAt = Date.now();
+    srvFetch("POST", "/api/hello", {
+      dev: SRV.dev,
+      mp: MP.active ? 1 : 0,
+      game: scene === "game" ? 1 : 0
+    }).then(function (r) {
+      SRV.helloBusy = false;
+      SRV.online = typeof r.online === "number" ? r.online : SRV.online;
+      var iv = r.invite;
+      var mine = SRV.party && iv && SRV.party.id === iv.party || SRV.joinedParty === (iv && iv.party) && MP.active;
+      if (iv && iv.id !== SRV.inviteSeen && !mine) {
+        SRV.inviteSeen = iv.id;
+        SRV.inviteNote = iv;
+        SRV.inviteAt = Date.now();
+        sfx("playerJoin");
+      }
+    }, function () {
+      SRV.helloBusy = false;
+    });
+  };
+  // Digitsofpi and Kineto: invite everyone online to the party they're in
+  var srvInviteAll = function srvInviteAll() {
+    var key = srvModKey();
+    if (!key) {
+      srvAskModKey("to invite everyone", srvInviteAll);
+      return;
+    }
+    var party = SRV.party ? SRV.party.id : MP.active ? SRV.joinedParty : "";
+    if (!party) {
+      mpToast("Make or join a party first, then invite everyone to it.");
+      return;
+    }
+    SRV.inviting = true;
+    srvFetch("POST", "/api/invite", {
+      key: key,
+      party: party,
+      from: srvTxt(MP.fields.name || ADM.who),
+      dev: SRV.dev
+    }).then(function (r) {
+      SRV.inviting = false;
+      SRV.invitedAt = Date.now();
+      mpChatLine("", r.text || "Invited everyone.", -1);
+    }, function (e) {
+      SRV.inviting = false;
+      if (/admin key/i.test(e.message)) {
+        SRV.modKey = "";
+        try {
+          window.localStorage.removeItem("dashparkour-mod-key");
+        } catch (err) {}
+      }
+      mpToast(e.message);
+    });
+  };
+  // the invite notice (any screen): "(name), a developer of this game, invited you..."
+  var srvDrawInvite = function srvDrawInvite() {
+    var iv = SRV.inviteNote;
+    if (!iv) {
+      return;
+    }
+    if (Date.now() - SRV.inviteAt > 115000) {
+      SRV.inviteNote = null;
+      return;
+    }
+    var w = 440,
+      h = 96,
+      x = 300 - w / 2,
+      y = 60 + (1 - __p.constrain((Date.now() - SRV.inviteAt) / 300, 0, 1)) * -40;
+    __p.stroke(0);
+    __p.strokeWeight(5);
+    __p.fill(255);
+    __p.rect(x, y, w, h, 18);
+    __p.noStroke();
+    __p.fill(255, 0, 0);
+    __p.rect(x + 14, y + 14, 6, h - 28, 3);
+    __p.textFont(mpSans, 15);
+    __p.fill(20);
+    __p.textAlign(__p.LEFT, __p.TOP);
+    var line = cleanText(iv.from || "A developer") + ", a developer of this game, invited you to play with him!";
+    var rows = mpTextWrap(line, w - 150, 0);
+    for (var r = 0; r < rows.length && r < 3; r++) {
+      __p.text(rows[r], x + 32, y + 16 + r * 19);
+    }
+    __p.fill(110);
+    __p.textSize(12);
+    __p.text("Party: " + cleanText(iv.name || ""), x + 32, y + h - 24);
+    if (mpButton(x + w - 112, y + 22, 92, 50, "JOIN", __p.color(0, 170, 90))) {
+      SRV.inviteNote = null;
+      MP.click = false;
+      if (MP.active) {
+        mpLeave();
+      }
+      srvAskJoin({ id: iv.party, name: iv.name }, "", "", iv.token);
+      if (scene !== "Multiplayer" && !transitionActive) {
+        transitionActive = true;
+        sceneToTransition = "Multiplayer";
+      }
+    }
+    // the X
+    var cx = x + w - 6,
+      cy = y + 6,
+      hovX = __p.dist(worldMouseX, worldMouseY, cx, cy) < 15;
+    __p.stroke(0);
+    __p.strokeWeight(3);
+    __p.fill(hovX ? 235 : 255);
+    __p.ellipse(cx, cy, 28, 28);
+    __p.strokeWeight(3);
+    __p.line(cx - 5, cy - 5, cx + 5, cy + 5);
+    __p.line(cx + 5, cy - 5, cx - 5, cy + 5);
+    if (hovX) {
+      __p.cursor(__p.HAND);
+      if (MP.click) {
+        SRV.inviteNote = null;
+        MP.click = false;
+      }
+    }
   };
   var srvTick = function srvTick() {
     if (!mpServerOn()) {
@@ -55141,8 +56064,10 @@ function program() {
     py += mpParagraph((pt.priv ? "Private party, passcode needed. " : "Public party. ") + "Players join it from the party list: no codes to send.", ix, py, iw, 14) + 10;
     mpArcLine(mpCount() + " of " + pt.max + " players", ix, py, 8, 20);
     py += 30;
-    if (SRV.busy) {
-      py += mpParagraph("Connecting " + mpArcSafe(SRV.busy.name || "a player") + "...", ix, py, iw, 14, __p.color(0, 140, 70)) + 6;
+    if (SRV.busy.length) {
+      py += mpParagraph("Connecting " + SRV.busy.map(function (bz) {
+        return mpArcSafe(bz.name || "a player");
+      }).join(", ") + "...", ix, py, iw, 14, __p.color(0, 140, 70)) + 6;
     }
     if (SRV.queue.length) {
       py += mpParagraph(SRV.queue.length + " more waiting to join.", ix, py, iw, 13, 90) + 6;
@@ -55156,7 +56081,8 @@ function program() {
     var j = MP.join;
     mpLabel("Joining " + mpArcSafe(cleanText(j.party || "the party")), 40, y, 18);
     var hostBusy = SRV.join && SRV.join.hostPlaying;
-    var msg = j.status === "asking" ? "Asking to join..." : j.status === "waiting" ? hostBusy ? "The host is in a level right now. You'll join in a moment and watch (spectate) until the next level starts..." : "Waiting for the host to let you in..." : j.status === "making" || j.status === "idle" ? "Connecting..." : j.status === "reply" ? "Almost there: connecting to the host..." : j.status === "refused" ? j.error || "Couldn't join." : "";
+    var hostAway = SRV.join && SRV.join.hostAway;
+    var msg = j.status === "asking" ? "Asking to join..." : j.status === "waiting" ? hostAway ? "The host's game is in the background (another tab or app). You'll get in as soon as they come back..." : hostBusy ? "The host is in a level right now. You'll join in a moment and watch (spectate) until the next level starts..." : "Waiting for the host to let you in..." : j.status === "making" || j.status === "idle" ? "Connecting..." : j.status === "reply" ? "Almost there: connecting to the host..." : j.status === "refused" ? j.error || "Couldn't join." : "";
     mpParagraph(msg, 40, y + 34, 520, 16, j.status === "refused" ? __p.color(200, 40, 0) : 60);
     if (j.status === "refused" && mpButton(40, y + 90, 220, 46, "BACK TO PARTIES", __p.color(0, 120, 255))) {
       MP.join = null;
@@ -55580,7 +56506,7 @@ function program() {
     e.preventDefault();
   };
   __p.mouseScrolled = function mouseScrolled() {
-    targetY = __p.constrain(targetY + __p.mouseScroll * 20, -110, 300);
+    targetY = __p.constrain(targetY + __p.mouseScroll * 20, goalsMinY, 300);
     targetScroll = __p.constrain(targetScroll - __p.mouseScroll * 50, 0, 1000);
   };
 
@@ -55933,9 +56859,20 @@ window.__dashParkourBootPromise = runPJS(program);
     });
   }
 
+  // [v1.5] The game starts (and makes all its pictures) behind this screen while the
+  // player types a save code; their code is loaded the moment they press Start.
+  // Until then the game is silent and doesn't see the keyboard (typing a code would
+  // otherwise press the game's keys).
+  window.__dashBootHold = true;
+  function holdKeys(e) {
+    if (window.__dashBootHold) e.stopImmediatePropagation(); // (the letters still go into the box)
+  }
+  ["keydown", "keyup", "keypress"].forEach(function (n) { window.addEventListener(n, holdKeys, true); });
+
   function bootScripts(sources) {
     var sourceIndex = 0;
     var pendingGameSource = "";
+    var early = false; // the game is already running behind the screen
 
     function finishBoot() {
       if (screen.parentNode) screen.parentNode.removeChild(screen);
@@ -55955,6 +56892,26 @@ window.__dashParkourBootPromise = runPJS(program);
         return;
       }
       persistSaveCode(); // may fail in sandboxed pages; the game still starts
+      if (early) {
+        startButton.disabled = true;
+        startButton.textContent = "Starting DASH Parkour...";
+        var go = function () {
+          try {
+            if (saveValue && window.__dashApplySave) window.__dashApplySave(saveValue);
+          } catch (error) {
+            fail(error);
+            return;
+          }
+          window.__dashBootHold = false;
+          frame(finishBoot);
+        };
+        if (window.__dashParkourBootPromise && typeof window.__dashParkourBootPromise.then === "function") {
+          window.__dashParkourBootPromise.then(go, fail);
+        } else {
+          go();
+        }
+        return;
+      }
       var saveCodePlaceholder = 'var saveCode = "";';
       if (pendingGameSource.indexOf(saveCodePlaceholder) === -1) {
         fail(new Error("The game save-code integration could not be found."));
@@ -55994,6 +56951,14 @@ window.__dashParkourBootPromise = runPJS(program);
         progress.value = 40 + Math.round(60 * sourceIndex / sources.length);
         if (sourceIndex === sources.length - 1) {
           pendingGameSource = sources[sourceIndex];
+          // [v1.5] run it now, behind this screen (when the game can take its save code later)
+          if (pendingGameSource.indexOf("__dashApplySave") !== -1) {
+            var bg = document.createElement("script");
+            bg.text = pendingGameSource;
+            document.body.appendChild(bg);
+            pendingGameSource = "(running)";
+            early = true;
+          }
           status.textContent = "Ready to start DASH Parkour.";
           detail.textContent = "Enter a save code if you have one, then start the game.";
           progress.value = 100;
@@ -56448,9 +57413,19 @@ window.__dashParkourBootPromise = runPJS(program);
       var done = false, t, early = null;
       function fin() { if (done) return; done = true; clearTimeout(t); clearTimeout(early); res(); }
       pc.addEventListener("icegatheringstatechange", function () { if (pc.iceGatheringState === "complete") fin(); });
-      // once a public address is known we have all we send; don't wait for slow servers
+      // Once a public address AND a local one are known we have all we send; don't
+      // wait for slow servers. [v1.5] On phones the local address (a ".local" name)
+      // often comes AFTER the public one; finishing 0.7 s after the public one left
+      // it out, and Same Wi-Fi then failed on routers that can't loop back to their
+      // own public address. So wait for a local one too (2 s at most).
+      var pub = false, local = false, soon = false;
       pc.addEventListener("icecandidate", function (e) {
-        if (e.candidate && / typ srflx /.test(e.candidate.candidate) && !early) early = setTimeout(fin, 700);
+        if (!e.candidate) return;
+        var c = e.candidate.candidate;
+        if (/ typ srflx /.test(c)) pub = true;
+        if (/ typ host /.test(c)) local = true;
+        if (pub && local && !soon) { soon = true; clearTimeout(early); early = setTimeout(fin, 250); }
+        else if (pub && !local && !early) early = setTimeout(fin, 2000);
       });
       t = setTimeout(fin, ms);
     });

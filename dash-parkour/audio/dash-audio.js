@@ -543,7 +543,7 @@
     E.inst = I;
 
     /* ---------- buses ---------- */
-    var out = gain(0.88);
+    var out = gain(0.6); // [v1.5] (was 0.88: everything was far too loud)
     var limiter = ctx.createDynamicsCompressor();
     limiter.threshold.value = -6; limiter.knee.value = 4; limiter.ratio.value = 14; limiter.attack.value = 0.002; limiter.release.value = 0.18;
     out.connect(limiter); limiter.connect(ctx.destination);
@@ -838,6 +838,23 @@
   };
   function logEv(type, info) { if (DA.log) try { DA.log(type, info); } catch (e) { /* tests only */ } }
 
+  // [v1.5] the volume sliders (0..1 each), and the music level they give
+  DA.vol = { music: 0.7, sfx: 0.7 };
+  function musicLevelFor(paused) { return (paused ? 0.45 : 0.9) * DA.vol.music; }
+  function applySfxVolume() {
+    if (!live.ui) return;
+    live.ui.sfxIn.gain.value = DA.vol.sfx;
+    live.game.sfxIn.gain.value = DA.vol.sfx;
+  }
+  DA.setVolume = function (music, sfx) {
+    music = clamp(+music, 0, 1); sfx = clamp(+sfx, 0, 1);
+    if (music === DA.vol.music && sfx === DA.vol.sfx) return;
+    DA.vol.music = music; DA.vol.sfx = sfx;
+    if (!live.ui) return;
+    var t = live.ui.ctx.currentTime;
+    live.ui.musicLevel.gain.setTargetAtTime(musicLevelFor(DA.paused), t, 0.05);
+    applySfxVolume();
+  };
   function ensure() {
     if (live.ui || !AC || !live.gestured) return !!live.ui;
     try {
@@ -845,7 +862,8 @@
       live.game = makeEngine(new AC(), { lite: true, noReverb: false });
     } catch (e) { live.ui = live.game = null; return false; }
     live.ui.onEvent = function (type, info) { logEv(type, info); };
-    live.ui.musicLevel.gain.value = 0.9;
+    live.ui.musicLevel.gain.value = musicLevelFor(DA.paused);
+    applySfxVolume();
     live.ui.ctx.onstatechange = function () { if (live.ui.ctx.state === 'running' && DA.wanted && !DA.current) startSong(DA.wanted); };
     return true;
   }
@@ -894,7 +912,7 @@
     try { oldGame.ctx.close(); } catch (e) { /* ignore */ }
     if (!ensure()) return;
     if (DA.paused) { // keep the pause look on the new contexts
-      live.ui.musicLevel.gain.value = 0.45; live.ui.muffle.frequency.value = 900; suspendCtx(live.game.ctx);
+      live.ui.musicLevel.gain.value = musicLevelFor(true); live.ui.muffle.frequency.value = 900; suspendCtx(live.game.ctx);
     }
     resumeCtx(live.ui.ctx);
     if (!DA.paused) resumeCtx(live.game.ctx);
@@ -908,8 +926,11 @@
     var gap = wd.last ? (nowMs - wd.last) / 1000 : 0.045;
     wd.last = nowMs;
     if (document.hidden) { wd.ct = -1; return; }
-    wd.lateMax = Math.max(gap, wd.lateMax * 0.995); // the worst recent gap, fading over a few seconds
-    if (live.ui) live.ui.lateBy = live.game.lateBy = Math.min(1.2, wd.lateMax * 1.3 + 0.05);
+    // [v1.5] a single long gap (a tab switch, a slow frame) used to make it schedule up
+    // to 1.2 s of notes in one go, which made the game's frames hitch; now it's capped
+    // at 0.5 s and only follows gaps that keep happening
+    wd.lateMax = Math.max(Math.min(gap, 0.35), wd.lateMax * 0.99);
+    if (live.ui) live.ui.lateBy = live.game.lateBy = Math.min(0.5, wd.lateMax * 1.3 + 0.05);
     if (!live.ui || !live.gestured || nowMs - wd.check < 500) return;
     var dt = wd.check ? (nowMs - wd.check) / 1000 : 0;
     wd.check = nowMs;
@@ -931,8 +952,16 @@
     try { watchdog(Date.now()); } catch (e) { /* never break the music */ }
     var P = DA.current;
     if (P && live.ui) {
-      try { P.pump(); } catch (e) { if (window.console) console.error(e); }
-      if (P.ended && DA.current === P) { DA.current = null; logEv('songEnd', { name: P.name }); if (P.song.then) { DA.wanted = P.song.then; startSong(P.song.then); } }
+      try { P.pump(); P.errs = 0; } catch (e) {
+        if (window.console) console.error(e);
+        // [v1.5] a song that keeps failing is started again rather than staying silent
+        if ((P.errs = (P.errs || 0) + 1) > 20 && DA.current === P) { DA.current = null; try { P.stop(0.1); } catch (e2) { /* gone */ } }
+      }
+      if (P.ended && DA.current === P) { DA.current = null; DA.finished = P.name; logEv('songEnd', { name: P.name }); if (P.song.then) { DA.wanted = P.song.then; DA.finished = ''; startSong(P.song.then); } }
+    } else if (!P && DA.wanted && DA.finished !== DA.wanted && live.ui && live.ui.ctx.state === 'running' && !document.hidden) {
+      // [v1.5] music wanted but none playing (it had been stopped while the audio
+      // was asleep and nothing started it again): some players got effects but no music
+      startSong(DA.wanted);
     }
   }
   setTimeout(pumpLoop, 45);
@@ -956,6 +985,7 @@
     name = name || '';
     if (name === DA.wanted) return;
     DA.wanted = name;
+    DA.finished = '';
     logEv('want', { name: name });
     if (!name) { if (DA.current) { DA.current.stop(0.9); DA.current = null; } return; }
     if (!ensure()) return;
@@ -976,7 +1006,7 @@
     DA.paused = on;
     if (!live.ui) return;
     var E = live.ui, t = E.ctx.currentTime;
-    E.musicLevel.gain.setTargetAtTime(on ? 0.45 : 0.9, t, 0.12);
+    E.musicLevel.gain.setTargetAtTime(musicLevelFor(on), t, 0.12);
     E.muffle.frequency.setTargetAtTime(on ? 900 : 20000, t, 0.12);
     try { if (on) live.game.ctx.suspend(); else live.game.ctx.resume(); } catch (e) { /* ignore */ }
   };

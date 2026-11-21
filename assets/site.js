@@ -27,9 +27,10 @@
         var current = header.getAttribute('data-current') || '';
 
         header.classList.add('site-header');
+        // One button: the DK logo and the word Home together
         var html = '<a class="site-logo" href="' + (root || './') + '" aria-label="Digits &amp; Kineto home" title="Home">' +
-            '<img src="' + root + 'logo.svg" alt="DK" width="64" height="64"></a>' +
-            '<a class="home-label" href="' + (root || './') + '">Home</a>' +
+            '<span class="site-logo-mark"><img src="' + root + 'logo.svg" alt="" width="64" height="64"></span>' +
+            '<span class="home-label" aria-hidden="true">Home</span></a>' +
             '<nav class="scene-nav" aria-label="Main">';
         NAV.forEach(function (item, i) {
             if (!item.href) {

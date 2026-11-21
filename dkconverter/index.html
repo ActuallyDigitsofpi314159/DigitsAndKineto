@@ -246,399 +246,126 @@
         </div>
 
         <pre id="utilityOutput" class="language-javascript">
-
 // DK CONVERTER UTILITY [
-
 function dkIsFiniteNumber(value) {
-    return typeof value === "number" &&
-        value === value &&
-        value < (1 / 0) &&
-        value > (-1 / 0);
-}
-
-function dkIsInteger(value) {
-    return dkIsFiniteNumber(value) &&
-        Math.floor(value) === value;
-}
-
+ return typeof value === "number" && value === value && value < 1 / 0 && value > -1 / 0;}
+function dkIsInteger(value) { return dkIsFiniteNumber(value) && Math.floor(value) === value;}
 function dkIsArray(value) {
-    return !!value &&
-        typeof value === "object" &&
-        typeof value.length === "number" &&
-        typeof value.push === "function";
-}
-
-function dkThrow(message) {
-    throw message;
-}
-
-
-
-function dkRequireInteger(value, minimum, message) {
-    if (!dkIsInteger(value) || value < minimum) {
-        dkThrow(message);
-    }
-}
-
+ return !!value && typeof value === "object" && typeof value.length === "number" && typeof value.push === "function";}
+function dkThrow(message) { throw message;}
+function dkRequireInteger(value, minimum, message) { if (!dkIsInteger(value) || value < minimum) { dkThrow(message);}}
 // DK JSON PARSER SUPPORT START
-function dkParseJSON(text) {
-    var position = 0;
-
-    function skipWhitespace() {
-        while (position < text.length &&
-            (text.charAt(position) === " " ||
-                text.charAt(position) === "\n" ||
-                text.charAt(position) === "\r" ||
-                text.charAt(position) === "\t")) {
-            position++;
-        }
-    }
-
-    function parseString() {
-        var result = "";
-        position++;
-        while (position < text.length) {
-            var character = text.charAt(position++);
-            if (character === '"') {
-                return result;
-            }
-            if (character !== "\\") {
-                result += character;
-                continue;
-            }
-            if (position >= text.length) {
-                dkThrow("DK: incomplete string escape.");
-            }
-            var escaped = text.charAt(position++);
-            if (escaped === '"' || escaped === "\\" || escaped === "/") {
-                result += escaped;
-            } else if (escaped === "b") {
-                result += "\b";
-            } else if (escaped === "f") {
-                result += "\f";
-            } else if (escaped === "n") {
-                result += "\n";
-            } else if (escaped === "r") {
-                result += "\r";
-            } else if (escaped === "t") {
-                result += "\t";
-            } else if (escaped === "u") {
-                var code = parseInt(text.substr(position, 4), 16);
-                if (isNaN(code)) {
-                    dkThrow("DK: invalid Unicode escape.");
-                }
-                result += String.fromCharCode(code);
-                position += 4;
-            } else {
-                dkThrow("DK: invalid string escape.");
-            }
-        }
-        dkThrow("DK: unterminated string.");
-    }
-
-    function parseValue() {
-        skipWhitespace();
-        var character = text.charAt(position);
-        if (character === '"') {
-            return parseString();
-        }
-        if (character === "[") {
-            position++;
-            var array = [];
-            skipWhitespace();
-            if (text.charAt(position) === "]") {
-                position++;
-                return array;
-            }
-            while (position < text.length) {
-                array.push(parseValue());
-                skipWhitespace();
-                character = text.charAt(position++);
-                if (character === "]") {
-                    return array;
-                }
-                if (character !== ",") {
-                    dkThrow("DK: invalid array separator.");
-                }
-            }
-            dkThrow("DK: unterminated array.");
-        }
-        if (character === "{") {
-            position++;
-            var object = {};
-            skipWhitespace();
-            if (text.charAt(position) === "}") {
-                position++;
-                return object;
-            }
-            while (position < text.length) {
-                skipWhitespace();
-                if (text.charAt(position) !== '"') {
-                    dkThrow("DK: object key must be a string.");
-                }
-                var key = parseString();
-                skipWhitespace();
-                if (text.charAt(position++) !== ":") {
-                    dkThrow("DK: invalid object separator.");
-                }
-                object[key] = parseValue();
-                skipWhitespace();
-                character = text.charAt(position++);
-                if (character === "}") {
-                    return object;
-                }
-                if (character !== ",") {
-                    dkThrow("DK: invalid object separator.");
-                }
-            }
-            dkThrow("DK: unterminated object.");
-        }
-        if (text.substr(position, 4) === "true") {
-            position += 4;
-            return true;
-        }
-        if (text.substr(position, 5) === "false") {
-            position += 5;
-            return false;
-        }
-        if (text.substr(position, 4) === "null") {
-            position += 4;
-            return null;
-        }
-        var numberMatch = text.slice(position).match(
-            /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/
-        );
-        if (numberMatch) {
-            position += numberMatch[0].length;
-            return Number(numberMatch[0]);
-        }
-        dkThrow("DK: invalid JSON value.");
-    }
-
-    var value = parseValue();
-    skipWhitespace();
-    if (position !== text.length) {
-        dkThrow("DK: unexpected data after JSON value.");
-    }
-    return value;
-}
+function dkParseJSON(text) { var position = 0; function skipWhitespace() {
+  while (position < text.length && (text.charAt(position) === " " || text.charAt(position) === "\n" || text.charAt(position) === "\r" || text.charAt(position) === "\t")) {
+   position++;}} function parseString() { var result = ""; position++; while (position < text.length) {
+   var character = text.charAt(position++); if (character === '"') { return result;} if (character !== "\\") {
+    result += character; continue;} if (position >= text.length) { dkThrow("DK: incomplete string escape.");}
+   var escaped = text.charAt(position++); if (escaped === '"' || escaped === "\\" || escaped === "/") {
+    result += escaped; } else if (escaped === "b") { result += "\b"; } else if (escaped === "f") { result += "\f";
+   } else if (escaped === "n") { result += "\n"; } else if (escaped === "r") { result += "\r";
+   } else if (escaped === "t") { result += "\t"; } else if (escaped === "u") {
+    var code = parseInt(text.substr(position, 4), 16); if (isNaN(code)) { dkThrow("DK: invalid Unicode escape.");}
+    result += String.fromCharCode(code); position += 4; } else { dkThrow("DK: invalid string escape.");}}
+  dkThrow("DK: unterminated string.");} function parseValue() { skipWhitespace(); var character = text.charAt(position);
+  if (character === '"') { return parseString();} if (character === "[") { position++; var array = []; skipWhitespace();
+   if (text.charAt(position) === "]") { position++; return array;} while (position < text.length) {
+    array.push(parseValue()); skipWhitespace(); character = text.charAt(position++); if (character === "]") {
+     return array;} if (character !== ",") { dkThrow("DK: invalid array separator.");}}
+   dkThrow("DK: unterminated array.");} if (character === "{") { position++; var object = {}; skipWhitespace();
+   if (text.charAt(position) === "}") { position++; return object;} while (position < text.length) { skipWhitespace();
+    if (text.charAt(position) !== '"') { dkThrow("DK: object key must be a string.");} var key = parseString();
+    skipWhitespace(); if (text.charAt(position++) !== ":") { dkThrow("DK: invalid object separator.");}
+    object[key] = parseValue(); skipWhitespace(); character = text.charAt(position++); if (character === "}") {
+     return object;} if (character !== ",") { dkThrow("DK: invalid object separator.");}}
+   dkThrow("DK: unterminated object.");} if (text.substr(position, 4) === "true") { position += 4; return true;}
+  if (text.substr(position, 5) === "false") { position += 5; return false;} if (text.substr(position, 4) === "null") {
+   position += 4; return null;}
+  var numberMatch = text.slice(position).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/); if (numberMatch) {
+   position += numberMatch[0].length; return Number(numberMatch[0]);} dkThrow("DK: invalid JSON value.");}
+ var value = parseValue(); skipWhitespace(); if (position !== text.length) {
+  dkThrow("DK: unexpected data after JSON value.");} return value;}
 // DK JSON PARSER SUPPORT END
-
 // DK AUDIO SUPPORT START
-// Credit to SwankyMan for audio player technology!
 var dkAudioContext;
 /* jshint ignore:start */
 PJSCodeInjector.applyInstance = function(o) {
-    return function() {
-        return Reflect.construct(o, arguments);
-    };
-};
-dkAudioContext = new AudioContext();
+ return function() { return Reflect.construct(o, arguments);};};
+dkAudioContext = new AudioContext;
 /* jshint ignore:end */
-
 var dkAudioBuffers = {};
 var dkAudioSources = {};
-
-function dkLoadAudio(name, audioData, afterLoad) {
-    if (dkAudioBuffers[name]) {
-        if (afterLoad) {
-            afterLoad();
-        }
-        return;
-    }
-    /* jshint ignore:start */
-    var audioString = audioData.s || audioData.data;
-    var audioLength = audioData.n !== undefined ?
-        audioData.n : audioData.encodedLength;
-    var audioBlockSize = audioData.b !== undefined ?
-        audioData.b : audioData.baseKBlockSize;
-    var decodedBytes = dkDecodeBaseK(
-        audioString,
-        audioLength,
-        audioBlockSize
-    );
-    var audioBuffer = new ArrayBuffer(audioLength);
-    var audioBytes = new DataView(audioBuffer);
-    var i;
-    for (i = 0; i < audioLength; i++) {
-        audioBytes.setUint8(i, decodedBytes[i] & 255);
-    }
-    dkAudioContext.decodeAudioData(
-        audioBuffer,
-        function(decoded) {
-            dkAudioBuffers[name] = decoded;
-            if (afterLoad) {
-                afterLoad();
-            }
-        },
-        function() {
-            println("DK audio: could not decode embedded audio.");
-        }
-    );
-    /* jshint ignore:end */
+function dkLoadAudio(name, audioData, afterLoad) { if (dkAudioBuffers[name]) { if (afterLoad) { afterLoad();} return;}
+/* jshint ignore:start */
+var audioString = audioData.s || audioData.data;
+ var audioLength = audioData.n !== undefined ? audioData.n : audioData.encodedLength;
+ var audioBlockSize = audioData.b !== undefined ? audioData.b : audioData.baseKBlockSize;
+ var decodedBytes = dkDecodeBaseK(audioString, audioLength, audioBlockSize);
+ var audioBuffer = new ArrayBuffer(audioLength); var audioBytes = new DataView(audioBuffer); var i;
+ for (i = 0; i < audioLength; i++) { audioBytes.setUint8(i, decodedBytes[i] & 255);}
+ dkAudioContext.decodeAudioData(audioBuffer, function(decoded) { dkAudioBuffers[name] = decoded; if (afterLoad) {
+   afterLoad();} }, function() { println("DK audio: could not decode embedded audio.");});
+/* jshint ignore:end */
 }
-
-function dkPlayAudio(name, audioData, volume, afterStart, playbackSpeed) {
-    if (dkAudioContext.resume) {
-        dkAudioContext.resume();
-    }
-    dkLoadAudio(name, audioData, function() {
-        if (dkAudioSources[name]) {
-            dkAudioSources[name].stop(0);
-        }
-        var source = dkAudioContext.createBufferSource();
-        var gain = dkAudioContext.createGain();
-        source.buffer = dkAudioBuffers[name];
-        source.loop = false;
-        gain.gain.value = volume === undefined ? 1 : volume;
-        if (playbackSpeed && playbackSpeed > 0 && playbackSpeed !== 1) {
-            /* jshint ignore:start */
-            var rateNode = source["playbackRate"];
-            if (rateNode) {
-                rateNode.value = playbackSpeed;
-            }
-            /* jshint ignore:end */
-        }
-        source.connect(gain);
-        gain.connect(dkAudioContext.destination);
-        dkAudioSources[name] = source;
-        source.start(0);
-        if (afterStart) {
-            afterStart();
-        }
-    });
+function dkPlayAudio(name, audioData, volume, afterStart, playbackSpeed) { if (dkAudioContext.resume) {
+  dkAudioContext.resume();} dkLoadAudio(name, audioData, function() { if (dkAudioSources[name]) {
+   dkAudioSources[name].stop(0);} var source = dkAudioContext.createBufferSource();
+  var gain = dkAudioContext.createGain(); source.buffer = dkAudioBuffers[name]; source.loop = false;
+  gain.gain.value = volume === undefined ? 1 : volume; if (playbackSpeed && playbackSpeed > 0 && playbackSpeed !== 1) {
+/* jshint ignore:start */
+   var rateNode = source["playbackRate"]; if (rateNode) { rateNode.value = playbackSpeed;}
+/* jshint ignore:end */
 }
+  source.connect(gain); gain.connect(dkAudioContext.destination); dkAudioSources[name] = source; source.start(0);
+  if (afterStart) { afterStart();}});}
 // DK AUDIO SUPPORT END
-
 // WARNING: LEAVE CLOSED [
 var DK_ALPHABET = __DK_ALPHABET__;
 var DK_ALPHABET_INDEX = {};
 var dkAlphabetPosition;
-for (dkAlphabetPosition = 0;
-    dkAlphabetPosition < DK_ALPHABET.length;
-    dkAlphabetPosition++) {
-    DK_ALPHABET_INDEX[DK_ALPHABET.charAt(dkAlphabetPosition)] = dkAlphabetPosition;
-}
+for (dkAlphabetPosition = 0; dkAlphabetPosition < DK_ALPHABET.length; dkAlphabetPosition++) {
+ DK_ALPHABET_INDEX[DK_ALPHABET.charAt(dkAlphabetPosition)] = dkAlphabetPosition;}
 // ]
 var DK_BASE_K_BLOCK_SIZE = 4;
 var DK_BASE_K_DIGIT_COUNTS = __DK_DIGIT_COUNTS__;
-
-function dkNewByteArray(length) {
-    var bytes = [];
-    var index;
-    for (index = 0; index < length; index++) {
-        bytes[index] = 0;
-    }
-    return bytes;
-}
-
-function dkBaseDigitCount(byteCount) {
-    if (byteCount < 0 || byteCount >= DK_BASE_K_DIGIT_COUNTS.length) {
-        return 0;
-    }
-    return DK_BASE_K_DIGIT_COUNTS[byteCount];
-}
-
-function dkDecodeBaseK(encoded, byteLength, blockSize) {
-    blockSize = blockSize || DK_BASE_K_BLOCK_SIZE;
-    if (!dkIsInteger(blockSize) || blockSize !== DK_BASE_K_BLOCK_SIZE) {
-        dkThrow("DK: invalid Base-K block size.");
-    }
-    var output = dkNewByteArray(byteLength);
-    var outputOffset = 0;
-    var inputOffset = 0;
-    var alphabetSize = DK_ALPHABET.length;
-    var encodedLength = encoded.length;
-    while (outputOffset < byteLength) {
-        var blockLength = byteLength - outputOffset;
-        if (blockLength > blockSize) {
-            blockLength = blockSize;
-        }
-        var digitCount = DK_BASE_K_DIGIT_COUNTS[blockLength];
-        var endOffset = inputOffset + digitCount;
-        if (endOffset > encodedLength) {
-            dkThrow("DKL: truncated base-k data.");
-        }
-        var value = 0;
-        var i;
-        var digit;
-        var byteValue;
-        var divisor;
-        for (i = inputOffset; i < endOffset; i++) {
-            digit = DK_ALPHABET_INDEX[encoded.charAt(i)];
-            if (typeof digit !== "number") {
-                dkThrow("DKL: invalid base-k character.");
-            }
-            value = value * alphabetSize + digit;
-        }
-        inputOffset = endOffset;
-        if (blockLength === 4) {
-            byteValue = Math.floor(value / 16777216);
-            if (byteValue > 255) {
-                dkThrow("DKL: base-k block exceeds its byte length.");
-            }
-            output[outputOffset] = byteValue;
-            value = value - byteValue * 16777216;
-            output[outputOffset + 1] = Math.floor(value / 65536);
-            value = value % 65536;
-            output[outputOffset + 2] = Math.floor(value / 256);
-            output[outputOffset + 3] = value % 256;
-            outputOffset += 4;
-        } else {
-            divisor = 1;
-            for (i = 1; i < blockLength; i++) {
-                divisor = divisor * 256;
-            }
-            for (i = 0; i < blockLength; i++) {
-                byteValue = Math.floor(value / divisor);
-                if (byteValue > 255) {
-                    dkThrow("DKL: base-k block exceeds its byte length.");
-                }
-                output[outputOffset] = byteValue;
-                outputOffset = outputOffset + 1;
-                value = value - byteValue * divisor;
-                divisor = Math.floor(divisor / 256);
-            }
-            if (value !== 0) {
-                dkThrow("DKL: base-k block exceeds its byte length.");
-            }
-        }
-    }
-    if (inputOffset !== encodedLength) {
-        dkThrow("DKL: base-k data has trailing characters.");
-    }
-    return output;
-}
-
-function dkPaethPredictor(left, up, upperLeft) {
-    var estimate = left + up - upperLeft;
-    var leftDistance = Math.abs(estimate - left);
-    var upDistance = Math.abs(estimate - up);
-    var upperLeftDistance = Math.abs(estimate - upperLeft);
-    if (leftDistance <= upDistance && leftDistance <= upperLeftDistance) {
-        return left;
-    }
-    if (upDistance <= upperLeftDistance) {
-        return up;
-    }
-    return upperLeft;
-}
-
+function dkNewByteArray(length) { var bytes = []; var index; for (index = 0; index < length; index++) {
+  bytes[index] = 0;} return bytes;}
+function dkBaseDigitCount(byteCount) { if (byteCount < 0 || byteCount >= DK_BASE_K_DIGIT_COUNTS.length) { return 0;}
+ return DK_BASE_K_DIGIT_COUNTS[byteCount];}
+function dkDecodeBaseK(encoded, byteLength, blockSize) { blockSize = blockSize || DK_BASE_K_BLOCK_SIZE;
+ if (!dkIsInteger(blockSize) || blockSize !== DK_BASE_K_BLOCK_SIZE) { dkThrow("DK: invalid Base-K block size.");}
+ var output = dkNewByteArray(byteLength); var outputOffset = 0; var inputOffset = 0;
+ var alphabetSize = DK_ALPHABET.length; var encodedLength = encoded.length; while (outputOffset < byteLength) {
+  var blockLength = byteLength - outputOffset; if (blockLength > blockSize) { blockLength = blockSize;}
+  var digitCount = DK_BASE_K_DIGIT_COUNTS[blockLength]; var endOffset = inputOffset + digitCount;
+  if (endOffset > encodedLength) { dkThrow("DKL: truncated base-k data.");} var value = 0; var i; var digit;
+  var byteValue; var divisor; for (i = inputOffset; i < endOffset; i++) { digit = DK_ALPHABET_INDEX[encoded.charAt(i)];
+   if (typeof digit !== "number") { dkThrow("DKL: invalid base-k character.");} value = value * alphabetSize + digit;}
+  inputOffset = endOffset; if (blockLength === 4) { byteValue = Math.floor(value / 16777216); if (byteValue > 255) {
+    dkThrow("DKL: base-k block exceeds its byte length.");} output[outputOffset] = byteValue;
+   value = value - byteValue * 16777216; output[outputOffset + 1] = Math.floor(value / 65536); value = value % 65536;
+   output[outputOffset + 2] = Math.floor(value / 256); output[outputOffset + 3] = value % 256; outputOffset += 4;
+  } else { divisor = 1; for (i = 1; i < blockLength; i++) { divisor = divisor * 256;}
+   for (i = 0; i < blockLength; i++) { byteValue = Math.floor(value / divisor); if (byteValue > 255) {
+     dkThrow("DKL: base-k block exceeds its byte length.");} output[outputOffset] = byteValue;
+    outputOffset = outputOffset + 1; value = value - byteValue * divisor; divisor = Math.floor(divisor / 256);}
+   if (value !== 0) { dkThrow("DKL: base-k block exceeds its byte length.");}}} if (inputOffset !== encodedLength) {
+  dkThrow("DKL: base-k data has trailing characters.");} return output;}
+function dkPaethPredictor(left, up, upperLeft) { var estimate = left + up - upperLeft;
+ var leftDistance = Math.abs(estimate - left); var upDistance = Math.abs(estimate - up);
+ var upperLeftDistance = Math.abs(estimate - upperLeft);
+ if (leftDistance <= upDistance && leftDistance <= upperLeftDistance) { return left;}
+ if (upDistance <= upperLeftDistance) { return up;} return upperLeft;}
 /* Embedded fzstd array decoder and MIT license.
 MIT License
-
 Copyright (c) 2020 Arjun Barrett
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -646,1791 +373,510 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-*/
-function dkFzstdArray(source, offset, length) {
-    var result = [];
-    var index;
-    var destinationOffset;
-    if (typeof source === "number") {
-        length = source;
-        for (index = 0; index < length; index++) {
-            result[index] = 0;
-        }
-    } else if (source && typeof source.length === "number") {
-        offset = offset || 0;
-        if (length === undefined) {
-            length = source.length - offset;
-        }
-        for (index = 0; index < length; index++) {
-            result[index] = source[offset + index] || 0;
-        }
-    }
-    result.subarray = function(start, end) {
-        if (start < 0) {
-            start = Math.max(0, result.length + start);
-        }
-        if (end === undefined) {
-            end = result.length;
-        }
-        if (end < 0) {
-            end = Math.max(0, result.length + end);
-        }
-        return dkFzstdArray(result.slice(start, end));
-    };
-    result.set = function(values, start) {
-        destinationOffset = start || 0;
-        for (index = 0; index < values.length; index++) {
-            result[destinationOffset + index] = values[index] || 0;
-        }
-    };
-    return result;
-}
-
+*/ function dkFzstdArray(source, offset, length) {
+ var result = []; var index; var destinationOffset; if (typeof source === "number") { length = source;
+  for (index = 0; index < length; index++) { result[index] = 0;}
+ } else if (source && typeof source.length === "number") { offset = offset || 0; if (length === undefined) {
+   length = source.length - offset;} for (index = 0; index < length; index++) {
+   result[index] = source[offset + index] || 0;}} result.subarray = function(start, end) { if (start < 0) {
+   start = Math.max(0, result.length + start);} if (end === undefined) { end = result.length;} if (end < 0) {
+   end = Math.max(0, result.length + end);} return dkFzstdArray(result.slice(start, end));};
+ result.set = function(values, start) { destinationOffset = start || 0;
+  for (index = 0; index < values.length; index++) { result[destinationOffset + index] = values[index] || 0;}};
+ return result;}
 var dkFzstd;
 /* jshint ignore:start */
-dkFzstd = (function() {
-    var _e = {};
-    var r = dkFzstdArray, t = dkFzstdArray, e = dkFzstdArray, n = dkFzstdArray, a = dkFzstdArray, s = dkFzstdArray, i = function(r, e, n) {
-        if ((e === null || e === undefined) || e < 0) {
-            e = 0;
-        }
-        if ((n === null || n === undefined) || n > r.length) {
-            n = r.length;
-        }
-        return t(r, e, n - e);
-    }, o = function(r, e, n, a) {
-        if ((n === null || n === undefined) || n < 0) {
-            n = 0;
-        }
-        if ((a === null || a === undefined) || a > r.length) {
-            a = r.length;
-        }
-        while (n < a) {
-            r[n] = e;
-            n++;
-        }
-        return r;
-    }, u = function(r, e, n, a) {
-        if ((n === null || n === undefined) || n < 0) {
-            n = 0;
-        }
-        if ((a === null || a === undefined) || a > r.length) {
-            a = r.length;
-        }
-        while (n < a) {
-            r[e] = r[n];
-            e++;
-            n++;
-        }
-    };
-    _e.ZstdErrorCode = {
-        InvalidData: 0,
-        WindowSizeTooLarge: 1,
-        InvalidBlockType: 2,
-        FSEAccuracyTooHigh: 3,
-        DistanceTooFarBack: 4,
-        UnexpectedEOF: 5
-    };
-    var h = [ "invalid zstd data", "window size too large (>2046MB)", "invalid block type", "FSE accuracy too high", "match distance too far back", "unexpected EOF" ], f = function(r, t, e) {
-        var n = t || h[r];
-        if (!e) {
-            dkThrow(n);
-        }
-        return n;
-    }, l = function(r, t, e) {
-        for (var n = 0, a = 0; n < e; ++n) {
-            a |= r[t++] << (n << 3);
-        }
-        return a;
-    }, v = function(r, t) {
-        return (r[t] | r[t + 1] << 8 | r[t + 2] << 16 | r[t + 3] << 24) >>> 0;
-    }, c = function(r, e) {
-        var n = r[0] | r[1] << 8 | r[2] << 16;
-        if (3126568 === n && 253 === r[3]) {
-            var a = r[4], i = a >> 5 & 1, o = a >> 2 & 1, u = 3 & a, h = a >> 6;
-            if (8 & a) {
-                f(0);
-            }
-            var c = 6 - i, b = 3 === u ? 4 : u, y = l(r, c, b), p = h ? 1 << h : i, w = l(r, c += b, p) + (1 === h && 256), g = w;
-            if (!i) {
-                var d = 1 << 10 + (r[5] >> 3);
-                g = d + (d >> 3) * (7 & r[5]);
-            }
-            if (g > 2145386496) {
-                f(1);
-            }
-            return {
-                b: c + p,
-                y: 0,
-                l: 0,
-                d: y,
-                w: e && 1 !== e ? e : t(w || g),
-                e: g,
-                o: [ 1, 4, 8 ],
-                u: w,
-                c: o,
-                m: Math.min(131072, g)
-            };
-        }
-        if (25481893 === (n >> 4 | r[3] << 20)) {
-            return v(r, 4) + 8;
-        }
-        f(0);
-    }, b = function(r) {
-        for (var t = 0; 1 << t <= r; ++t) {}
-        return t - 1;
-    }, y = function(dat, bytePos, maxBits) {
-        var bitPos = (bytePos << 3) + 4;
-        var accuracy = (dat[bytePos] & 15) + 5;
-        if (accuracy > maxBits) {
-            f(3);
-        }
-        var size = 1 << accuracy, remaining = size, symbol = -1, repeat = -1, position = -1, high = size;
-        var frequencies = dkNewByteArray(256), nextState = dkNewByteArray(256), states = dkNewByteArray(size), symbols = dkNewByteArray(size), bitsTable = dkNewByteArray(size);
-        var i;
-        for (i = 0; i < 256; i++) {
-            frequencies[i] = 0;
-            nextState[i] = 0;
-        }
-        for (i = 0; i < size; i++) {
-            states[i] = 0;
-            symbols[i] = 0;
-            bitsTable[i] = 0;
-        }
-        while (symbol < 255 && remaining > 0) {
-            var countBits = b(remaining + 1), bytePosNow = bitPos >> 3;
-            var mask = (1 << countBits + 1) - 1;
-            var value = (dat[bytePosNow] | dat[bytePosNow + 1] << 8 | dat[bytePosNow + 2] << 16) >> (bitPos & 7) & mask;
-            var lowerMask = (1 << countBits) - 1, maximumSmall = mask - remaining - 1, small = value & lowerMask;
-            if (small < maximumSmall) {
-                bitPos += countBits;
-                value = small;
-            } else {
-                bitPos += countBits + 1;
-                if (value > lowerMask) {
-                    value -= maximumSmall;
-                }
-            }
-            frequencies[++symbol] = --value;
-            if (value === -1) {
-                remaining += value;
-                symbols[--high] = symbol;
-            } else {
-                remaining -= value;
-            }
-            if (value === 0) {
-                do {
-                    var repeatPos = bitPos >> 3;
-                    repeat = (dat[repeatPos] | dat[repeatPos + 1] << 8) >> (bitPos & 7) & 3;
-                    bitPos += 2;
-                    symbol += repeat;
-                } while (repeat === 3);
-            }
-        }
-        if (symbol > 255 || remaining) {
-            f(0);
-        }
-        var symbolPos = 0, step = (size >> 1) + (size >> 3) + 3, symbolMask = size - 1, sf;
-        for (var s = 0; s <= symbol; s++) {
-            sf = frequencies[s];
-            if (sf < 1) {
-                nextState[s] = -sf & 65535;
-                continue;
-            }
-            nextState[s] = sf;
-            for (i = 0; i < sf; i++) {
-                symbols[symbolPos] = s;
-                do {
-                    symbolPos = symbolPos + step & symbolMask;
-                } while (symbolPos >= high);
-            }
-        }
-        if (symbolPos) {
-            f(0);
-        }
-        for (i = 0; i < size; i++) {
-            var state = nextState[symbols[i]];
-            nextState[symbols[i]] = state + 1 & 65535;
-            bitsTable[i] = accuracy - b(state);
-            states[i] = (state << bitsTable[i]) - size & 65535;
-        }
-        return [ bitPos + 7 >> 3, {
-            b: accuracy,
-            s: symbols,
-            n: bitsTable,
-            t: states
-        } ];
-    }, p = function(dat, bytePos) {
-        var i = 0, weightCount = -1, header = dat[bytePos], weights = dkNewByteArray(256), rankCounts = dkNewByteArray(12), rankIndexes = dkNewByteArray(13);
-        for (i = 0; i < weights.length; i++) {
-            weights[i] = 0;
-        }
-        for (i = 0; i < rankCounts.length; i++) {
-            rankCounts[i] = 0;
-        }
-        for (i = 0; i < rankIndexes.length; i++) {
-            rankIndexes[i] = 0;
-        }
-        if (header < 128) {
-            var decoded = y(dat, bytePos + 1, 6), table = decoded[1], endBit = decoded[0] << 3;
-            bytePos += header;
-            var lastByte = dat[bytePos];
-            if (!lastByte) {
-                f(0);
-            }
-            var state1 = 0, state2 = 0, bits1 = table.b, bits2 = bits1, bitPos = (++bytePos << 3) - 8 + b(lastByte);
-            for (;;) {
-                bitPos -= bits1;
-                if (bitPos < endBit) {
-                    break;
-                }
-                var currentByte = bitPos >> 3;
-                state1 += (dat[currentByte] | dat[currentByte + 1] << 8) >> (bitPos & 7) & (1 << bits1) - 1;
-                weights[++weightCount] = table.s[state1];
-                bitPos -= bits2;
-                if (bitPos < endBit) {
-                    break;
-                }
-                currentByte = bitPos >> 3;
-                state2 += (dat[currentByte] | dat[currentByte + 1] << 8) >> (bitPos & 7) & (1 << bits2) - 1;
-                weights[++weightCount] = table.s[state2];
-                bits1 = table.n[state1];
-                state1 = table.t[state1];
-                bits2 = table.n[state2];
-                state2 = table.t[state2];
-            }
-            if (++weightCount > 255) {
-                f(0);
-            }
-        } else {
-            weightCount = header - 127;
-            for (i = 0; i < weightCount; i += 2) {
-                var nextByte = dat[++bytePos];
-                weights[i] = nextByte >> 4;
-                weights[i + 1] = nextByte & 15;
-            }
-            ++bytePos;
-        }
-        var weightSum = 0;
-        for (i = 0; i < weightCount; i++) {
-            var weight = weights[i];
-            if (weight > 11) {
-                f(0);
-            }
-            weightSum += weight && 1 << weight - 1;
-        }
-        var maxBits = b(weightSum) + 1, tableSize = 1 << maxBits, remainder = tableSize - weightSum;
-        if (remainder & remainder - 1) {
-            f(0);
-        }
-        weights[weightCount++] = b(remainder) + 1;
-        for (i = 0; i < weightCount; i++) {
-            var currentWeight = weights[i];
-            var numberBits = currentWeight && maxBits + 1 - currentWeight;
-            weights[i] = numberBits;
-            rankCounts[numberBits]++;
-        }
-        var symbols = dkNewByteArray(tableSize), numberBitsTable = dkNewByteArray(tableSize);
-        for (i = 0; i < tableSize; i++) {
-            symbols[i] = 0;
-            numberBitsTable[i] = 0;
-        }
-        rankIndexes[maxBits] = 0;
-        for (i = maxBits; i > 0; i--) {
-            var previous = rankIndexes[i];
-            o(numberBitsTable, i, previous, rankIndexes[i - 1] = previous + rankCounts[i] * (1 << maxBits - i));
-        }
-        if (rankIndexes[0] !== tableSize) {
-            f(0);
-        }
-        for (i = 0; i < weightCount; i++) {
-            var length = weights[i];
-            if (length) {
-                var code = rankIndexes[length];
-                o(symbols, i, code, rankIndexes[length] = code + (1 << maxBits - length));
-            }
-        }
-        return [ bytePos, {
-            n: numberBitsTable,
-            b: maxBits,
-            s: symbols
-        } ];
-    }, w = y(t([ 81, 16, 99, 140, 49, 198, 24, 99, 12, 33, 196, 24, 99, 102, 102, 134, 70, 146, 4 ]), 0, 6)[1], g = y(t([ 33, 20, 196, 24, 99, 140, 33, 132, 16, 66, 8, 33, 132, 16, 66, 8, 33, 68, 68, 68, 68, 68, 68, 68, 68, 36, 9 ]), 0, 6)[1], d = y(t([ 32, 132, 16, 66, 102, 70, 68, 68, 68, 68, 36, 73, 2 ]), 0, 5)[1], m = function(r, t) {
-        var e = r.length;
-        var n = s(e);
-        var a;
-        for (a = 0; a < e; a++) {
-            n[a] = t;
-            t += 1 << r[a];
-        }
-        return n;
-    }, z = t([ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 ]), E = m(z, 0), k = t([ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 ]), A = m(k, 3), T = function(dat, out, table, offset, outputLength) {
-        var length = dat.length, count = outputLength === undefined ? out.length - (offset || 0) : outputLength, lastByte = dat[length - 1], mask = (1 << table.b) - 1, endBits = -table.b;
-        if (!lastByte) {
-            f(0);
-        }
-        var state = 0, bits = table.b, bitPos = (length << 3) - 8 + b(lastByte) - bits, index = -1;
-        for (;bitPos > endBits && index < count; ) {
-            var currentByte = bitPos >> 3;
-            var value = (dat[currentByte] | dat[currentByte + 1] << 8 | dat[currentByte + 2] << 16) >> (bitPos & 7);
-            state = (state << bits | value) & mask;
-            out[(offset || 0) + ++index] = table.s[state];
-            bitPos -= bits = table.n[state];
-        }
-        if (bitPos !== endBits || index + 1 !== count) {
-            f(0);
-        }
-    }, x = function(dat, out, table, offset) {
-        var bitOffset = 6, base = offset || 0;
-        var count = out.length - base, first = count + 3 >> 2, second = first << 1, third = first + second;
-        T(dat.subarray(bitOffset, bitOffset += dat[0] | dat[1] << 8), out, table, base, first);
-        T(dat.subarray(bitOffset, bitOffset += dat[2] | dat[3] << 8), out, table, base + first, first);
-        T(dat.subarray(bitOffset, bitOffset += dat[4] | dat[5] << 8), out, table, base + second, first);
-        T(dat.subarray(bitOffset), out, table, base + third, count - third);
-    }, F = function(r, n, a) {
-        var s, u = n.b, h = r[u], l = h >> 1 & 3;
-        n.l = 1 & h;
-        var v = h >> 3 | r[u + 1] << 5 | r[u + 2] << 13, c = (u += 3) + v;
-        if (1 === l) {
-            if (u >= r.length) {
-                return;
-            }
-            return n.b = u + 1, a ? (o(a, r[u], n.y, n.y += v), a) : o(t(v), r[u]);
-        }
-        if (!(c > r.length)) {
-            if (0 === l) {
-                return n.b = c, a ? (a.set(r.subarray(u, c), n.y), n.y += v, a) : i(r, u, c);
-            }
-            if (2 === l) {
-                var m = r[u], F = 3 & m, S = m >> 2 & 3, B = m >> 4, I = 0, U = 0;
-                F < 2 ? 1 & S ? B |= r[++u] << 4 | (2 & S && r[++u] << 12) : B = m >> 3 : (U = S,
-                S < 2 ? (B |= (63 & r[++u]) << 4, I = r[u] >> 6 | r[++u] << 2) : 2 === S ? (B |= r[++u] << 4 | (3 & r[++u]) << 12,
-                I = r[u] >> 2 | r[++u] << 6) : (B |= r[++u] << 4 | (63 & r[++u]) << 12, I = r[u] >> 6 | r[++u] << 2 | r[++u] << 10)),
-                ++u;
-                var outputStart = n.y, D = a ? a.subarray(n.y, n.y + n.m) : t(n.m), M = D.length - B;
-                if (0 === F) {
-                    D.set(r.subarray(u, u += B), M);
-                } else if (1 === F) {
-                    o(D, r[u++], M);
-                } else {
-                    var W = n.h;
-                    if (2 === F) {
-                        var O = p(r, u);
-                        I += u - (u = O[0]);
-                        n.h = W = O[1];
-                    } else {
-                        if (!W) {
-                            f(0);
-                        }
-                    }
-                    if (U) {
-                        x(r.subarray(u, u += I), D, W, M);
-                    } else {
-                        T(r.subarray(u, u += I), D, W, M);
-                    }
-                }
-                var j = r[u++];
-                if (j) {
-                    if (j === 255) {
-                        j = 32512 + (r[u++] | r[u++] << 8);
-                    } else if (j > 127) {
-                        j = j - 128 << 8 | r[u++];
-                    }
-                    var C = r[u++];
-                    if (3 & C) {
-                        f(0);
-                    }
-                    var H = [ g, d, w ], L;
-                    for (L = 2; L > -1; --L) {
-                        var Z = C >> 2 + (L << 1) & 3;
-                        if (1 === Z) {
-                            var q = [ 0, 0, r[u++] ];
-                            H[L] = {
-                                s: [ q[2] ],
-                                n: [ q[0] ],
-                                t: [ q[0] ],
-                                b: 0
-                            };
-                        } else {
-                            if (Z === 2) {
-                                s = y(r, u, 9 - (1 & L));
-                                u = s[0];
-                                H[L] = s[1];
-                            } else if (Z === 3) {
-                                if (!n.t) {
-                                    f(0);
-                                }
-                                H[L] = n.t[L];
-                            }
-                        }
-                    }
-                    var G = n.t = H, J = G[0], K = G[1], N = G[2], P = r[c - 1];
-                    if (!P) {
-                        f(0);
-                    }
-                    var Q = (c << 3) - 8 + b(P) - N.b, R = Q >> 3, V = 0, X = (r[R] | r[R + 1] << 8) >> (7 & Q) & (1 << N.b) - 1, Y = (r[R = (Q -= K.b) >> 3] | r[R + 1] << 8) >> (7 & Q) & (1 << K.b) - 1, $ = (r[R = (Q -= J.b) >> 3] | r[R + 1] << 8) >> (7 & Q) & (1 << J.b) - 1;
-                    for (++j; --j; ) {
-                        var _ = N.s[X], rr = N.n[X], tr = J.s[$], er = J.n[$], nr = K.s[Y], ar = K.n[Y], sr = 1 << nr, ir = sr + ((r[R = (Q -= nr) >> 3] | r[R + 1] << 8 | r[R + 2] << 16 | r[R + 3] << 24) >>> (7 & Q) & sr - 1);
-                        R = (Q -= k[tr]) >> 3;
-                        var or = A[tr] + ((r[R] | r[R + 1] << 8 | r[R + 2] << 16) >> (7 & Q) & (1 << k[tr]) - 1);
-                        R = (Q -= z[_]) >> 3;
-                        var ur = E[_] + ((r[R] | r[R + 1] << 8 | r[R + 2] << 16) >> (7 & Q) & (1 << z[_]) - 1);
-                        if (R = (Q -= rr) >> 3, X = N.t[X] + ((r[R] | r[R + 1] << 8) >> (7 & Q) & (1 << rr) - 1),
-                        R = (Q -= er) >> 3, $ = J.t[$] + ((r[R] | r[R + 1] << 8) >> (7 & Q) & (1 << er) - 1),
-                        R = (Q -= ar) >> 3, Y = K.t[Y] + ((r[R] | r[R + 1] << 8) >> (7 & Q) & (1 << ar) - 1),
-                        ir > 3) {
-                            n.o[2] = n.o[1], n.o[1] = n.o[0], n.o[0] = ir -= 3;
-                        } else {
-                            var hr = ir - (0 !== ur);
-                            hr ? (ir = 3 === hr ? n.o[0] - 1 : n.o[hr], hr > 1 && (n.o[2] = n.o[1]), n.o[1] = n.o[0],
-                            n.o[0] = ir) : ir = n.o[0];
-                        }
-                        for (L = 0; L < ur; ++L) {
-                            D[V + L] = D[M + L];
-                        }
-                        M += ur;
-                        var fr = (V += ur) - ir;
-                        if (fr < 0) {
-                            var lr = -fr, vr = n.e + fr;
-                            for (lr > or && (lr = or), L = 0; L < lr; ++L) {
-                                D[V + L] = n.w[vr + L];
-                            }
-                            V += lr, or -= lr, fr = 0;
-                        }
-                        for (L = 0; L < or; ++L) {
-                            D[V + L] = D[fr + L];
-                        }
-                        V += or;
-                    }
-                    if (V !== M) {
-                        for (;M < D.length; ) {
-                            D[V++] = D[M++];
-                        }
-                    } else {
-                        V = D.length;
-                    }
-                    a ? n.y += V : D = i(D, 0, V);
-                } else if (a) {
-                    if (n.y += B, M) {
-                        for (L = 0; L < B; ++L) {
-                            D[L] = D[M + L];
-                        }
-                    }
-                } else {
-                    if (M) {
-                        D = i(D, M);
-                    }
-                }
-                if (a) {
-                    var outputLength = n.y - outputStart;
-                    a.set(D.subarray(0, outputLength), outputStart);
-                }
-                return n.b = c, D;
-            }
-            f(2);
-        }
-    }, S = function(r, e) {
-        if (r.length === 1) {
-            return r[0];
-        }
-        var n = t(e);
-        var a;
-        var s = 0;
-        var i;
-        for (a = 0; a < r.length; a++) {
-            i = r[a];
-            n.set(i, s);
-            s += i.length;
-        }
-        return n;
-    };
-    function B(r, t) {
-        var e = [];
-        var n;
-        if (t) {
-            n = 0;
-        } else {
-            n = 1;
-        }
-        var a = 0;
-        var s = 0;
-        var i;
-        var o;
-        while (r.length) {
-            i = c(r, n || t);
-            if (typeof i === "object") {
-                if (n) {
-                    t = null;
-                    if (i.w.length === i.u) {
-                        t = i.w;
-                        e.push(t);
-                        s += i.u;
-                    }
-                } else {
-                    e.push(t);
-                    i.e = 0;
-                }
-                while (!i.l) {
-                    o = F(r, i, t);
-                    if (!o) {
-                        f(5);
-                    }
-                    if (t) {
-                        i.e = i.y;
-                    } else {
-                        e.push(o);
-                        s += o.length;
-                        u(i.w, 0, o.length);
-                        i.w.set(o, i.w.length - o.length);
-                    }
-                }
-                a = i.b + 4 * i.c;
-            } else {
-                a = i;
-            }
-            r = r.subarray(a);
-        }
-        return S(e, s);
-    }
-    _e.decompress = B;
-    return _e;
-})();
+dkFzstd = function() {
+ var _e = {};
+ var r = dkFzstdArray, t = dkFzstdArray, e = dkFzstdArray, n = dkFzstdArray, a = dkFzstdArray, s = dkFzstdArray, i = function(r, e, n) {
+  if (e === null || e === undefined || e < 0) { e = 0;} if (n === null || n === undefined || n > r.length) {
+   n = r.length;} return t(r, e, n - e); }, o = function(r, e, n, a) { if (n === null || n === undefined || n < 0) {
+   n = 0;} if (a === null || a === undefined || a > r.length) { a = r.length;} while (n < a) { r[n] = e; n++;} return r;
+ }, u = function(r, e, n, a) { if (n === null || n === undefined || n < 0) { n = 0;}
+  if (a === null || a === undefined || a > r.length) { a = r.length;} while (n < a) { r[e] = r[n]; e++; n++;}};
+ _e.ZstdErrorCode = { InvalidData: 0, WindowSizeTooLarge: 1, InvalidBlockType: 2, FSEAccuracyTooHigh: 3,
+  DistanceTooFarBack: 4, UnexpectedEOF: 5};
+ var h = [ "invalid zstd data", "window size too large (>2046MB)", "invalid block type", "FSE accuracy too high", "match distance too far back", "unexpected EOF" ], f = function(r, t, e) {
+  var n = t || h[r]; if (!e) { dkThrow(n);} return n; }, l = function(r, t, e) { for (var n = 0, a = 0; n < e; ++n) {
+   a |= r[t++] << (n << 3);} return a; }, v = function(r, t) {
+  return (r[t] | r[t + 1] << 8 | r[t + 2] << 16 | r[t + 3] << 24) >>> 0; }, c = function(r, e) {
+  var n = r[0] | r[1] << 8 | r[2] << 16; if (3126568 === n && 253 === r[3]) {
+   var a = r[4], i = a >> 5 & 1, o = a >> 2 & 1, u = 3 & a, h = a >> 6; if (8 & a) { f(0);}
+   var c = 6 - i, b = 3 === u ? 4 : u, y = l(r, c, b), p = h ? 1 << h : i, w = l(r, c += b, p) + (1 === h && 256), g = w;
+   if (!i) { var d = 1 << 10 + (r[5] >> 3); g = d + (d >> 3) * (7 & r[5]);} if (g > 2145386496) { f(1);} return {
+    b: c + p, y: 0, l: 0, d: y, w: e && 1 !== e ? e : t(w || g), e: g, o: [ 1, 4, 8 ], u: w, c: o,
+    m: Math.min(131072, g)};} if (25481893 === (n >> 4 | r[3] << 20)) { return v(r, 4) + 8;} f(0); }, b = function(r) {
+  for (var t = 0; 1 << t <= r; ++t) {} return t - 1; }, y = function(dat, bytePos, maxBits) {
+  var bitPos = (bytePos << 3) + 4; var accuracy = (dat[bytePos] & 15) + 5; if (accuracy > maxBits) { f(3);}
+  var size = 1 << accuracy, remaining = size, symbol = -1, repeat = -1, position = -1, high = size;
+  var frequencies = dkNewByteArray(256), nextState = dkNewByteArray(256), states = dkNewByteArray(size), symbols = dkNewByteArray(size), bitsTable = dkNewByteArray(size);
+  var i; for (i = 0; i < 256; i++) { frequencies[i] = 0; nextState[i] = 0;} for (i = 0; i < size; i++) { states[i] = 0;
+   symbols[i] = 0; bitsTable[i] = 0;} while (symbol < 255 && remaining > 0) {
+   var countBits = b(remaining + 1), bytePosNow = bitPos >> 3; var mask = (1 << countBits + 1) - 1;
+   var value = (dat[bytePosNow] | dat[bytePosNow + 1] << 8 | dat[bytePosNow + 2] << 16) >> (bitPos & 7) & mask;
+   var lowerMask = (1 << countBits) - 1, maximumSmall = mask - remaining - 1, small = value & lowerMask;
+   if (small < maximumSmall) { bitPos += countBits; value = small; } else { bitPos += countBits + 1;
+    if (value > lowerMask) { value -= maximumSmall;}} frequencies[++symbol] = --value; if (value === -1) {
+    remaining += value; symbols[--high] = symbol; } else { remaining -= value;} if (value === 0) { do {
+     var repeatPos = bitPos >> 3; repeat = (dat[repeatPos] | dat[repeatPos + 1] << 8) >> (bitPos & 7) & 3; bitPos += 2;
+     symbol += repeat; } while (repeat === 3);}} if (symbol > 255 || remaining) { f(0);}
+  var symbolPos = 0, step = (size >> 1) + (size >> 3) + 3, symbolMask = size - 1, sf;
+  for (var s = 0; s <= symbol; s++) { sf = frequencies[s]; if (sf < 1) { nextState[s] = -sf & 65535; continue;}
+   nextState[s] = sf; for (i = 0; i < sf; i++) { symbols[symbolPos] = s; do { symbolPos = symbolPos + step & symbolMask;
+    } while (symbolPos >= high);}} if (symbolPos) { f(0);} for (i = 0; i < size; i++) {
+   var state = nextState[symbols[i]]; nextState[symbols[i]] = state + 1 & 65535; bitsTable[i] = accuracy - b(state);
+   states[i] = (state << bitsTable[i]) - size & 65535;} return [ bitPos + 7 >> 3, { b: accuracy, s: symbols,
+   n: bitsTable, t: states } ]; }, p = function(dat, bytePos) {
+  var i = 0, weightCount = -1, header = dat[bytePos], weights = dkNewByteArray(256), rankCounts = dkNewByteArray(12), rankIndexes = dkNewByteArray(13);
+  for (i = 0; i < weights.length; i++) { weights[i] = 0;} for (i = 0; i < rankCounts.length; i++) { rankCounts[i] = 0;}
+  for (i = 0; i < rankIndexes.length; i++) { rankIndexes[i] = 0;} if (header < 128) {
+   var decoded = y(dat, bytePos + 1, 6), table = decoded[1], endBit = decoded[0] << 3; bytePos += header;
+   var lastByte = dat[bytePos]; if (!lastByte) { f(0);}
+   var state1 = 0, state2 = 0, bits1 = table.b, bits2 = bits1, bitPos = (++bytePos << 3) - 8 + b(lastByte); for (;;) {
+    bitPos -= bits1; if (bitPos < endBit) { break;} var currentByte = bitPos >> 3;
+    state1 += (dat[currentByte] | dat[currentByte + 1] << 8) >> (bitPos & 7) & (1 << bits1) - 1;
+    weights[++weightCount] = table.s[state1]; bitPos -= bits2; if (bitPos < endBit) { break;} currentByte = bitPos >> 3;
+    state2 += (dat[currentByte] | dat[currentByte + 1] << 8) >> (bitPos & 7) & (1 << bits2) - 1;
+    weights[++weightCount] = table.s[state2]; bits1 = table.n[state1]; state1 = table.t[state1];
+    bits2 = table.n[state2]; state2 = table.t[state2];} if (++weightCount > 255) { f(0);} } else {
+   weightCount = header - 127; for (i = 0; i < weightCount; i += 2) { var nextByte = dat[++bytePos];
+    weights[i] = nextByte >> 4; weights[i + 1] = nextByte & 15;} ++bytePos;} var weightSum = 0;
+  for (i = 0; i < weightCount; i++) { var weight = weights[i]; if (weight > 11) { f(0);}
+   weightSum += weight && 1 << weight - 1;}
+  var maxBits = b(weightSum) + 1, tableSize = 1 << maxBits, remainder = tableSize - weightSum;
+  if (remainder & remainder - 1) { f(0);} weights[weightCount++] = b(remainder) + 1; for (i = 0; i < weightCount; i++) {
+   var currentWeight = weights[i]; var numberBits = currentWeight && maxBits + 1 - currentWeight;
+   weights[i] = numberBits; rankCounts[numberBits]++;}
+  var symbols = dkNewByteArray(tableSize), numberBitsTable = dkNewByteArray(tableSize);
+  for (i = 0; i < tableSize; i++) { symbols[i] = 0; numberBitsTable[i] = 0;} rankIndexes[maxBits] = 0;
+  for (i = maxBits; i > 0; i--) { var previous = rankIndexes[i];
+   o(numberBitsTable, i, previous, rankIndexes[i - 1] = previous + rankCounts[i] * (1 << maxBits - i));}
+  if (rankIndexes[0] !== tableSize) { f(0);} for (i = 0; i < weightCount; i++) { var length = weights[i]; if (length) {
+    var code = rankIndexes[length]; o(symbols, i, code, rankIndexes[length] = code + (1 << maxBits - length));}}
+  return [ bytePos, { n: numberBitsTable, b: maxBits, s: symbols } ];
+ }, w = y(t([ 81, 16, 99, 140, 49, 198, 24, 99, 12, 33, 196, 24, 99, 102, 102, 134, 70, 146, 4 ]), 0, 6)[1], g = y(t([ 33, 20, 196, 24, 99, 140, 33, 132, 16, 66, 8, 33, 132, 16, 66, 8, 33, 68, 68, 68, 68, 68, 68, 68, 68, 36, 9 ]), 0, 6)[1], d = y(t([ 32, 132, 16, 66, 102, 70, 68, 68, 68, 68, 36, 73, 2 ]), 0, 5)[1], m = function(r, t) {
+  var e = r.length; var n = s(e); var a; for (a = 0; a < e; a++) { n[a] = t; t += 1 << r[a];} return n;
+ }, z = t([ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 ]), E = m(z, 0), k = t([ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 ]), A = m(k, 3), T = function(dat, out, table, offset, outputLength) {
+  var length = dat.length, count = outputLength === undefined ? out.length - (offset || 0) : outputLength, lastByte = dat[length - 1], mask = (1 << table.b) - 1, endBits = -table.b;
+  if (!lastByte) { f(0);} var state = 0, bits = table.b, bitPos = (length << 3) - 8 + b(lastByte) - bits, index = -1;
+  for (;bitPos > endBits && index < count; ) { var currentByte = bitPos >> 3;
+   var value = (dat[currentByte] | dat[currentByte + 1] << 8 | dat[currentByte + 2] << 16) >> (bitPos & 7);
+   state = (state << bits | value) & mask; out[(offset || 0) + ++index] = table.s[state];
+   bitPos -= bits = table.n[state];} if (bitPos !== endBits || index + 1 !== count) { f(0);}
+ }, x = function(dat, out, table, offset) { var bitOffset = 6, base = offset || 0;
+  var count = out.length - base, first = count + 3 >> 2, second = first << 1, third = first + second;
+  T(dat.subarray(bitOffset, bitOffset += dat[0] | dat[1] << 8), out, table, base, first);
+  T(dat.subarray(bitOffset, bitOffset += dat[2] | dat[3] << 8), out, table, base + first, first);
+  T(dat.subarray(bitOffset, bitOffset += dat[4] | dat[5] << 8), out, table, base + second, first);
+  T(dat.subarray(bitOffset), out, table, base + third, count - third); }, F = function(r, n, a) {
+  var s, u = n.b, h = r[u], l = h >> 1 & 3; n.l = 1 & h;
+  var v = h >> 3 | r[u + 1] << 5 | r[u + 2] << 13, c = (u += 3) + v; if (1 === l) { if (u >= r.length) { return;}
+   return n.b = u + 1, a ? (o(a, r[u], n.y, n.y += v), a) : o(t(v), r[u]);} if (!(c > r.length)) { if (0 === l) {
+    return n.b = c, a ? (a.set(r.subarray(u, c), n.y), n.y += v, a) : i(r, u, c);} if (2 === l) {
+    var m = r[u], F = 3 & m, S = m >> 2 & 3, B = m >> 4, I = 0, U = 0;
+    F < 2 ? 1 & S ? B |= r[++u] << 4 | (2 & S && r[++u] << 12) : B = m >> 3 : (U = S, 
+    S < 2 ? (B |= (63 & r[++u]) << 4, I = r[u] >> 6 | r[++u] << 2) : 2 === S ? (B |= r[++u] << 4 | (3 & r[++u]) << 12, 
+    I = r[u] >> 2 | r[++u] << 6) : (B |= r[++u] << 4 | (63 & r[++u]) << 12, I = r[u] >> 6 | r[++u] << 2 | r[++u] << 10)), 
+    ++u; var outputStart = n.y, D = a ? a.subarray(n.y, n.y + n.m) : t(n.m), M = D.length - B; if (0 === F) {
+     D.set(r.subarray(u, u += B), M); } else if (1 === F) { o(D, r[u++], M); } else { var W = n.h; if (2 === F) {
+      var O = p(r, u); I += u - (u = O[0]); n.h = W = O[1]; } else { if (!W) { f(0);}} if (U) {
+      x(r.subarray(u, u += I), D, W, M); } else { T(r.subarray(u, u += I), D, W, M);}} var j = r[u++]; if (j) {
+     if (j === 255) { j = 32512 + (r[u++] | r[u++] << 8); } else if (j > 127) { j = j - 128 << 8 | r[u++];}
+     var C = r[u++]; if (3 & C) { f(0);} var H = [ g, d, w ], L; for (L = 2; L > -1; --L) {
+      var Z = C >> 2 + (L << 1) & 3; if (1 === Z) { var q = [ 0, 0, r[u++] ]; H[L] = { s: [ q[2] ], n: [ q[0] ],
+        t: [ q[0] ], b: 0}; } else { if (Z === 2) { s = y(r, u, 9 - (1 & L)); u = s[0]; H[L] = s[1];
+       } else if (Z === 3) { if (!n.t) { f(0);} H[L] = n.t[L];}}}
+     var G = n.t = H, J = G[0], K = G[1], N = G[2], P = r[c - 1]; if (!P) { f(0);}
+     var Q = (c << 3) - 8 + b(P) - N.b, R = Q >> 3, V = 0, X = (r[R] | r[R + 1] << 8) >> (7 & Q) & (1 << N.b) - 1, Y = (r[R = (Q -= K.b) >> 3] | r[R + 1] << 8) >> (7 & Q) & (1 << K.b) - 1, $ = (r[R = (Q -= J.b) >> 3] | r[R + 1] << 8) >> (7 & Q) & (1 << J.b) - 1;
+     for (++j; --j; ) {
+      var _ = N.s[X], rr = N.n[X], tr = J.s[$], er = J.n[$], nr = K.s[Y], ar = K.n[Y], sr = 1 << nr, ir = sr + ((r[R = (Q -= nr) >> 3] | r[R + 1] << 8 | r[R + 2] << 16 | r[R + 3] << 24) >>> (7 & Q) & sr - 1);
+      R = (Q -= k[tr]) >> 3; var or = A[tr] + ((r[R] | r[R + 1] << 8 | r[R + 2] << 16) >> (7 & Q) & (1 << k[tr]) - 1);
+      R = (Q -= z[_]) >> 3; var ur = E[_] + ((r[R] | r[R + 1] << 8 | r[R + 2] << 16) >> (7 & Q) & (1 << z[_]) - 1);
+      if (R = (Q -= rr) >> 3, X = N.t[X] + ((r[R] | r[R + 1] << 8) >> (7 & Q) & (1 << rr) - 1), 
+      R = (Q -= er) >> 3, $ = J.t[$] + ((r[R] | r[R + 1] << 8) >> (7 & Q) & (1 << er) - 1), 
+      R = (Q -= ar) >> 3, Y = K.t[Y] + ((r[R] | r[R + 1] << 8) >> (7 & Q) & (1 << ar) - 1),  ir > 3) {
+       n.o[2] = n.o[1], n.o[1] = n.o[0], n.o[0] = ir -= 3; } else { var hr = ir - (0 !== ur);
+       hr ? (ir = 3 === hr ? n.o[0] - 1 : n.o[hr], hr > 1 && (n.o[2] = n.o[1]), n.o[1] = n.o[0], 
+       n.o[0] = ir) : ir = n.o[0];} for (L = 0; L < ur; ++L) { D[V + L] = D[M + L];} M += ur; var fr = (V += ur) - ir;
+      if (fr < 0) { var lr = -fr, vr = n.e + fr; for (lr > or && (lr = or), L = 0; L < lr; ++L) {
+        D[V + L] = n.w[vr + L];} V += lr, or -= lr, fr = 0;} for (L = 0; L < or; ++L) { D[V + L] = D[fr + L];} V += or;}
+     if (V !== M) { for (;M < D.length; ) { D[V++] = D[M++];} } else { V = D.length;} a ? n.y += V : D = i(D, 0, V);
+    } else if (a) { if (n.y += B, M) { for (L = 0; L < B; ++L) { D[L] = D[M + L];}} } else { if (M) { D = i(D, M);}}
+    if (a) { var outputLength = n.y - outputStart; a.set(D.subarray(0, outputLength), outputStart);} return n.b = c, D;}
+   f(2);} }, S = function(r, e) { if (r.length === 1) { return r[0];} var n = t(e); var a; var s = 0; var i;
+  for (a = 0; a < r.length; a++) { i = r[a]; n.set(i, s); s += i.length;} return n;}; function B(r, t) { var e = [];
+  var n; if (t) { n = 0; } else { n = 1;} var a = 0; var s = 0; var i; var o; while (r.length) { i = c(r, n || t);
+   if (typeof i === "object") { if (n) { t = null; if (i.w.length === i.u) { t = i.w; e.push(t); s += i.u;} } else {
+     e.push(t); i.e = 0;} while (!i.l) { o = F(r, i, t); if (!o) { f(5);} if (t) { i.e = i.y; } else { e.push(o);
+      s += o.length; u(i.w, 0, o.length); i.w.set(o, i.w.length - o.length);}} a = i.b + 4 * i.c; } else { a = i;}
+   r = r.subarray(a);} return S(e, s);} _e.decompress = B; return _e;
+}();
 /* jshint ignore:end */
-
 function dkInflateZstdBytes(bytes, expectedLength, padding) {
-    var outputLength = expectedLength + padding;
-    var output = dkFzstd.decompress(dkFzstdArray(bytes));
-    var index;
-    if (output.length !== outputLength) {
-        dkThrow("DK: Zstandard length mismatch. Expected " +
-            outputLength + ", got " + output.length + ".");
-    }
-    for (index = expectedLength; index < outputLength; index++) {
-        if (output[index] !== 0) {
-            dkThrow("DK: Zstandard padding is invalid.");
-        }
-    }
-    return output.slice(0, expectedLength);
-}
-function dkUnfilterPNGScanlines(scanlines, width, height) {
-    var rowBytes = width * 4;
-    var expectedLength = (rowBytes + 1) * height;
-    if (scanlines.length !== expectedLength) {
-        dkThrow("DKL: invalid filtered scanline length.");
-    }
-    var rgba = dkNewByteArray(rowBytes * height);
-    var sourceOffset = 0;
-    var rowOffset;
-    var filter;
-    var left;
-    var up;
-    var upperLeft;
-    var predictor;
-    var residual;
-    for (var y = 0; y < height; y++) {
-        filter = scanlines[sourceOffset++];
-        if (filter < 0 || filter > 4) {
-            dkThrow("DKL: invalid PNG row filter.");
-        }
-        rowOffset = y * rowBytes;
-        for (var x = 0; x < rowBytes; x++) {
-            left = x >= 4 ? rgba[rowOffset + x - 4] : 0;
-            up = y > 0 ? rgba[rowOffset - rowBytes + x] : 0;
-            upperLeft = 0;
-            if (y > 0 && x >= 4) {
-                upperLeft = rgba[rowOffset - rowBytes + x - 4];
-            }
-            predictor = 0;
-            if (filter === 1) {
-                predictor = left;
-            } else if (filter === 2) {
-                predictor = up;
-            } else if (filter === 3) {
-                predictor = Math.floor((left + up) / 2);
-            } else if (filter === 4) {
-                predictor = dkPaethPredictor(left, up, upperLeft);
-            }
-            residual = scanlines[sourceOffset++];
-            rgba[rowOffset + x] = (residual + predictor) & 255;
-        }
-    }
-    return rgba;
-}
-
-function dkExpandEncoded(frameData) {
-    if (!frameData || frameData._dkExpanded === true) {
-        return frameData;
-    }
-    if (frameData.s !== undefined && frameData.data === undefined) {
-        frameData.data = frameData.s;
-    }
-    if (frameData.l !== undefined && frameData.length === undefined) {
-        frameData.length = frameData.l;
-    }
-    if (frameData.n !== undefined && frameData.encodedLength === undefined) {
-        frameData.encodedLength = frameData.n;
-    }
-    if (frameData.p !== undefined && frameData.zstdPadding === undefined) {
-        frameData.zstdPadding = frameData.p;
-    }
-    if (frameData.t !== undefined && frameData.delay === undefined) {
-        frameData.delay = frameData.t;
-    }
-    if (frameData.zstdPadding === undefined) {
-        frameData.zstdPadding = 0;
-    }
-    if (frameData.zstd === undefined) {
-        frameData.zstd = true;
-    }
-    if (frameData.baseK === undefined) {
-        frameData.baseK = true;
-    }
-    frameData._dkExpanded = true;
-    return frameData;
-}
-
-function dkDecodeZstdBytes(frameData, expectedLength) {
-    dkExpandEncoded(frameData);
-    var blockSize = frameData && frameData.baseKBlockSize;
-    if (blockSize === undefined || blockSize === null) {
-        blockSize = DK_BASE_K_BLOCK_SIZE;
-    }
-    if (!frameData || frameData.zstd !== true ||
-        typeof frameData.data !== "string" ||
-        !dkIsInteger(frameData.length) || frameData.length < 0 ||
-        !dkIsInteger(frameData.encodedLength) || frameData.encodedLength <= 0 ||
-        !dkIsInteger(frameData.zstdPadding) ||
-        frameData.zstdPadding < 0 || frameData.zstdPadding > 100 ||
-        frameData.baseK !== true ||
-        !dkIsInteger(blockSize) || blockSize !== DK_BASE_K_BLOCK_SIZE) {
-        dkThrow("DK: invalid Zstandard frame metadata.");
-    }
-    var compressed = dkDecodeBaseK(
-        frameData.data,
-        frameData.encodedLength,
-        blockSize
-    );
-    return dkInflateZstdBytes(compressed, expectedLength, frameData.zstdPadding);
-}
-
-function dkDecodeZstdFrame(frameData, width, height) {
-    dkExpandEncoded(frameData);
-    if (!frameData || frameData.length !== width * height * 4) {
-        dkThrow("DK: invalid RGBA frame length.");
-    }
-    var scanlines = dkDecodeZstdBytes(
-        frameData,
-        (width * 4 + 1) * height
-    );
-    return dkUnfilterPNGScanlines(scanlines, width, height);
-}
-
-function dkCharByteLength(charCount) {
-    var rem = charCount % 5;
-    if (!dkIsInteger(charCount) || charCount < 0 || rem === 1) {
-        dkThrow("DK: invalid Base-K length.");
-    }
-    if (rem === 0) {
-        return charCount / 5 * 4;
-    }
-    return (charCount - rem) / 5 * 4 + rem - 1;
-}
-
-function dkFrameCount(dat) {
-    if (dkIsInteger(dat.q) && dat.q > 0) {
-        return dat.q;
-    }
-    if (dkIsArray(dat.t)) {
-        return dat.t.length;
-    }
-    return 1;
-}
-
-function dkFrameDurationAt(dat, frameIndex) {
-    var delay;
-    if (dkIsArray(dat.t)) {
-        delay = dat.t[frameIndex];
-    } else {
-        delay = dat.t;
-    }
-    if (!dkIsFiniteNumber(delay) || delay <= 0) {
-        delay = 10;
-    }
-    return Math.max(1, Math.round(delay * 0.6));
-}
-
-function dkChooseFrame(dat, frame) {
-    var count = dkFrameCount(dat);
-    var frameNumber = 0;
-    var frameIndex = 0;
-    var hasDelays = false;
-    var totalTicks = 0;
-    var elapsed;
-    var duration;
-    var i;
-    if (frame !== undefined) {
-        frameNumber = Math.floor(frame);
-    }
-    if (!dkIsFiniteNumber(frameNumber) || frameNumber < 0) {
-        frameNumber = 0;
-    }
-    frameIndex = frameNumber % count;
-    if (dkIsArray(dat.t)) {
-        hasDelays = true;
-    } else if (dkIsFiniteNumber(dat.t) && dat.t > 0) {
-        hasDelays = true;
-    }
-    if (hasDelays) {
-        for (i = 0; i < count; i++) {
-            totalTicks += dkFrameDurationAt(dat, i);
-        }
-        elapsed = frameNumber % totalTicks;
-        for (i = 0; i < count; i++) {
-            duration = dkFrameDurationAt(dat, i);
-            if (elapsed < duration) {
-                frameIndex = i;
-                break;
-            }
-            elapsed -= duration;
-        }
-    }
-    return frameIndex;
-}
-
-function dkFramePayloadLength(dat, frameIndex) {
-    var packed;
-    if (dat.k === "DKL") {
-        return (dat.w * 4 + 1) * dat.h;
-    }
-    packed = Math.ceil(dat.w * dat.h * dat.b / 8);
-    if (frameIndex === 0) {
-        return dat.c * 4 + packed;
-    }
-    return packed;
-}
-
-function dkSliceBytes(bytes, start, length) {
-    var out = dkNewByteArray(length);
-    var i;
-    for (i = 0; i < length; i++) {
-        out[i] = bytes[start + i];
-    }
-    return out;
-}
-
-function dkInflateMedia(dat) {
-    var expected;
-    var count;
-    var i;
-    var encodedLength;
-    if (dat._raw) {
-        return dat._raw;
-    }
-    expected = 0;
-    count = dkFrameCount(dat);
-    for (i = 0; i < count; i++) {
-        expected += dkFramePayloadLength(dat, i);
-    }
-    encodedLength = dat.n;
-    if (encodedLength === undefined) {
-        encodedLength = dkCharByteLength(dat.s.length);
-    }
-    dat._raw = dkDecodeZstdBytes({
-        s: dat.s,
-        n: encodedLength,
-        l: expected,
-        p: dat.p
-    }, expected);
-    return dat._raw;
-}
-
-function dkSliceFrame(dat, frameIndex) {
-    var raw = dkInflateMedia(dat);
-    var offset = 0;
-    var i;
-    var size;
-    for (i = 0; i <= frameIndex; i++) {
-        size = dkFramePayloadLength(dat, i);
-        if (i === frameIndex) {
-            return dkSliceBytes(raw, offset, size);
-        }
-        offset += size;
-    }
-    dkThrow("DK: missing frame slice.");
-}
-
+ var outputLength = expectedLength + padding; var output = dkFzstd.decompress(dkFzstdArray(bytes)); var index;
+ if (output.length !== outputLength) {
+  dkThrow("DK: Zstandard length mismatch. Expected " + outputLength + ", got " + output.length + ".");}
+ for (index = expectedLength; index < outputLength; index++) { if (output[index] !== 0) {
+   dkThrow("DK: Zstandard padding is invalid.");}} return output.slice(0, expectedLength);}
+function dkUnfilterPNGScanlines(scanlines, width, height) { var rowBytes = width * 4;
+ var expectedLength = (rowBytes + 1) * height; if (scanlines.length !== expectedLength) {
+  dkThrow("DKL: invalid filtered scanline length.");} var rgba = dkNewByteArray(rowBytes * height);
+ var sourceOffset = 0; var rowOffset; var filter; var left; var up; var upperLeft; var predictor; var residual;
+ for (var y = 0; y < height; y++) { filter = scanlines[sourceOffset++]; if (filter < 0 || filter > 4) {
+   dkThrow("DKL: invalid PNG row filter.");} rowOffset = y * rowBytes; for (var x = 0; x < rowBytes; x++) {
+   left = x >= 4 ? rgba[rowOffset + x - 4] : 0; up = y > 0 ? rgba[rowOffset - rowBytes + x] : 0; upperLeft = 0;
+   if (y > 0 && x >= 4) { upperLeft = rgba[rowOffset - rowBytes + x - 4];} predictor = 0; if (filter === 1) {
+    predictor = left; } else if (filter === 2) { predictor = up; } else if (filter === 3) {
+    predictor = Math.floor((left + up) / 2); } else if (filter === 4) {
+    predictor = dkPaethPredictor(left, up, upperLeft);} residual = scanlines[sourceOffset++];
+   rgba[rowOffset + x] = residual + predictor & 255;}} return rgba;}
+function dkExpandEncoded(frameData) { if (!frameData || frameData._dkExpanded === true) { return frameData;}
+ if (frameData.s !== undefined && frameData.data === undefined) { frameData.data = frameData.s;}
+ if (frameData.l !== undefined && frameData.length === undefined) { frameData.length = frameData.l;}
+ if (frameData.n !== undefined && frameData.encodedLength === undefined) { frameData.encodedLength = frameData.n;}
+ if (frameData.p !== undefined && frameData.zstdPadding === undefined) { frameData.zstdPadding = frameData.p;}
+ if (frameData.t !== undefined && frameData.delay === undefined) { frameData.delay = frameData.t;}
+ if (frameData.zstdPadding === undefined) { frameData.zstdPadding = 0;} if (frameData.zstd === undefined) {
+  frameData.zstd = true;} if (frameData.baseK === undefined) { frameData.baseK = true;} frameData._dkExpanded = true;
+ return frameData;}
+function dkDecodeZstdBytes(frameData, expectedLength) { dkExpandEncoded(frameData);
+ var blockSize = frameData && frameData.baseKBlockSize; if (blockSize === undefined || blockSize === null) {
+  blockSize = DK_BASE_K_BLOCK_SIZE;}
+ if (!frameData || frameData.zstd !== true || typeof frameData.data !== "string" || !dkIsInteger(frameData.length) || frameData.length < 0 || !dkIsInteger(frameData.encodedLength) || frameData.encodedLength <= 0 || !dkIsInteger(frameData.zstdPadding) || frameData.zstdPadding < 0 || frameData.zstdPadding > 100 || frameData.baseK !== true || !dkIsInteger(blockSize) || blockSize !== DK_BASE_K_BLOCK_SIZE) {
+  dkThrow("DK: invalid Zstandard frame metadata.");}
+ var compressed = dkDecodeBaseK(frameData.data, frameData.encodedLength, blockSize);
+ return dkInflateZstdBytes(compressed, expectedLength, frameData.zstdPadding);}
+function dkDecodeZstdFrame(frameData, width, height) { dkExpandEncoded(frameData);
+ if (!frameData || frameData.length !== width * height * 4) { dkThrow("DK: invalid RGBA frame length.");}
+ var scanlines = dkDecodeZstdBytes(frameData, (width * 4 + 1) * height);
+ return dkUnfilterPNGScanlines(scanlines, width, height);}
+function dkCharByteLength(charCount) { var rem = charCount % 5;
+ if (!dkIsInteger(charCount) || charCount < 0 || rem === 1) { dkThrow("DK: invalid Base-K length.");} if (rem === 0) {
+  return charCount / 5 * 4;} return (charCount - rem) / 5 * 4 + rem - 1;}
+function dkFrameCount(dat) { if (dkIsInteger(dat.q) && dat.q > 0) { return dat.q;} if (dkIsArray(dat.t)) {
+  return dat.t.length;} return 1;}
+function dkFrameDurationAt(dat, frameIndex) { var delay; if (dkIsArray(dat.t)) { delay = dat.t[frameIndex]; } else {
+  delay = dat.t;} if (!dkIsFiniteNumber(delay) || delay <= 0) { delay = 10;} return Math.max(1, Math.round(delay * 0.6));}
+function dkChooseFrame(dat, frame) { var count = dkFrameCount(dat); var frameNumber = 0; var frameIndex = 0;
+ var hasDelays = false; var totalTicks = 0; var elapsed; var duration; var i; if (frame !== undefined) {
+  frameNumber = Math.floor(frame);} if (!dkIsFiniteNumber(frameNumber) || frameNumber < 0) { frameNumber = 0;}
+ frameIndex = frameNumber % count; if (dkIsArray(dat.t)) { hasDelays = true;
+ } else if (dkIsFiniteNumber(dat.t) && dat.t > 0) { hasDelays = true;} if (hasDelays) { for (i = 0; i < count; i++) {
+   totalTicks += dkFrameDurationAt(dat, i);} elapsed = frameNumber % totalTicks; for (i = 0; i < count; i++) {
+   duration = dkFrameDurationAt(dat, i); if (elapsed < duration) { frameIndex = i; break;} elapsed -= duration;}}
+ return frameIndex;}
+function dkFramePayloadLength(dat, frameIndex) { var packed; if (dat.k === "DKL") { return (dat.w * 4 + 1) * dat.h;}
+ packed = Math.ceil(dat.w * dat.h * dat.b / 8); if (frameIndex === 0) { return dat.c * 4 + packed;} return packed;}
+function dkSliceBytes(bytes, start, length) { var out = dkNewByteArray(length); var i; for (i = 0; i < length; i++) {
+  out[i] = bytes[start + i];} return out;}
+function dkInflateMedia(dat) { var expected; var count; var i; var encodedLength; if (dat._raw) { return dat._raw;}
+ expected = 0; count = dkFrameCount(dat); for (i = 0; i < count; i++) { expected += dkFramePayloadLength(dat, i);}
+ encodedLength = dat.n; if (encodedLength === undefined) { encodedLength = dkCharByteLength(dat.s.length);}
+ dat._raw = dkDecodeZstdBytes({ s: dat.s, n: encodedLength, l: expected, p: dat.p }, expected); return dat._raw;}
+function dkSliceFrame(dat, frameIndex) { var raw = dkInflateMedia(dat); var offset = 0; var i; var size;
+ for (i = 0; i <= frameIndex; i++) { size = dkFramePayloadLength(dat, i); if (i === frameIndex) {
+   return dkSliceBytes(raw, offset, size);} offset += size;} dkThrow("DK: missing frame slice.");}
 function dkCreateImageFromRGBA(rgba, width, height) {
-    /* jshint ignore:start */
-    var expected = width * height * 4;
-    var img = createGraphics(width, height, JAVA2D);
-    if (!img) {
-        dkThrow("DKL: createGraphics failed.");
-    }
-    var snapshot = img.get();
-    if (!snapshot || !snapshot.sourceImg ||
-        typeof snapshot.sourceImg.getContext !== "function") {
-        dkThrow("DKL: canvas snapshot unavailable.");
-    }
-    var context = snapshot.sourceImg.getContext("2d");
-    if (!context) {
-        dkThrow("DKL: canvas context unavailable.");
-    }
-    var imageData = context.createImageData(width, height);
-    if (!imageData || !imageData.data || imageData.data.length !== expected) {
-        dkThrow("DKL: unexpected ImageData size.");
-    }
-    if (typeof imageData.data.set === "function") {
-        imageData.data.set(rgba);
-    } else {
-        var i;
-        for (i = 0; i < expected; i++) {
-            imageData.data[i] = rgba[i];
-        }
-    }
-    context.putImageData(imageData, 0, 0);
-    img.image(snapshot, 0, 0);
-    return img;
-    /* jshint ignore:end */
+/* jshint ignore:start */
+ var expected = width * height * 4; var img = createGraphics(width, height, JAVA2D); if (!img) {
+  dkThrow("DKL: createGraphics failed.");} var snapshot = img.get();
+ if (!snapshot || !snapshot.sourceImg || typeof snapshot.sourceImg.getContext !== "function") {
+  dkThrow("DKL: canvas snapshot unavailable.");} var context = snapshot.sourceImg.getContext("2d"); if (!context) {
+  dkThrow("DKL: canvas context unavailable.");} var imageData = context.createImageData(width, height);
+ if (!imageData || !imageData.data || imageData.data.length !== expected) { dkThrow("DKL: unexpected ImageData size.");}
+ if (typeof imageData.data.set === "function") { imageData.data.set(rgba); } else { var i;
+  for (i = 0; i < expected; i++) { imageData.data[i] = rgba[i];}} context.putImageData(imageData, 0, 0);
+ img.image(snapshot, 0, 0); return img;
+/* jshint ignore:end */
 }
-
-function dkDrawCached(dat, frameIndex, rgba, startX, startY, pixelSize) {
-    var img = null;
-    var expected = dat.w * dat.h * 4;
-    if (!rgba || rgba.length !== expected) {
-        dkThrow(
-            "DK: RGBA length mismatch. Expected " +
-            expected + ", got " + (rgba ? rgba.length : 0) + "."
-        );
-    }
-    if (dat._imageCache && dat._imageCache.index === frameIndex) {
-        img = dat._imageCache.image;
-    }
-    if (!img) {
-        img = dkCreateImageFromRGBA(rgba, dat.w, dat.h);
-        dat._imageCache = { index: frameIndex, image: img };
-    }
-    image(
-        img,
-        startX,
-        startY,
-        Math.round(dat.w * pixelSize),
-        Math.round(dat.h * pixelSize)
-    );
-}
-
-/* Calculate animation frame duration without modern array methods. */
-function dkFrameDuration(frame) {
-    dkExpandEncoded(frame);
-    var delay = frame && frame.delay;
-    if (!dkIsFiniteNumber(delay) || delay <= 0) {
-        delay = 10;
-    }
-    return Math.max(1, Math.round(delay * 0.6));
-}
-
-function dkDecodePalette(packedBytes, dat, pixelCount, frameIndex) {
-    var paletteLength = dat.c;
-    var palette;
-    var paletteOffset = 0;
-    var extraTransparent = 0;
-    var packedLength;
-    var rgba;
-    var bitBuffer = 0;
-    var bufferedBits = 0;
-    var inputIndex;
-    var pixel;
-    var paletteIndex;
-    var color;
-    var channel;
-    var divisor;
-    if (!dkIsInteger(paletteLength) ||
-        paletteLength < 0 ||
-        paletteLength > 1048576) {
-        dkThrow("DKC5: invalid palette length.");
-    }
-    if (frameIndex === 0) {
-        palette = dkNewByteArray(paletteLength);
-        for (paletteIndex = 0; paletteIndex < paletteLength; paletteIndex++) {
-            palette[paletteIndex] = [
-                packedBytes[paletteOffset],
-                packedBytes[paletteOffset + 1],
-                packedBytes[paletteOffset + 2],
-                packedBytes[paletteOffset + 3]
-            ];
-            paletteOffset += 4;
-        }
-        dat._palette = palette;
-    } else {
-        palette = dat._palette;
-        if (!dkIsArray(palette) || palette.length !== paletteLength) {
-            dkThrow("DKC5: missing shared palette.");
-        }
-    }
-    if (dat.i === paletteLength) {
-        extraTransparent = 1;
-    }
-    if (!dkIsInteger(dat.b) ||
-        dat.b < 1 ||
-        dat.b > 21 ||
-        paletteLength > 1048576 ||
-        !dkIsInteger(dat.i) ||
-        dat.i < -1 ||
-        dat.i !== -1 && dat.i !== paletteLength ||
-        Math.pow(2, dat.b) < paletteLength + extraTransparent) {
-        dkThrow("DKC5: invalid palette metadata.");
-    }
-    packedLength = Math.ceil(pixelCount * dat.b / 8);
-    if (packedBytes.length !== paletteOffset + packedLength) {
-        dkThrow("DKC5: palette/index data length mismatch.");
-    }
-    rgba = dkNewByteArray(pixelCount * 4);
-    inputIndex = paletteOffset;
-    for (pixel = 0; pixel < pixelCount; pixel++) {
-        while (bufferedBits < dat.b) {
-            if (inputIndex >= packedBytes.length) {
-                dkThrow("DKC5: truncated palette-index data.");
-            }
-            bitBuffer = (bitBuffer << 8) | packedBytes[inputIndex];
-            inputIndex++;
-            bufferedBits += 8;
-        }
-        bufferedBits -= dat.b;
-        divisor = Math.pow(2, bufferedBits);
-        paletteIndex = Math.floor(bitBuffer / divisor);
-        bitBuffer %= divisor;
-        if (paletteIndex === dat.i) {
-            rgba[pixel * 4] = 0;
-            rgba[pixel * 4 + 1] = 0;
-            rgba[pixel * 4 + 2] = 0;
-            rgba[pixel * 4 + 3] = 0;
-        } else {
-            if (paletteIndex < 0 || paletteIndex >= paletteLength) {
-                dkThrow("DKC5: palette index is out of range.");
-            }
-            color = palette[paletteIndex];
-            if (!dkIsArray(color) || color.length !== 4) {
-                dkThrow("DKC5: invalid palette color.");
-            }
-            for (channel = 0; channel < 4; channel++) {
-                if (!dkIsInteger(color[channel]) ||
-                    color[channel] < 0 || color[channel] > 255) {
-                    dkThrow("DKC5: palette channel is out of range.");
-                }
-                rgba[pixel * 4 + channel] = color[channel];
-            }
-        }
-    }
-    return rgba;
-}
-
-function dkApplyFrameDelta(deltaBytes, previousBytes) {
-    var packed;
-    var i;
-    if (!previousBytes || previousBytes.length !== deltaBytes.length) {
-        dkThrow("DKC5: invalid frame delta.");
-    }
-    packed = dkNewByteArray(deltaBytes.length);
-    for (i = 0; i < deltaBytes.length; i++) {
-        packed[i] = (deltaBytes[i] + previousBytes[i]) & 255;
-    }
-    return packed;
-}
-
-function dkIndexBytesFromPacked(packedBytes, paletteBytes) {
-    var indexes;
-    var i;
-    if (!paletteBytes) {
-        return packedBytes;
-    }
-    indexes = dkNewByteArray(packedBytes.length - paletteBytes);
-    for (i = 0; i < indexes.length; i++) {
-        indexes[i] = packedBytes[paletteBytes + i];
-    }
-    return indexes;
-}
-
-function dkPreviousIndexBytes(dat, frameIndex) {
-    if (dat._indexBytes && dat._indexBytesFrame === frameIndex - 1) {
-        return dat._indexBytes;
-    }
-    var previous = null;
-    var packed;
-    var i;
-    for (i = 0; i < frameIndex; i++) {
-        packed = dkSliceFrame(dat, i);
-        if (i === 0) {
-            previous = dkIndexBytesFromPacked(packed, dat.c * 4);
-        } else {
-            previous = dkApplyFrameDelta(packed, previous);
-        }
-    }
-    return previous;
-}
-
-/* Decode and render the selected lossless image frame. */
-function drawLosslessImage(startX, startY, pixelSize, dat, frame) {
-    var frameIndex;
-    var rgba;
-    if (!dat || dat.k !== "DKL") {
-        dkThrow("DK: unsupported image format.");
-    }
-    if (typeof createGraphics !== "function" || typeof image !== "function") {
-        dkThrow("DK: rendering functions unavailable.");
-    }
-    if (!dkIsFiniteNumber(pixelSize) || pixelSize <= 0) {
-        dkThrow("DK: invalid pixel size.");
-    }
-    dkRequireInteger(dat.w, 1, "DK: invalid image width.");
-    dkRequireInteger(dat.h, 1, "DK: invalid image height.");
-    if (!dkIsInteger(dat.w * dat.h * 4) || dat.w * dat.h * 4 > 100000000) {
-        dkThrow("DK: image dimensions are too large.");
-    }
-    frameIndex = dkChooseFrame(dat, frame);
-    rgba = dkUnfilterPNGScanlines(dkSliceFrame(dat, frameIndex), dat.w, dat.h);
-    dkDrawCached(dat, frameIndex, rgba, startX, startY, pixelSize);
-}
-
-function drawColorImage(startX, startY, pixelSize, dat, frame) {
-    var frameIndex;
-    var packed;
-    var rgba;
-    var pixelCount;
-    if (!dat || dat.k !== "DKC5") {
-        dkThrow("DK: unsupported image format.");
-    }
-    if (typeof createGraphics !== "function" || typeof image !== "function") {
-        dkThrow("DK: rendering functions unavailable.");
-    }
-    if (!dkIsFiniteNumber(pixelSize) || pixelSize <= 0) {
-        dkThrow("DK: invalid pixel size.");
-    }
-    dkRequireInteger(dat.w, 1, "DK: invalid image width.");
-    dkRequireInteger(dat.h, 1, "DK: invalid image height.");
-    pixelCount = dat.w * dat.h;
-    if (!dkIsInteger(pixelCount * 4) || pixelCount * 4 > 100000000) {
-        dkThrow("DK: image dimensions are too large.");
-    }
-    frameIndex = dkChooseFrame(dat, frame);
-    if (frameIndex > 0 && !dat._palette) {
-        dkDecodePalette(dkSliceFrame(dat, 0), dat, pixelCount, 0);
-    }
-    packed = dkSliceFrame(dat, frameIndex);
-    if (frameIndex > 0) {
-        packed = dkApplyFrameDelta(packed, dkPreviousIndexBytes(dat, frameIndex));
-        dat._indexBytes = packed;
-    } else {
-        dat._indexBytes = dkIndexBytesFromPacked(packed, dat.c * 4);
-    }
-    dat._indexBytesFrame = frameIndex;
-    rgba = dkDecodePalette(packed, dat, pixelCount, frameIndex);
-    dkDrawCached(dat, frameIndex, rgba, startX, startY, pixelSize);
-}
-
+function dkDrawCached(dat, frameIndex, rgba, startX, startY, pixelSize) { var img = null;
+ var expected = dat.w * dat.h * 4; if (!rgba || rgba.length !== expected) {
+  dkThrow("DK: RGBA length mismatch. Expected " + expected + ", got " + (rgba ? rgba.length : 0) + ".");}
+ if (dat._imageCache && dat._imageCache.index === frameIndex) { img = dat._imageCache.image;} if (!img) {
+  img = dkCreateImageFromRGBA(rgba, dat.w, dat.h); dat._imageCache = { index: frameIndex, image: img};}
+ image(img, startX, startY, Math.round(dat.w * pixelSize), Math.round(dat.h * pixelSize));}
+function dkFrameDuration(frame) { dkExpandEncoded(frame); var delay = frame && frame.delay;
+ if (!dkIsFiniteNumber(delay) || delay <= 0) { delay = 10;} return Math.max(1, Math.round(delay * 0.6));}
+function dkDecodePalette(packedBytes, dat, pixelCount, frameIndex) { var paletteLength = dat.c; var palette;
+ var paletteOffset = 0; var extraTransparent = 0; var packedLength; var rgba; var bitBuffer = 0; var bufferedBits = 0;
+ var inputIndex; var pixel; var paletteIndex; var color; var channel; var divisor;
+ if (!dkIsInteger(paletteLength) || paletteLength < 0 || paletteLength > 1048576) {
+  dkThrow("DKC5: invalid palette length.");} if (frameIndex === 0) { palette = dkNewByteArray(paletteLength);
+  for (paletteIndex = 0; paletteIndex < paletteLength; paletteIndex++) {
+   palette[paletteIndex] = [ packedBytes[paletteOffset], packedBytes[paletteOffset + 1], packedBytes[paletteOffset + 2], packedBytes[paletteOffset + 3] ];
+   paletteOffset += 4;} dat._palette = palette; } else { palette = dat._palette;
+  if (!dkIsArray(palette) || palette.length !== paletteLength) { dkThrow("DKC5: missing shared palette.");}}
+ if (dat.i === paletteLength) { extraTransparent = 1;}
+ if (!dkIsInteger(dat.b) || dat.b < 1 || dat.b > 21 || paletteLength > 1048576 || !dkIsInteger(dat.i) || dat.i < -1 || dat.i !== -1 && dat.i !== paletteLength || Math.pow(2, dat.b) < paletteLength + extraTransparent) {
+  dkThrow("DKC5: invalid palette metadata.");} packedLength = Math.ceil(pixelCount * dat.b / 8);
+ if (packedBytes.length !== paletteOffset + packedLength) { dkThrow("DKC5: palette/index data length mismatch.");}
+ rgba = dkNewByteArray(pixelCount * 4); inputIndex = paletteOffset; for (pixel = 0; pixel < pixelCount; pixel++) {
+  while (bufferedBits < dat.b) { if (inputIndex >= packedBytes.length) { dkThrow("DKC5: truncated palette-index data.");}
+   bitBuffer = bitBuffer << 8 | packedBytes[inputIndex]; inputIndex++; bufferedBits += 8;} bufferedBits -= dat.b;
+  divisor = Math.pow(2, bufferedBits); paletteIndex = Math.floor(bitBuffer / divisor); bitBuffer %= divisor;
+  if (paletteIndex === dat.i) { rgba[pixel * 4] = 0; rgba[pixel * 4 + 1] = 0; rgba[pixel * 4 + 2] = 0;
+   rgba[pixel * 4 + 3] = 0; } else { if (paletteIndex < 0 || paletteIndex >= paletteLength) {
+    dkThrow("DKC5: palette index is out of range.");} color = palette[paletteIndex];
+   if (!dkIsArray(color) || color.length !== 4) { dkThrow("DKC5: invalid palette color.");}
+   for (channel = 0; channel < 4; channel++) {
+    if (!dkIsInteger(color[channel]) || color[channel] < 0 || color[channel] > 255) {
+     dkThrow("DKC5: palette channel is out of range.");} rgba[pixel * 4 + channel] = color[channel];}}} return rgba;}
+function dkApplyFrameDelta(deltaBytes, previousBytes) { var packed; var i;
+ if (!previousBytes || previousBytes.length !== deltaBytes.length) { dkThrow("DKC5: invalid frame delta.");}
+ packed = dkNewByteArray(deltaBytes.length); for (i = 0; i < deltaBytes.length; i++) {
+  packed[i] = deltaBytes[i] + previousBytes[i] & 255;} return packed;}
+function dkIndexBytesFromPacked(packedBytes, paletteBytes) { var indexes; var i; if (!paletteBytes) {
+  return packedBytes;} indexes = dkNewByteArray(packedBytes.length - paletteBytes);
+ for (i = 0; i < indexes.length; i++) { indexes[i] = packedBytes[paletteBytes + i];} return indexes;}
+function dkPreviousIndexBytes(dat, frameIndex) { if (dat._indexBytes && dat._indexBytesFrame === frameIndex - 1) {
+  return dat._indexBytes;} var previous = null; var packed; var i; for (i = 0; i < frameIndex; i++) {
+  packed = dkSliceFrame(dat, i); if (i === 0) { previous = dkIndexBytesFromPacked(packed, dat.c * 4); } else {
+   previous = dkApplyFrameDelta(packed, previous);}} return previous;}
+function drawLosslessImage(startX, startY, pixelSize, dat, frame) { var frameIndex; var rgba;
+ if (!dat || dat.k !== "DKL") { dkThrow("DK: unsupported image format.");}
+ if (typeof createGraphics !== "function" || typeof image !== "function") {
+  dkThrow("DK: rendering functions unavailable.");} if (!dkIsFiniteNumber(pixelSize) || pixelSize <= 0) {
+  dkThrow("DK: invalid pixel size.");} dkRequireInteger(dat.w, 1, "DK: invalid image width.");
+ dkRequireInteger(dat.h, 1, "DK: invalid image height.");
+ if (!dkIsInteger(dat.w * dat.h * 4) || dat.w * dat.h * 4 > 1e8) { dkThrow("DK: image dimensions are too large.");}
+ frameIndex = dkChooseFrame(dat, frame); rgba = dkUnfilterPNGScanlines(dkSliceFrame(dat, frameIndex), dat.w, dat.h);
+ dkDrawCached(dat, frameIndex, rgba, startX, startY, pixelSize);}
+function drawColorImage(startX, startY, pixelSize, dat, frame) { var frameIndex; var packed; var rgba; var pixelCount;
+ if (!dat || dat.k !== "DKC5") { dkThrow("DK: unsupported image format.");}
+ if (typeof createGraphics !== "function" || typeof image !== "function") {
+  dkThrow("DK: rendering functions unavailable.");} if (!dkIsFiniteNumber(pixelSize) || pixelSize <= 0) {
+  dkThrow("DK: invalid pixel size.");} dkRequireInteger(dat.w, 1, "DK: invalid image width.");
+ dkRequireInteger(dat.h, 1, "DK: invalid image height."); pixelCount = dat.w * dat.h;
+ if (!dkIsInteger(pixelCount * 4) || pixelCount * 4 > 1e8) { dkThrow("DK: image dimensions are too large.");}
+ frameIndex = dkChooseFrame(dat, frame); if (frameIndex > 0 && !dat._palette) {
+  dkDecodePalette(dkSliceFrame(dat, 0), dat, pixelCount, 0);} packed = dkSliceFrame(dat, frameIndex);
+ if (frameIndex > 0) { packed = dkApplyFrameDelta(packed, dkPreviousIndexBytes(dat, frameIndex));
+  dat._indexBytes = packed; } else { dat._indexBytes = dkIndexBytesFromPacked(packed, dat.c * 4);}
+ dat._indexBytesFrame = frameIndex; rgba = dkDecodePalette(packed, dat, pixelCount, frameIndex);
+ dkDrawCached(dat, frameIndex, rgba, startX, startY, pixelSize);}
 function drawReadablePixelArt(startX, startY, pixelSize, dat, frame) {
-    if (!dat || dat.k !== "DKP2" || !dkIsArray(dat.frames) ||
-        dat.frames.length === 0) {
-        dkThrow("DKP2: no pixel-art frames found.");
-    }
-    if (!dkIsFiniteNumber(pixelSize) || pixelSize <= 0) {
-        dkThrow("DKP2: invalid pixel size.");
-    }
-    if (typeof fill !== "function" ||
-        typeof noStroke !== "function" ||
-        typeof rect !== "function") {
-        dkThrow("DKP2: rectangle drawing functions unavailable.");
-    }
-    var frameNumber = frame === undefined ? 0 : Math.floor(frame);
-    if (!dkIsFiniteNumber(frameNumber) || frameNumber < 0) {
-        frameNumber = 0;
-    }
-    var frameIndex = frameNumber % dat.frames.length;
-    var hasDelays = false;
-    var totalTicks = 0;
-    var i;
-    var duration;
-    for (i = 0; i < dat.frames.length; i++) {
-        if (dat.frames[i] && dkIsFiniteNumber(dat.frames[i].delay) &&
-            dat.frames[i].delay > 0) {
-            hasDelays = true;
-            break;
-        }
-    }
-    if (hasDelays) {
-        for (i = 0; i < dat.frames.length; i++) {
-            totalTicks += dkFrameDuration(dat.frames[i]);
-        }
-        var elapsed = frameNumber % totalTicks;
-        for (i = 0; i < dat.frames.length; i++) {
-            duration = dkFrameDuration(dat.frames[i]);
-            if (elapsed < duration) {
-                frameIndex = i;
-                break;
-            }
-            elapsed -= duration;
-        }
-    }
-    var pixelFrame = dat.frames[frameIndex];
-    if (!pixelFrame || !dkIsArray(pixelFrame.canvasData) ||
-        pixelFrame.canvasData.length !== dat.height ||
-        !pixelFrame.colorMap ||
-        typeof pixelFrame.colorMap !== "object") {
-        dkThrow("DKP2: invalid frame data.");
-    }
-    var preserveStyle = typeof pushStyle === "function" &&
-        typeof popStyle === "function";
-    if (preserveStyle) {
-        pushStyle();
-    }
-    try {
-        noStroke();
-        if (typeof rectMode === "function" &&
-            typeof CORNER !== "undefined") {
-            rectMode(CORNER);
-        }
-        var y;
-        var row;
-        var x;
-        var symbol;
-        var runEnd;
-        var mappedColor;
-        var left;
-        var top;
-        var right;
-        var bottom;
-        for (y = 0; y < dat.height; y++) {
-            row = pixelFrame.canvasData[y];
-            if (typeof row !== "string" || row.length !== dat.width) {
-                dkThrow("DKP2: row " + y + " has an invalid width.");
-            }
-            x = 0;
-            while (x < dat.width) {
-                symbol = row.charAt(x);
-                runEnd = x + 1;
-                while (runEnd < dat.width && row.charAt(runEnd) === symbol) {
-                    runEnd++;
-                }
-                if (symbol !== "-") {
-                    mappedColor = pixelFrame.colorMap[symbol];
-                    if (mappedColor === undefined ||
-                        mappedColor === null) {
-                        dkThrow("DKP2: unmapped pixel symbol.");
-                    }
-                    fill(mappedColor);
-                    left = Math.round(startX + x * pixelSize);
-                    top = Math.round(startY + y * pixelSize);
-                    right = Math.round(startX + runEnd * pixelSize);
-                    bottom = Math.round(startY + (y + 1) * pixelSize);
-                    rect(left, top, right - left, bottom - top);
-                }
-                x = runEnd;
-            }
-        }
-    } finally {
-        if (preserveStyle) {
-            popStyle();
-        }
-    }
-}
-
-function drawHugePixelArt(
-    startX,
-    startY,
-    pixelSize,
-    canvasData,
-    unusedColorMap,
-    frame
-) {
-    if (canvasData && canvasData.k === "DKP2") {
-        drawReadablePixelArt(
-            startX,
-            startY,
-            pixelSize,
-            canvasData,
-            frame
-        );
-        return;
-    }
-    if (canvasData && canvasData.k === "DKC5") {
-        drawColorImage(
-            startX,
-            startY,
-            pixelSize,
-            canvasData,
-            frame
-        );
-        return;
-    }
-    if (!canvasData || canvasData.k !== "DKL") {
-        dkThrow(
-            "DK renderer received unsupported data."
-        );
-    }
-    drawLosslessImage(
-        startX,
-        startY,
-        pixelSize,
-        canvasData,
-        frame
-    );
-}
-
+ if (!dat || dat.k !== "DKP2" || !dkIsArray(dat.frames) || dat.frames.length === 0) {
+  dkThrow("DKP2: no pixel-art frames found.");} if (!dkIsFiniteNumber(pixelSize) || pixelSize <= 0) {
+  dkThrow("DKP2: invalid pixel size.");}
+ if (typeof fill !== "function" || typeof noStroke !== "function" || typeof rect !== "function") {
+  dkThrow("DKP2: rectangle drawing functions unavailable.");}
+ var frameNumber = frame === undefined ? 0 : Math.floor(frame); if (!dkIsFiniteNumber(frameNumber) || frameNumber < 0) {
+  frameNumber = 0;} var frameIndex = frameNumber % dat.frames.length; var hasDelays = false; var totalTicks = 0; var i;
+ var duration; for (i = 0; i < dat.frames.length; i++) {
+  if (dat.frames[i] && dkIsFiniteNumber(dat.frames[i].delay) && dat.frames[i].delay > 0) { hasDelays = true; break;}}
+ if (hasDelays) { for (i = 0; i < dat.frames.length; i++) { totalTicks += dkFrameDuration(dat.frames[i]);}
+  var elapsed = frameNumber % totalTicks; for (i = 0; i < dat.frames.length; i++) {
+   duration = dkFrameDuration(dat.frames[i]); if (elapsed < duration) { frameIndex = i; break;} elapsed -= duration;}}
+ var pixelFrame = dat.frames[frameIndex];
+ if (!pixelFrame || !dkIsArray(pixelFrame.canvasData) || pixelFrame.canvasData.length !== dat.height || !pixelFrame.colorMap || typeof pixelFrame.colorMap !== "object") {
+  dkThrow("DKP2: invalid frame data.");}
+ var preserveStyle = typeof pushStyle === "function" && typeof popStyle === "function"; if (preserveStyle) {
+  pushStyle();} try { noStroke(); if (typeof rectMode === "function" && typeof CORNER !== "undefined") {
+   rectMode(CORNER);} var y; var row; var x; var symbol; var runEnd; var mappedColor; var left; var top; var right;
+  var bottom; for (y = 0; y < dat.height; y++) { row = pixelFrame.canvasData[y];
+   if (typeof row !== "string" || row.length !== dat.width) { dkThrow("DKP2: row " + y + " has an invalid width.");}
+   x = 0; while (x < dat.width) { symbol = row.charAt(x); runEnd = x + 1;
+    while (runEnd < dat.width && row.charAt(runEnd) === symbol) { runEnd++;} if (symbol !== "-") {
+     mappedColor = pixelFrame.colorMap[symbol]; if (mappedColor === undefined || mappedColor === null) {
+      dkThrow("DKP2: unmapped pixel symbol.");} fill(mappedColor); left = Math.round(startX + x * pixelSize);
+     top = Math.round(startY + y * pixelSize); right = Math.round(startX + runEnd * pixelSize);
+     bottom = Math.round(startY + (y + 1) * pixelSize); rect(left, top, right - left, bottom - top);} x = runEnd;}}
+ } finally { if (preserveStyle) { popStyle();}}}
+function drawHugePixelArt(startX, startY, pixelSize, canvasData, unusedColorMap, frame) {
+ if (canvasData && canvasData.k === "DKP2") { drawReadablePixelArt(startX, startY, pixelSize, canvasData, frame);
+  return;} if (canvasData && canvasData.k === "DKC5") { drawColorImage(startX, startY, pixelSize, canvasData, frame);
+  return;} if (!canvasData || canvasData.k !== "DKL") { dkThrow("DK renderer received unsupported data.");}
+ drawLosslessImage(startX, startY, pixelSize, canvasData, frame);}
 // DK MIDI SUPPORT START
-// Plays MIDI songs made by DK Converter with a small built-in synthesizer
-// (no sound files needed). Notes are handed to the browser a little ahead of
-// time, so playback stays smooth even when draw() is slow.
 var dkMidiState = null;
 var dkMidiOut = null;
 var dkMidiTones = null;
 var dkMidiNoise = null;
 var dkMidiVoices = [];
 var dkMidiMaster = 1;
-
-function dkMidiReader(bytes) {
-    var reader = { bytes: bytes, at: 0 };
-    reader.next = function() {
-        var value = 0;
-        var scale = 1;
-        var b;
-        do {
-            if (reader.at >= bytes.length) {
-                dkThrow("DK MIDI: the song data ended early.");
-            }
-            b = bytes[reader.at];
-            reader.at++;
-            value += (b % 128) * scale;
-            scale *= 128;
-        } while (b >= 128);
-        return value;
-    };
-    return reader;
+function dkMidiReader(bytes) { var reader = { bytes: bytes, at: 0}; reader.next = function() { var value = 0;
+  var scale = 1; var b; do { if (reader.at >= bytes.length) { dkThrow("DK MIDI: the song data ended early.");}
+   b = bytes[reader.at]; reader.at++; value += b % 128 * scale; scale *= 128; } while (b >= 128); return value;};
+ return reader;}
+function dkMidiDecode(dat) { if (dat._song) { return dat._song;} var bytes = dkDecodeZstdBytes(dat, dat.l);
+ var reader = dkMidiReader(bytes); if (reader.next() !== 1) {
+  dkThrow("DK MIDI: unknown song format. Convert the file again.");} var song = { bpm: reader.next(),
+  length: reader.next() / 1e3, count: reader.next(), start: [], len: [], pitch: [], velocity: [], channel: [],
+  family: []}; var count = song.count; var time = 0; var i; for (i = 0; i < count; i++) { time += reader.next();
+  song.start[i] = time / 1e3;} for (i = 0; i < count; i++) { song.len[i] = reader.next() / 1e3;} var at = reader.at;
+ for (i = 0; i < count; i++) { song.pitch[i] = bytes[at + i]; song.velocity[i] = bytes[at + count + i] / 127;
+  song.channel[i] = bytes[at + count * 2 + i] % 16; song.family[i] = Math.floor(bytes[at + count * 2 + i] / 16);}
+ if (at + count * 3 !== bytes.length) { dkThrow("DK MIDI: the song data has the wrong size.");}
+ for (i = 0; i < count; i++) { song.length = Math.max(song.length, song.start[i] + song.len[i]);} dat._song = song;
+ return song;}
+function dkMidiSetup() { if (dkMidiOut) { return;}
+/* jshint ignore:start */
+var ctx = dkAudioContext;
+ var squash = ctx.createDynamicsCompressor(); squash.threshold.value = -15; squash.ratio.value = 6;
+ squash.connect(ctx.destination); dkMidiOut = ctx.createGain(); dkMidiOut.gain.value = dkMidiMaster;
+ dkMidiOut.connect(squash); var tone = function(strength) { var real = new Float32Array(32);
+  var imag = new Float32Array(32); var h; for (h = 1; h < 32; h++) { imag[h] = strength(h);}
+  return ctx.createPeriodicWave(real, imag);}; dkMidiTones = [ tone(function(h) { return Math.pow(h, -1.6);
+ }), tone(function(h) { return h === 1 || h === 2 || h === 4 || h === 8 ? 1 / Math.sqrt(h) : h % 2 ? 0.25 / h : 0;
+ }), tone(function(h) { return Math.pow(h, -2.2); }), tone(function(h) { return Math.pow(h, -1.25) * (h % 2 ? 1 : 0.7);
+ }), tone(function(h) { return h % 2 ? 1 / h : 0.18 / h; }), tone(function(h) { return Math.pow(h, -1.35); }) ];
+ var rate = ctx.sampleRate; dkMidiNoise = ctx.createBuffer(1, Math.floor(rate * 0.5), rate);
+ var samples = dkMidiNoise.getChannelData(0); var n; for (n = 0; n < samples.length; n++) {
+  samples[n] = Math.random() * 2 - 1;}
+/* jshint ignore:end */
 }
-
-function dkMidiDecode(dat) {
-    if (dat._song) {
-        return dat._song;
-    }
-    var bytes = dkDecodeZstdBytes(dat, dat.l);
-    var reader = dkMidiReader(bytes);
-    if (reader.next() !== 1) {
-        dkThrow("DK MIDI: unknown song format. Convert the file again.");
-    }
-    var song = {
-        bpm: reader.next(),
-        length: reader.next() / 1000,
-        count: reader.next(),
-        start: [],
-        len: [],
-        pitch: [],
-        velocity: [],
-        channel: [],
-        family: []
-    };
-    var count = song.count;
-    var time = 0;
-    var i;
-    for (i = 0; i < count; i++) {
-        time += reader.next();
-        song.start[i] = time / 1000;
-    }
-    for (i = 0; i < count; i++) {
-        song.len[i] = reader.next() / 1000;
-    }
-    var at = reader.at;
-    for (i = 0; i < count; i++) {
-        song.pitch[i] = bytes[at + i];
-        song.velocity[i] = bytes[at + count + i] / 127;
-        song.channel[i] = bytes[at + count * 2 + i] % 16;
-        song.family[i] = Math.floor(bytes[at + count * 2 + i] / 16);
-    }
-    if (at + count * 3 !== bytes.length) {
-        dkThrow("DK MIDI: the song data has the wrong size.");
-    }
-    for (i = 0; i < count; i++) {
-        song.length = Math.max(song.length, song.start[i] + song.len[i]);
-    }
-    dat._song = song;
-    return song;
-}
-
-function dkMidiSetup() {
-    if (dkMidiOut) {
-        return;
-    }
-    /* jshint ignore:start */
-    var ctx = dkAudioContext;
-    var squash = ctx.createDynamicsCompressor();
-    squash.threshold.value = -15;
-    squash.ratio.value = 6;
-    squash.connect(ctx.destination);
-    dkMidiOut = ctx.createGain();
-    dkMidiOut.gain.value = dkMidiMaster;
-    dkMidiOut.connect(squash);
-    // each instrument family is a mix of harmonics (h = 1, 2, 3, ...)
-    var tone = function(strength) {
-        var real = new Float32Array(32);
-        var imag = new Float32Array(32);
-        var h;
-        for (h = 1; h < 32; h++) {
-            imag[h] = strength(h);
-        }
-        return ctx.createPeriodicWave(real, imag);
-    };
-    dkMidiTones = [
-        tone(function(h) { return Math.pow(h, -1.6); }),                       // 0 keys
-        tone(function(h) { return h === 1 || h === 2 || h === 4 || h === 8 ? 1 / Math.sqrt(h) : h % 2 ? 0.25 / h : 0; }), // 1 organ
-        tone(function(h) { return Math.pow(h, -2.2); }),                       // 2 bass
-        tone(function(h) { return Math.pow(h, -1.25) * (h % 2 ? 1 : 0.7); }), // 3 pad
-        tone(function(h) { return h % 2 ? 1 / h : 0.18 / h; }),                // 4 lead
-        tone(function(h) { return Math.pow(h, -1.35); })                       // 5 pluck
-    ];
-    var rate = ctx.sampleRate;
-    dkMidiNoise = ctx.createBuffer(1, Math.floor(rate * 0.5), rate);
-    var samples = dkMidiNoise.getChannelData(0);
-    var n;
-    for (n = 0; n < samples.length; n++) {
-        samples[n] = Math.random() * 2 - 1;
-    }
-    /* jshint ignore:end */
-}
-
-// how each instrument family fades in and out: attack, level after the attack, sustain level, release
-var DK_MIDI_SHAPES = [
-    [0.004, 0.7, 0.25, 0.05],  // keys
-    [0.012, 0.85, 0.8, 0.05],  // organ
-    [0.006, 0.75, 0.45, 0.06], // bass
-    [0.12, 0.8, 0.7, 0.3],     // pad
-    [0.012, 0.8, 0.7, 0.08],   // lead
-    [0.003, 0.5, 0.04, 0.08]   // pluck
-];
-
+var DK_MIDI_SHAPES = [ [ 0.004, 0.7, 0.25, 0.05 ], [ 0.012, 0.85, 0.8, 0.05 ], [ 0.006, 0.75, 0.45, 0.06 ], [ 0.12, 0.8, 0.7, 0.3 ], [ 0.012, 0.8, 0.7, 0.08 ], [ 0.003, 0.5, 0.04, 0.08 ] ];
 function dkMidiDrum(pitch, when, power, out) {
-    /* jshint ignore:start */
-    var ctx = dkAudioContext;
-    var gain = ctx.createGain();
-    gain.connect(out);
-    var end = when + 0.12;
-    var source;
-    if (pitch === 35 || pitch === 36) { // bass drum
-        source = ctx.createOscillator();
-        source.frequency.setValueAtTime(150, when);
-        source.frequency.exponentialRampToValueAtTime(42, when + 0.12);
-        gain.gain.setValueAtTime(power * 1.6, when);
-        end = when + 0.22;
-    } else if ((pitch >= 41 && pitch <= 50 && pitch !== 42 && pitch !== 44 && pitch !== 46 && pitch !== 49) || pitch === 37) { // toms, rim
-        source = ctx.createOscillator();
-        var top = pitch === 37 ? 800 : 90 + (pitch - 41) * 22;
-        source.frequency.setValueAtTime(top, when);
-        source.frequency.exponentialRampToValueAtTime(top * 0.55, when + 0.15);
-        gain.gain.setValueAtTime(power, when);
-        end = when + (pitch === 37 ? 0.05 : 0.2);
-    } else { // snares, hi-hats, cymbals and everything else: filtered noise
-        source = ctx.createBufferSource();
-        source.buffer = dkMidiNoise;
-        source.loop = true;
-        var colour = ctx.createBiquadFilter();
-        var cymbal = pitch === 49 || pitch === 51 || pitch === 52 || pitch === 55 || pitch === 57 || pitch === 59;
-        var hat = pitch === 42 || pitch === 44 || pitch === 46;
-        colour.type = hat || cymbal ? "highpass" : "bandpass";
-        colour.frequency.value = hat ? 7000 : cymbal ? 5000 : 1800;
-        source.connect(colour);
-        colour.connect(gain);
-        gain.gain.setValueAtTime(power * (hat ? 0.5 : cymbal ? 0.45 : 0.9), when);
-        end = when + (pitch === 46 ? 0.3 : hat ? 0.06 : cymbal ? 0.9 : 0.16);
-    }
-    if (source.frequency) {
-        source.connect(gain);
-    }
-    gain.gain.exponentialRampToValueAtTime(0.0001, end);
-    source.start(when);
-    source.stop(end + 0.02);
-    return { source: source, gain: gain, end: end + 0.02 };
-    /* jshint ignore:end */
+/* jshint ignore:start */
+ var ctx = dkAudioContext; var gain = ctx.createGain(); gain.connect(out); var end = when + 0.12; var source;
+ if (pitch === 35 || pitch === 36) { source = ctx.createOscillator(); source.frequency.setValueAtTime(150, when);
+  source.frequency.exponentialRampToValueAtTime(42, when + 0.12); gain.gain.setValueAtTime(power * 1.6, when);
+  end = when + 0.22;
+ } else if (pitch >= 41 && pitch <= 50 && pitch !== 42 && pitch !== 44 && pitch !== 46 && pitch !== 49 || pitch === 37) {
+  source = ctx.createOscillator(); var top = pitch === 37 ? 800 : 90 + (pitch - 41) * 22;
+  source.frequency.setValueAtTime(top, when); source.frequency.exponentialRampToValueAtTime(top * 0.55, when + 0.15);
+  gain.gain.setValueAtTime(power, when); end = when + (pitch === 37 ? 0.05 : 0.2); } else {
+  source = ctx.createBufferSource(); source.buffer = dkMidiNoise; source.loop = true;
+  var colour = ctx.createBiquadFilter();
+  var cymbal = pitch === 49 || pitch === 51 || pitch === 52 || pitch === 55 || pitch === 57 || pitch === 59;
+  var hat = pitch === 42 || pitch === 44 || pitch === 46; colour.type = hat || cymbal ? "highpass" : "bandpass";
+  colour.frequency.value = hat ? 7e3 : cymbal ? 5e3 : 1800; source.connect(colour); colour.connect(gain);
+  gain.gain.setValueAtTime(power * (hat ? 0.5 : cymbal ? 0.45 : 0.9), when);
+  end = when + (pitch === 46 ? 0.3 : hat ? 0.06 : cymbal ? 0.9 : 0.16);} if (source.frequency) { source.connect(gain);}
+ gain.gain.exponentialRampToValueAtTime(1e-4, end); source.start(when); source.stop(end + 0.02); return { source: source,
+  gain: gain, end: end + 0.02};
+/* jshint ignore:end */
 }
-
 function dkMidiVoice(song, index, when, volume, out) {
-    /* jshint ignore:start */
-    var ctx = dkAudioContext;
-    var power = song.velocity[index] * 0.32 * volume;
-    if (song.channel[index] === 9) {
-        return dkMidiDrum(song.pitch[index], when, power, out);
-    }
-    var family = Math.min(song.family[index], DK_MIDI_SHAPES.length - 1);
-    var shape = DK_MIDI_SHAPES[family];
-    var len = Math.max(song.len[index], 0.05);
-    var osc = ctx.createOscillator();
-    osc.setPeriodicWave(dkMidiTones[family]);
-    osc.frequency.value = 440 * Math.pow(2, (song.pitch[index] - 69) / 12);
-    var warmth = ctx.createBiquadFilter();
-    warmth.type = "lowpass";
-    warmth.Q.value = 0.5;
-    var bright = family === 2 ? 500 : 900;
-    warmth.frequency.setValueAtTime(bright + power * 2400, when);
-    warmth.frequency.exponentialRampToValueAtTime(family === 2 ? 300 : 500, when + len + shape[3]);
-    var gain = ctx.createGain();
-    var peak = Math.max(power, 0.0001);
-    var attack = Math.min(shape[0], len * 0.5);
-    gain.gain.setValueAtTime(0.0001, when);
-    gain.gain.linearRampToValueAtTime(peak, when + attack);
-    gain.gain.exponentialRampToValueAtTime(Math.max(peak * shape[1], 0.0001), when + attack + Math.min(0.12, len * 0.5));
-    gain.gain.exponentialRampToValueAtTime(Math.max(peak * shape[2], 0.0001), when + len);
-    gain.gain.exponentialRampToValueAtTime(0.0001, when + len + shape[3]);
-    osc.connect(warmth);
-    warmth.connect(gain);
-    gain.connect(out);
-    osc.start(when);
-    osc.stop(when + len + shape[3] + 0.02);
-    return { source: osc, gain: gain, end: when + len + shape[3] + 0.02 };
-    /* jshint ignore:end */
+/* jshint ignore:start */
+ var ctx = dkAudioContext; var power = song.velocity[index] * 0.32 * volume; if (song.channel[index] === 9) {
+  return dkMidiDrum(song.pitch[index], when, power, out);}
+ var family = Math.min(song.family[index], DK_MIDI_SHAPES.length - 1); var shape = DK_MIDI_SHAPES[family];
+ var len = Math.max(song.len[index], 0.05); var osc = ctx.createOscillator(); osc.setPeriodicWave(dkMidiTones[family]);
+ osc.frequency.value = 440 * Math.pow(2, (song.pitch[index] - 69) / 12); var warmth = ctx.createBiquadFilter();
+ warmth.type = "lowpass"; warmth.Q.value = 0.5; var bright = family === 2 ? 500 : 900;
+ warmth.frequency.setValueAtTime(bright + power * 2400, when);
+ warmth.frequency.exponentialRampToValueAtTime(family === 2 ? 300 : 500, when + len + shape[3]);
+ var gain = ctx.createGain(); var peak = Math.max(power, 1e-4); var attack = Math.min(shape[0], len * 0.5);
+ gain.gain.setValueAtTime(1e-4, when); gain.gain.linearRampToValueAtTime(peak, when + attack);
+ gain.gain.exponentialRampToValueAtTime(Math.max(peak * shape[1], 1e-4), when + attack + Math.min(0.12, len * 0.5));
+ gain.gain.exponentialRampToValueAtTime(Math.max(peak * shape[2], 1e-4), when + len);
+ gain.gain.exponentialRampToValueAtTime(1e-4, when + len + shape[3]); osc.connect(warmth); warmth.connect(gain);
+ gain.connect(out); osc.start(when); osc.stop(when + len + shape[3] + 0.02); return { source: osc, gain: gain,
+  end: when + len + shape[3] + 0.02};
+/* jshint ignore:end */
 }
-
-// Too many notes at once: instead of dropping the NEW note (that is what made busy
-// songs lose notes), the voice that is about to end anyway is faded out quickly.
 function dkMidiMakeRoom() {
-    /* jshint ignore:start */
-    var ctx = dkAudioContext;
-    var oldest = 0;
-    var v;
-    for (v = 1; v < dkMidiVoices.length; v++) {
-        if (dkMidiVoices[v].end < dkMidiVoices[oldest].end) {
-            oldest = v;
-        }
-    }
-    var victim = dkMidiVoices.splice(oldest, 1)[0];
-    try {
-        victim.gain.gain.cancelScheduledValues(0);
-        victim.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.012);
-        victim.source.stop(ctx.currentTime + 0.08);
-    } catch (e) {}
-    /* jshint ignore:end */
+/* jshint ignore:start */
+ var ctx = dkAudioContext; var oldest = 0; var v; for (v = 1; v < dkMidiVoices.length; v++) {
+  if (dkMidiVoices[v].end < dkMidiVoices[oldest].end) { oldest = v;}} var victim = dkMidiVoices.splice(oldest, 1)[0];
+ try { victim.gain.gain.cancelScheduledValues(0); victim.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.012);
+  victim.source.stop(ctx.currentTime + 0.08); } catch (e) {}
+/* jshint ignore:end */
 }
-
-function dkMidiPump(state) {
-    if (dkMidiState !== state) {
-        return;
-    }
-    /* jshint ignore:start */
-    var ctx = dkAudioContext;
-    var now = ctx.currentTime;
-    var song = state.song;
-    var live = [];
-    var v;
-    for (v = 0; v < dkMidiVoices.length; v++) {
-        if (dkMidiVoices[v].end > now) {
-            live.push(dkMidiVoices[v]);
-        } else {
-            try { dkMidiVoices[v].gain.disconnect(); } catch (e) {}
-        }
-    }
-    dkMidiVoices = live;
-    var guard = 0;
-    while (guard < 4) {
-        guard++;
-        var horizon = now - state.startTime + 0.6;
-        while (state.next < song.count && song.start[state.next] <= horizon) {
-            var when = state.startTime + song.start[state.next];
-            // a note that is more than a moment late (the page froze) is skipped; up to 96 sound at once
-            // (past that the voice that is nearly finished makes room, so no new note is dropped)
-            if (when > now - 0.15) {
-                if (dkMidiVoices.length >= 96) {
-                    dkMidiMakeRoom();
-                }
-                dkMidiVoices.push(dkMidiVoice(song, state.next, Math.max(when, now), state.volume, state.out));
-            }
-            state.next++;
-        }
-        if (state.next < song.count || !state.repeat || song.length <= 0 || horizon < song.length) {
-            break;
-        }
-        state.startTime += song.length; // loop: the next round starts right where this one ends
-        state.next = 0;
-    }
-    if (!state.repeat && state.next >= song.count && now > state.startTime + song.length + 0.4) {
-        dkMidiState = null;
-        return;
-    }
-    // a silent "timer" tone: when it ends, schedule the next few notes
-    var tick = ctx.createOscillator();
-    var hush = ctx.createGain();
-    hush.gain.value = 0;
-    tick.connect(hush);
-    hush.connect(ctx.destination);
-    tick.onended = function() {
-        hush.disconnect();
-        dkMidiPump(state);
-    };
-    tick.start(now);
-    tick.stop(now + 0.2);
-    /* jshint ignore:end */
+function dkMidiPump(state) { if (dkMidiState !== state) { return;}
+/* jshint ignore:start */
+var ctx = dkAudioContext;
+ var now = ctx.currentTime; var song = state.song; var live = []; var v; for (v = 0; v < dkMidiVoices.length; v++) {
+  if (dkMidiVoices[v].end > now) { live.push(dkMidiVoices[v]); } else { try { dkMidiVoices[v].gain.disconnect();
+   } catch (e) {}}} dkMidiVoices = live; var guard = 0; while (guard < 4) { guard++;
+  var horizon = now - state.startTime + 0.6; while (state.next < song.count && song.start[state.next] <= horizon) {
+   var when = state.startTime + song.start[state.next]; if (when > now - 0.15) { if (dkMidiVoices.length >= 96) {
+     dkMidiMakeRoom();} dkMidiVoices.push(dkMidiVoice(song, state.next, Math.max(when, now), state.volume, state.out));}
+   state.next++;} if (state.next < song.count || !state.repeat || song.length <= 0 || horizon < song.length) { break;}
+  state.startTime += song.length; state.next = 0;}
+ if (!state.repeat && state.next >= song.count && now > state.startTime + song.length + 0.4) { dkMidiState = null;
+  return;} var tick = ctx.createOscillator(); var hush = ctx.createGain(); hush.gain.value = 0; tick.connect(hush);
+ hush.connect(ctx.destination); tick.onended = function() { hush.disconnect(); dkMidiPump(state);}; tick.start(now);
+ tick.stop(now + 0.2);
+/* jshint ignore:end */
 }
-
-function dkStopMidi() {
-    var state = dkMidiState;
-    dkMidiState = null;
-    /* jshint ignore:start */
-    var v;
-    for (v = 0; v < dkMidiVoices.length; v++) {
-        try { dkMidiVoices[v].source.stop(0); } catch (e) {}
-        try { dkMidiVoices[v].gain.disconnect(); } catch (e) {}
-    }
-    if (state && state.out) {
-        try { state.out.disconnect(); } catch (e) {}
-    }
-    /* jshint ignore:end */
-    dkMidiVoices = [];
+function dkStopMidi() { var state = dkMidiState; dkMidiState = null;
+/* jshint ignore:start */
+var v;
+ for (v = 0; v < dkMidiVoices.length; v++) { try { dkMidiVoices[v].source.stop(0); } catch (e) {} try {
+   dkMidiVoices[v].gain.disconnect(); } catch (e) {}} if (state && state.out) { try { state.out.disconnect();
+  } catch (e) {}}
+/* jshint ignore:end */
+dkMidiVoices = [];
 }
-
-// Plays a song. volume 0-1 (default 0.8); repeat true = loop forever;
-// startAt = seconds into the song to start from (default 0).
-function dkPlayMidi(name, dat, volume, repeat, startAt) {
-    dkStopMidi();
-    if (dkAudioContext.resume) {
-        dkAudioContext.resume();
-    }
-    dkMidiSetup();
-    var song = dkMidiDecode(dat);
-    var state = {
-        name: name,
-        song: song,
-        volume: volume === undefined ? 0.8 : volume,
-        repeat: repeat === true,
-        next: 0,
-        startTime: 0,
-        out: null
-    };
-    startAt = Math.max(0, startAt || 0);
-    /* jshint ignore:start */
-    state.out = dkAudioContext.createGain();
-    state.out.connect(dkMidiOut);
-    state.startTime = dkAudioContext.currentTime + 0.08 - startAt;
-    /* jshint ignore:end */
-    while (state.next < song.count && song.start[state.next] < startAt) {
-        state.next++;
-    }
-    dkMidiState = state;
-    dkMidiPump(state);
-}
-
-function dkMidiPlaying() {
-    return dkMidiState !== null;
-}
-
-// seconds into the playing song (0 when nothing is playing)
-function dkMidiTime() {
-    if (!dkMidiState) {
-        return 0;
-    }
-    var t = dkAudioContext.currentTime - dkMidiState.startTime;
-    if (t < 0 && dkMidiState.repeat) {
-        t += dkMidiState.song.length; // just before a loop starts over
-    }
-    return Math.max(0, Math.min(t, dkMidiState.song.length));
-}
-
-// length in seconds of the playing song, or of a song's data
-function dkMidiLength(dat) {
-    if (dat) {
-        return dkMidiDecode(dat).length;
-    }
-    return dkMidiState ? dkMidiState.song.length : 0;
-}
-
-// master MIDI volume, 0-1
-function dkMidiVolume(amount) {
-    dkMidiMaster = Math.max(0, amount);
-    /* jshint ignore:start */
-    if (dkMidiOut) {
-        dkMidiOut.gain.value = dkMidiMaster;
-    }
-    /* jshint ignore:end */
+function dkPlayMidi(name, dat, volume, repeat, startAt) { dkStopMidi(); if (dkAudioContext.resume) {
+  dkAudioContext.resume();} dkMidiSetup(); var song = dkMidiDecode(dat); var state = { name: name, song: song,
+  volume: volume === undefined ? 0.8 : volume, repeat: repeat === true, next: 0, startTime: 0, out: null};
+ startAt = Math.max(0, startAt || 0);
+/* jshint ignore:start */
+state.out = dkAudioContext.createGain();
+ state.out.connect(dkMidiOut); state.startTime = dkAudioContext.currentTime + 0.08 - startAt;
+/* jshint ignore:end */
+while (state.next < song.count && song.start[state.next] < startAt) {
+  state.next++;} dkMidiState = state; dkMidiPump(state);}
+function dkMidiPlaying() { return dkMidiState !== null;}
+function dkMidiTime() { if (!dkMidiState) { return 0;} var t = dkAudioContext.currentTime - dkMidiState.startTime;
+ if (t < 0 && dkMidiState.repeat) { t += dkMidiState.song.length;}
+ return Math.max(0, Math.min(t, dkMidiState.song.length));}
+function dkMidiLength(dat) { if (dat) { return dkMidiDecode(dat).length;}
+ return dkMidiState ? dkMidiState.song.length : 0;}
+function dkMidiVolume(amount) { dkMidiMaster = Math.max(0, amount);
+/* jshint ignore:start */
+if (dkMidiOut) {
+  dkMidiOut.gain.value = dkMidiMaster;}
+/* jshint ignore:end */
 }
 // DK MIDI SUPPORT END
-
 // DK SVG SUPPORT START
-// Draws vector pictures made by DK Converter. The shapes are redrawn sharply
-// for each size you ask for (and remembered), so they never look blurry.
-function dkDecodeSVG(dat) {
-    var bytes = dkDecodeZstdBytes(dat, dat.l);
-    var reader = dkMidiReader(bytes);
-    var zigzag = function() {
-        var value = reader.next();
-        return value % 2 ? -(value + 1) / 2 : value / 2;
-    };
-    if (reader.next() !== 1) {
-        dkThrow("DK SVG: unknown drawing format. Convert the file again.");
-    }
-    var q = reader.next();
-    var drawing = {
-        w: reader.next() / q,
-        h: reader.next() / q,
-        colors: [],
-        items: [],
-        sizes: []
-    };
-    var colorCount = reader.next();
-    var i;
-    var k;
-    var at;
-    for (i = 0; i < colorCount; i++) {
-        at = reader.at;
-        drawing.colors[i] = "rgba(" + bytes[at] + "," + bytes[at + 1] + "," +
-            bytes[at + 2] + "," + (bytes[at + 3] / 255) + ")";
-        reader.at = at + 4;
-    }
-    var itemCount = reader.next();
-    for (i = 0; i < itemCount; i++) {
-        var item = { flags: reader.next(), fillColor: -1, strokeColor: -1, lineWidth: 1, miter: 4, dashes: null, dashOffset: 0 };
-        if (item.flags % 2 === 1) {
-            item.fillColor = reader.next();
-        }
-        if (Math.floor(item.flags / 2) % 2 === 1) {
-            item.strokeColor = reader.next();
-            item.lineWidth = reader.next() / q;
-        }
-        if (Math.floor(item.flags / 128) % 2 === 1) {
-            item.miter = reader.next() / 100;
-        }
-        if (Math.floor(item.flags / 256) % 2 === 1) {
-            var dashCount = reader.next();
-            item.dashes = [];
-            for (k = 0; k < dashCount; k++) {
-                item.dashes[k] = reader.next() / q;
-            }
-            item.dashOffset = zigzag() / q;
-        }
-        item.steps = reader.next();
-        drawing.items[i] = item;
-    }
-    // step kinds for every shape come first, then all the points
-    var kindsAt = reader.at;
-    var stepTotal = 0;
-    for (i = 0; i < itemCount; i++) {
-        stepTotal += drawing.items[i].steps;
-    }
-    reader.at = kindsAt + stepTotal;
-    var penX = 0;
-    var penY = 0;
-    var kindIndex = kindsAt;
-    for (i = 0; i < itemCount; i++) {
-        var kinds = [];
-        var points = [];
-        for (k = 0; k < drawing.items[i].steps; k++) {
-            var kind = bytes[kindIndex];
-            kindIndex++;
-            kinds[k] = kind;
-            var pointCount = kind === 2 ? 3 : kind === 3 ? 0 : 1;
-            var p;
-            for (p = 0; p < pointCount; p++) {
-                penX += zigzag();
-                penY += zigzag();
-                points.push(penX / q, penY / q);
-            }
-        }
-        drawing.items[i].kinds = kinds;
-        drawing.items[i].points = points;
-    }
-    if (reader.at !== bytes.length) {
-        dkThrow("DK SVG: the drawing data has the wrong size.");
-    }
-    return drawing;
-}
-
+function dkDecodeSVG(dat) { var bytes = dkDecodeZstdBytes(dat, dat.l); var reader = dkMidiReader(bytes);
+ var zigzag = function() { var value = reader.next(); return value % 2 ? -(value + 1) / 2 : value / 2;};
+ if (reader.next() !== 1) { dkThrow("DK SVG: unknown drawing format. Convert the file again.");} var q = reader.next();
+ var drawing = { w: reader.next() / q, h: reader.next() / q, colors: [], items: [], sizes: []};
+ var colorCount = reader.next(); var i; var k; var at; for (i = 0; i < colorCount; i++) { at = reader.at;
+  drawing.colors[i] = "rgba(" + bytes[at] + "," + bytes[at + 1] + "," + bytes[at + 2] + "," + bytes[at + 3] / 255 + ")";
+  reader.at = at + 4;} var itemCount = reader.next(); for (i = 0; i < itemCount; i++) { var item = {
+   flags: reader.next(), fillColor: -1, strokeColor: -1, lineWidth: 1, miter: 4, dashes: null, dashOffset: 0};
+  if (item.flags % 2 === 1) { item.fillColor = reader.next();} if (Math.floor(item.flags / 2) % 2 === 1) {
+   item.strokeColor = reader.next(); item.lineWidth = reader.next() / q;} if (Math.floor(item.flags / 128) % 2 === 1) {
+   item.miter = reader.next() / 100;} if (Math.floor(item.flags / 256) % 2 === 1) { var dashCount = reader.next();
+   item.dashes = []; for (k = 0; k < dashCount; k++) { item.dashes[k] = reader.next() / q;}
+   item.dashOffset = zigzag() / q;} item.steps = reader.next(); drawing.items[i] = item;} var kindsAt = reader.at;
+ var stepTotal = 0; for (i = 0; i < itemCount; i++) { stepTotal += drawing.items[i].steps;}
+ reader.at = kindsAt + stepTotal; var penX = 0; var penY = 0; var kindIndex = kindsAt; for (i = 0; i < itemCount; i++) {
+  var kinds = []; var points = []; for (k = 0; k < drawing.items[i].steps; k++) { var kind = bytes[kindIndex];
+   kindIndex++; kinds[k] = kind; var pointCount = kind === 2 ? 3 : kind === 3 ? 0 : 1; var p;
+   for (p = 0; p < pointCount; p++) { penX += zigzag(); penY += zigzag(); points.push(penX / q, penY / q);}}
+  drawing.items[i].kinds = kinds; drawing.items[i].points = points;} if (reader.at !== bytes.length) {
+  dkThrow("DK SVG: the drawing data has the wrong size.");} return drawing;}
 function dkRenderSVG(drawing, pixelWidth, pixelHeight) {
-    /* jshint ignore:start */
-    var img = createGraphics(pixelWidth, pixelHeight, JAVA2D);
-    var snapshot = img.get();
-    if (!snapshot || !snapshot.sourceImg ||
-        typeof snapshot.sourceImg.getContext !== "function") {
-        dkThrow("DK SVG: canvas snapshot unavailable.");
-    }
-    var ctx = snapshot.sourceImg.getContext("2d");
-    var caps = ["butt", "round", "square"];
-    var joins = ["miter", "round", "bevel"];
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, pixelWidth, pixelHeight);
-    ctx.setTransform(pixelWidth / drawing.w, 0, 0, pixelHeight / drawing.h, 0, 0);
-    var i;
-    for (i = 0; i < drawing.items.length; i++) {
-        var item = drawing.items[i];
-        var pts = item.points;
-        var at = 0;
-        var k;
-        ctx.beginPath();
-        for (k = 0; k < item.kinds.length; k++) {
-            var kind = item.kinds[k];
-            if (kind === 0) {
-                ctx.moveTo(pts[at], pts[at + 1]);
-                at += 2;
-            } else if (kind === 1) {
-                ctx.lineTo(pts[at], pts[at + 1]);
-                at += 2;
-            } else if (kind === 2) {
-                ctx.bezierCurveTo(pts[at], pts[at + 1], pts[at + 2], pts[at + 3], pts[at + 4], pts[at + 5]);
-                at += 6;
-            } else {
-                ctx.closePath();
-            }
-        }
-        if (item.fillColor >= 0) {
-            ctx.fillStyle = drawing.colors[item.fillColor];
-            ctx.fill(Math.floor(item.flags / 4) % 2 === 1 ? "evenodd" : "nonzero");
-        }
-        if (item.strokeColor >= 0) {
-            ctx.lineWidth = item.lineWidth;
-            ctx.lineCap = caps[Math.floor(item.flags / 8) % 4] || "butt";
-            ctx.lineJoin = joins[Math.floor(item.flags / 32) % 4] || "miter";
-            ctx.miterLimit = item.miter;
-            if (ctx.setLineDash) {
-                ctx.setLineDash(item.dashes || []);
-                ctx.lineDashOffset = item.dashOffset;
-            }
-            ctx.strokeStyle = drawing.colors[item.strokeColor];
-            ctx.stroke();
-        }
-    }
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    img.image(snapshot, 0, 0);
-    return img;
-    /* jshint ignore:end */
+/* jshint ignore:start */
+ var img = createGraphics(pixelWidth, pixelHeight, JAVA2D); var snapshot = img.get();
+ if (!snapshot || !snapshot.sourceImg || typeof snapshot.sourceImg.getContext !== "function") {
+  dkThrow("DK SVG: canvas snapshot unavailable.");} var ctx = snapshot.sourceImg.getContext("2d");
+ var caps = [ "butt", "round", "square" ]; var joins = [ "miter", "round", "bevel" ];
+ ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, pixelWidth, pixelHeight);
+ ctx.setTransform(pixelWidth / drawing.w, 0, 0, pixelHeight / drawing.h, 0, 0); var i;
+ for (i = 0; i < drawing.items.length; i++) { var item = drawing.items[i]; var pts = item.points; var at = 0; var k;
+  ctx.beginPath(); for (k = 0; k < item.kinds.length; k++) { var kind = item.kinds[k]; if (kind === 0) {
+    ctx.moveTo(pts[at], pts[at + 1]); at += 2; } else if (kind === 1) { ctx.lineTo(pts[at], pts[at + 1]); at += 2;
+   } else if (kind === 2) { ctx.bezierCurveTo(pts[at], pts[at + 1], pts[at + 2], pts[at + 3], pts[at + 4], pts[at + 5]);
+    at += 6; } else { ctx.closePath();}} if (item.fillColor >= 0) { ctx.fillStyle = drawing.colors[item.fillColor];
+   ctx.fill(Math.floor(item.flags / 4) % 2 === 1 ? "evenodd" : "nonzero");} if (item.strokeColor >= 0) {
+   ctx.lineWidth = item.lineWidth; ctx.lineCap = caps[Math.floor(item.flags / 8) % 4] || "butt";
+   ctx.lineJoin = joins[Math.floor(item.flags / 32) % 4] || "miter"; ctx.miterLimit = item.miter; if (ctx.setLineDash) {
+    ctx.setLineDash(item.dashes || []); ctx.lineDashOffset = item.dashOffset;}
+   ctx.strokeStyle = drawing.colors[item.strokeColor]; ctx.stroke();}} ctx.setTransform(1, 0, 0, 1, 0, 0);
+ img.image(snapshot, 0, 0); return img;
+/* jshint ignore:end */
 }
-
-// Draws the picture with its top-left corner at (x, y). size 1 = its natural
-// size, 2 = twice as big, and so on.
-function dkDrawSVG(x, y, size, dat) {
-    if (!dat._drawing) {
-        dat._drawing = dkDecodeSVG(dat);
-    }
-    var drawing = dat._drawing;
-    if (size === undefined) {
-        size = 1;
-    }
-    var drawWidth = Math.max(1, Math.round(drawing.w * size));
-    var drawHeight = Math.max(1, Math.round(drawing.h * size));
-    // Very large sizes are rendered at most 4096 pixels on a side (keeping the
-    // shape) and then stretched to fit, so they don't run out of memory.
-    var fit = Math.min(1, 4096 / Math.max(drawWidth, drawHeight));
-    var pixelWidth = Math.max(1, Math.round(drawWidth * fit));
-    var pixelHeight = Math.max(1, Math.round(drawHeight * fit));
-    var picture = null;
-    var i;
-    for (i = 0; i < drawing.sizes.length; i++) {
-        if (drawing.sizes[i].w === pixelWidth && drawing.sizes[i].h === pixelHeight) {
-            picture = drawing.sizes[i].img;
-        }
-    }
-    if (!picture) {
-        picture = dkRenderSVG(drawing, pixelWidth, pixelHeight);
-        drawing.sizes.push({ w: pixelWidth, h: pixelHeight, img: picture });
-        if (drawing.sizes.length > 4) {
-            drawing.sizes.shift();
-        }
-    }
-    image(picture, x, y, drawWidth, drawHeight);
-}
+function dkDrawSVG(x, y, size, dat) { if (!dat._drawing) { dat._drawing = dkDecodeSVG(dat);} var drawing = dat._drawing;
+ if (size === undefined) { size = 1;} var drawWidth = Math.max(1, Math.round(drawing.w * size));
+ var drawHeight = Math.max(1, Math.round(drawing.h * size));
+ var fit = Math.min(1, 4096 / Math.max(drawWidth, drawHeight));
+ var pixelWidth = Math.max(1, Math.round(drawWidth * fit)); var pixelHeight = Math.max(1, Math.round(drawHeight * fit));
+ var picture = null; var i; for (i = 0; i < drawing.sizes.length; i++) {
+  if (drawing.sizes[i].w === pixelWidth && drawing.sizes[i].h === pixelHeight) { picture = drawing.sizes[i].img;}}
+ if (!picture) { picture = dkRenderSVG(drawing, pixelWidth, pixelHeight); drawing.sizes.push({ w: pixelWidth,
+   h: pixelHeight, img: picture}); if (drawing.sizes.length > 4) { drawing.sizes.shift();}}
+ image(picture, x, y, drawWidth, drawHeight);}
 // DK SVG SUPPORT END
 // ]
-
-
-
 
 </pre>
     </section>
