@@ -23,6 +23,13 @@
    ========================================================================== */
 window.DK_UPDATES = [
     {
+        title: 'DASH Parkour: Mega Multiplayer',
+        date: '2026-11-24',
+        description: "The Mega Multiplayer update for DASH Parkour is here! It brings many multiplayer bug fixes, so parties, spectating and races all run smoother than ever.\n\nThere are also 2 brand-new modes. In RELAY, you race in teams of two: when your runner falls, their teammate takes over right where they left off. In FREEZE, it's red light, green light: the Parkour Master is watching, and if you move on a red light, you're out!\n\nOn top of that, we've added countless skin animations and updates, so every skin looks better than ever.\n\nWe are hard at work on our first Unity game: Funny Physics 3D! It should be releasing in the next month, so look out for that!",
+        image: 'images/dash-mega-multiplayer.png',
+        games: ['dash-parkour']
+    },
+    {
         title: 'Welcome to the new DK website!',
         date: '2026-11-09',
         description: "We rebuilt digitsandkineto.com from the ground up! The homepage now has every one of our games in one place, and each game gets its own page with a banner, description and play button.\n\nWe also released DASH Parkour 1.1 with multiplayer, and we're hard at work on our first Unity game. We'll post progress here as it happens, so check back soon!",
